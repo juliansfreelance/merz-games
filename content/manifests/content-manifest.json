@@ -1,0 +1,69 @@
+{
+  "version": "0.1.0",
+  "brands": [
+    {
+      "id": "radiesse",
+      "name": "Radiesse",
+      "version": "0.1.0",
+      "enabled": true,
+      "order": 1
+    },
+    {
+      "id": "ultherapy",
+      "name": "Ultherapy",
+      "version": "0.1.0",
+      "enabled": true,
+      "order": 2
+    }
+  ],
+  "games": [
+    {
+      "id": "memory",
+      "name": "Encuentra la Pareja",
+      "version": "0.1.0",
+      "minAppVersion": "0.1.0",
+      "enabled": true
+    },
+    {
+      "id": "triqui",
+      "name": "Triqui (Tres en Raya)",
+      "version": "0.1.0",
+      "minAppVersion": "0.1.0",
+      "enabled": true
+    }
+  ],
+  "experiences": [
+    {
+      "id": "radiesse-memory",
+      "brandId": "radiesse",
+      "gameId": "memory",
+      "version": "0.1.0",
+      "enabled": true,
+      "order": 1
+    },
+    {
+      "id": "ultherapy-memory",
+      "brandId": "ultherapy",
+      "gameId": "memory",
+      "version": "0.1.0",
+      "enabled": true,
+      "order": 2
+    },
+    {
+      "id": "radiesse-triqui",
+      "brandId": "radiesse",
+      "gameId": "triqui",
+      "version": "0.1.0",
+      "enabled": true,
+      "order": 3
+    },
+    {
+      "id": "ultherapy-triqui",
+      "brandId": "ultherapy",
+      "gameId": "triqui",
+      "version": "0.1.0",
+      "enabled": true,
+      "order": 4
+    }
+  ]
+}

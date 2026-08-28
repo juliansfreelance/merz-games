@@ -30,6 +30,7 @@ yarn-error.log
 .history/*
 
 # Miscellaneous
+/.angular/*
 /.angular/cache
 .sass-cache/
 /connect.lock
@@ -42,3 +43,14 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Agents
+.agents/
+.antigravity/
+skills-lock.json
+
+# Resources
+/resources/
+
+# Tauri
+/src-tauri/target/
