@@ -8,4 +8,3 @@ export interface ContentManifest {
   games: Game[];
   experiences: GameExperience[];
 }
-export type PlatformKind = 'browser' | 'tauri';

@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { PlatformService } from './core/platform/platform.service';
 
@@ -11,8 +11,5 @@ import { PlatformService } from './core/platform/platform.service';
 export class App {
   private readonly platformService = inject(PlatformService);
 
-  protected readonly title = signal('Merz Games');
-  protected readonly isNative = this.platformService.isNative;
-  protected readonly platformKind = this.platformService.platformKind;
   protected readonly appVersion = this.platformService.appVersion;
 }
