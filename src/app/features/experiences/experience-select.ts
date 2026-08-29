@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, effect, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CatalogService } from '../../core/catalog/catalog';
 import { KioskButton } from '../shared/kiosk-button';
@@ -10,6 +10,8 @@ import { map } from 'rxjs/operators';
  * Selector de experiencias de una marca.
  * @for sobre experiencesForBrand(brandId) — cero listas hardcodeadas.
  * Estado vacío claro si la marca no tiene experiencias válidas.
+ * Al resolverse el brandId de la ruta, actualiza `catalog.selectedBrand`
+ * para que sea coherente tanto en navegación normal como en acceso directo.
  */
 @Component({
   selector: 'app-experience-select',
@@ -82,6 +84,16 @@ export class ExperienceSelect {
   protected readonly experiences = computed(() =>
     this.catalog.experiencesForBrand(this.brandId()),
   );
+
+  constructor() {
+    // Mantener selectedBrand coherente cuando se accede directamente a la ruta.
+    effect(() => {
+      const id = this.brandId();
+      if (id) {
+        this.catalog.setSelectedBrand(id);
+      }
+    });
+  }
 
   protected brandName(): string {
     return this.catalog.getBrandById(this.brandId())?.name ?? this.brandId();

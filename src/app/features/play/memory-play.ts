@@ -1,11 +1,12 @@
 import { Component, inject, input } from '@angular/core';
-import { Router } from '@angular/router';
+import { GameSession } from '../../core/session/game-session';
+import { ExperienceAssets, ExperienceConfig, ExperienceTheme } from '../../core/catalog/game-experience.model';
 import { KioskButton } from '../shared/kiosk-button';
-import { PlayResult } from '../../core/catalog/play-result.model';
 
 /**
  * Stub del motor Memory (Encuentra la Pareja).
  * Fase 2: placeholder de UI para validar navegación.
+ * Fase 3: cableado a GameSession (vidas reales, no Router directo).
  * Las Fases 4–5 reemplazarán este stub por la lógica real de Memory.
  */
 @Component({
@@ -40,13 +41,16 @@ import { PlayResult } from '../../core/catalog/play-result.model';
         <p class="text-center text-[11px] text-neutral-600 uppercase tracking-wider">
           [Provisional · Solo QA]
         </p>
-        <app-kiosk-button variant="primary" (click)="simulate('win')">
+        <p class="text-center text-sm text-neutral-400">
+          Vidas: <span class="font-bold text-white">{{ session.remainingLives() }}</span>
+        </p>
+        <app-kiosk-button variant="primary" (click)="simulateWin()">
           Simular victoria
         </app-kiosk-button>
-        <app-kiosk-button variant="secondary" (click)="simulate('lose')">
+        <app-kiosk-button variant="secondary" (click)="simulateLose()">
           Simular derrota
         </app-kiosk-button>
-        <app-kiosk-button variant="ghost" (click)="simulate('out-of-lives')">
+        <app-kiosk-button variant="ghost" (click)="simulateOutOfLives()">
           Simular sin intentos
         </app-kiosk-button>
         <app-kiosk-button variant="ghost" (click)="goBack()">
@@ -61,14 +65,40 @@ export class MemoryPlay {
   readonly experienceId = input.required<string>();
   readonly brandId = input.required<string>();
   readonly gameId = input.required<string>();
+  readonly remainingLives = input<number>(3);
+  /** Personalización visual pasada por GameHost (vacía en Fase 3). */
+  readonly theme = input<ExperienceTheme>({});
+  /** Activos locales pasados por GameHost (vacíos en Fase 3). */
+  readonly assets = input<ExperienceAssets>({});
+  /** Configuración del motor pasada por GameHost (vacía en Fase 3). */
+  readonly config = input<ExperienceConfig>({});
 
-  private readonly router = inject(Router);
+  protected readonly session = inject(GameSession);
 
-  simulate(result: PlayResult): void {
-    this.router.navigate(['/result', this.experienceId(), result]);
+  /** [QA] Simula victoria directa. */
+  simulateWin(): void {
+    this.session.complete('win');
+  }
+
+  /** [QA] Simula derrota con descuento de una vida (puede llegar a out-of-lives). */
+  simulateLose(): void {
+    this.session.loseLife();
+  }
+
+  /**
+   * [QA] Simula que el jugador se queda sin vidas:
+   * llama loseLife() hasta agotarlas — el servicio navega automáticamente.
+   */
+  simulateOutOfLives(): void {
+    const lives = this.session.remainingLives();
+    for (let i = 0; i < lives; i++) {
+      this.session.loseLife();
+    }
   }
 
   goBack(): void {
-    this.router.navigate(['/brands', this.brandId(), 'games']);
+    // Navegar al selector de la marca activa; la sesión queda pendiente
+    // (el guard de experiencia reiniciará al volver a /play).
+    window.history.back();
   }
 }

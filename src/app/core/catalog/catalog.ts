@@ -1,11 +1,21 @@
-import { computed, Injectable, signal } from '@angular/core';
-import { inject } from '@angular/core';
+import {
+  computed,
+  effect,
+  inject,
+  Injectable,
+  linkedSignal,
+  signal,
+} from '@angular/core';
 import { PlatformService } from '../platform/platform.service';
+import { AppLogger } from '../logging/app-error';
 import { ContentManifest } from './content-manifest.model';
 import { Brand } from './brand.model';
 import { Game } from './game.model';
 import { GameExperience } from './game-experience.model';
 import manifestSeed from '../../../../content/manifests/content-manifest.json';
+
+/** Clave de localStorage donde se persiste el último manifest válido. */
+const MANIFEST_STORAGE_KEY = 'merz-games.catalog-manifest';
 
 /**
  * Compara dos strings de versión semver (formato "X.Y.Z").
@@ -24,24 +34,80 @@ export function semverGte(version: string, minRequired: string): boolean {
 }
 
 /**
- * Lector mínimo de catálogo (Fase 2).
+ * Valida un manifest: relaciones de marcas/motores, enabled, minAppVersion.
+ * Retorna una lista de errores (vacía si es válido).
+ */
+function validateManifest(
+  manifest: ContentManifest,
+  appVersion: string,
+): string[] {
+  const errors: string[] = [];
+
+  if (
+    !manifest ||
+    !Array.isArray(manifest.brands) ||
+    !Array.isArray(manifest.games) ||
+    !Array.isArray(manifest.experiences)
+  ) {
+    errors.push('Estructura de manifest inválida: faltan colecciones.');
+    return errors;
+  }
+
+  const brandMap = new Map<string, Brand>(manifest.brands.map((b) => [b.id, b]));
+  const gameMap = new Map<string, Game>(manifest.games.map((g) => [g.id, g]));
+
+  for (const exp of manifest.experiences) {
+    const brand = brandMap.get(exp.brandId);
+    if (!brand) {
+      errors.push(`Experiencia "${exp.id}": marca "${exp.brandId}" no encontrada.`);
+      continue;
+    }
+    if (!brand.enabled) {
+      errors.push(`Experiencia "${exp.id}": marca "${exp.brandId}" está deshabilitada.`);
+    }
+    const game = gameMap.get(exp.gameId);
+    if (!game) {
+      errors.push(`Experiencia "${exp.id}": motor "${exp.gameId}" no encontrado.`);
+      continue;
+    }
+    if (!game.enabled) {
+      errors.push(`Experiencia "${exp.id}": motor "${exp.gameId}" está deshabilitado.`);
+    }
+    if (game.minAppVersion && !semverGte(appVersion, game.minAppVersion)) {
+      errors.push(
+        `Experiencia "${exp.id}": motor "${exp.gameId}" requiere app >= ${game.minAppVersion}.`,
+      );
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * CatalogService — gestor local del catálogo (Fase 3+).
  *
- * Carga la semilla local una sola vez vía import estático (offline-first).
- * Expone Signals computados de marcas y experiencias válidas.
+ * Responsabilidades:
+ * - Arrancar con la semilla embebida (offline-first garantizado).
+ * - Intentar recuperar el último manifest válido persistido en localStorage.
+ * - Validar relaciones antes de activar cualquier manifest.
+ * - Persistir cada manifest válido activo (reemplazo atómico).
+ * - Exponer Signals: `brands`, `experiences`, `selectedBrand`, `experiencesForSelectedBrand`.
  *
- * NO implementa persistencia, red, rollback ni CatalogManager completo
- * (eso es Fase 3).
+ * NO hace fetch de red, NO importa @tauri-apps/api, NO implementa el updater.
  */
 @Injectable({
   providedIn: 'root',
 })
 export class CatalogService {
   private readonly platform = inject(PlatformService);
+  private readonly logger = inject(AppLogger);
 
-  /** Manifest en memoria (solo la semilla local en Fase 2). */
+  /** Manifest activo en memoria. Arranca con la semilla. */
   private readonly manifest = signal<ContentManifest>(
     manifestSeed as ContentManifest,
   );
+
+  // ─── Signals públicos de catálogo ───────────────────────────────────────────
 
   /** Marcas habilitadas, ordenadas por `order`. */
   readonly brands = computed<Brand[]>(() =>
@@ -81,6 +147,45 @@ export class CatalogService {
       .sort((a, b) => a.order - b.order);
   });
 
+  /**
+   * Marca actualmente seleccionada.
+   * `linkedSignal`: al cambiar el catálogo se ajusta automáticamente.
+   * - Si la marca seleccionada sigue en `brands` → se mantiene.
+   * - Si desapareció → primera marca habilitada (o `undefined`).
+   */
+  readonly selectedBrand = linkedSignal<Brand[], Brand | undefined>({
+    source: this.brands,
+    computation: (newBrands, prev) => {
+      if (!prev?.value) return newBrands[0];
+      const stillExists = newBrands.find((b) => b.id === prev.value?.id);
+      return stillExists ?? newBrands[0];
+    },
+  });
+
+  /** Experiencias válidas de la marca seleccionada. */
+  readonly experiencesForSelectedBrand = computed<GameExperience[]>(() => {
+    const brand = this.selectedBrand();
+    if (!brand) return [];
+    return this.experiences().filter((exp) => exp.brandId === brand.id);
+  });
+
+  constructor() {
+    // Intentar cargar el manifest persistido al arrancar.
+    this.tryLoadPersistedManifest();
+
+    // Persistir el manifest activo cada vez que cambie (side effect real).
+    effect(() => {
+      const current = this.manifest();
+      try {
+        this.platform.storageSet(MANIFEST_STORAGE_KEY, JSON.stringify(current));
+      } catch {
+        this.logger.warn('CatalogService', 'No se pudo persistir el manifest.');
+      }
+    });
+  }
+
+  // ─── API de consulta ────────────────────────────────────────────────────────
+
   /** Experiencias válidas filtradas por brandId. */
   experiencesForBrand(brandId: string): GameExperience[] {
     return this.experiences().filter((exp) => exp.brandId === brandId);
@@ -103,5 +208,81 @@ export class CatalogService {
     const brand = this.getBrandById(brandId);
     if (!brand?.enabled) return false;
     return this.experiencesForBrand(brandId).length > 0;
+  }
+
+  /**
+   * Establece la marca activa (p. ej. al entrar a `/brands/:brandId/games`).
+   * Si `brandId` no está en `brands`, no se actualiza.
+   */
+  setSelectedBrand(brandId: string): void {
+    const brand = this.brands().find((b) => b.id === brandId);
+    if (brand) {
+      this.selectedBrand.set(brand);
+    }
+  }
+
+  /**
+   * Intenta cargar un manifest externo (p. ej. entregado por el updater en Fase 6).
+   * Si es válido, lo activa. Si no, conserva el actual y registra el error.
+   */
+  loadManifest(rawJson: unknown): boolean {
+    const appVersion = this.platform.appVersion();
+    const candidate = rawJson as ContentManifest;
+    const errors = validateManifest(candidate, appVersion);
+    if (errors.length > 0) {
+      this.logger.warn(
+        'CatalogService',
+        'Manifest rechazado, conservando el actual:',
+        errors,
+      );
+      return false;
+    }
+    this.manifest.set(candidate);
+    this.logger.info('CatalogService', 'Manifest externo activado.', candidate.version);
+    return true;
+  }
+
+  // ─── Internos ───────────────────────────────────────────────────────────────
+
+  /**
+   * Intenta recuperar y activar el último manifest persistido en storage.
+   * Si falla (ausente, corrupto, inválido) → la semilla embebida permanece activa.
+   * Jamás deja el kiosco sin catálogo.
+   */
+  private tryLoadPersistedManifest(): void {
+    const raw = this.platform.storageGet(MANIFEST_STORAGE_KEY);
+    if (!raw) {
+      this.logger.info('CatalogService', 'Sin manifest persistido, usando semilla.');
+      return;
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      this.logger.warn(
+        'CatalogService',
+        'Manifest persistido corrupto (JSON inválido), usando semilla.',
+      );
+      return;
+    }
+
+    const appVersion = this.platform.appVersion();
+    const errors = validateManifest(parsed as ContentManifest, appVersion);
+    if (errors.length > 0) {
+      this.logger.warn(
+        'CatalogService',
+        'Manifest persistido inválido, usando semilla:',
+        errors,
+      );
+      return;
+    }
+
+    this.manifest.set(parsed as ContentManifest);
+    this.logger.info(
+      'CatalogService',
+      'Manifest persistido cargado:',
+      (parsed as ContentManifest).version,
+    );
   }
 }

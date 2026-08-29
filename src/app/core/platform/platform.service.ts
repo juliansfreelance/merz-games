@@ -28,6 +28,45 @@ export class PlatformService {
     return this._appVersion.asReadonly();
   }
 
+  /**
+   * Lee un valor del almacén persistente local.
+   *
+   * Implementación actual: `localStorage` del WebView.
+   * En Tauri el WebView comparte el mismo `localStorage`, por lo que no se
+   * requiere ningún plugin adicional en Fases 3–5.
+   *
+   * PUNTO DE EXTENSIÓN (Fase 6): reemplazar el cuerpo de este método para
+   * delegar al plugin `@tauri-apps/plugin-fs` y escribir en AppData cuando
+   * se requiera acceso nativo al sistema de archivos.
+   */
+  storageGet(key: string): string | null {
+    try {
+      return typeof localStorage !== 'undefined'
+        ? localStorage.getItem(key)
+        : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Escribe un valor en el almacén persistente local.
+   *
+   * Misma nota de extensión que `storageGet`.
+   * La escritura es atómica a nivel de `localStorage.setItem`:
+   * si falla (cuota excedida, modo privado), se captura y se ignora
+   * para no interrumpir el flujo de juego.
+   */
+  storageSet(key: string, value: string): void {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(key, value);
+      }
+    } catch {
+      // Cuota excedida o storage deshabilitado: continuar sin persistir.
+    }
+  }
+
   private async initializeVersion(): Promise<void> {
     if (this._isNative) {
       try {
@@ -40,3 +79,4 @@ export class PlatformService {
     }
   }
 }
+

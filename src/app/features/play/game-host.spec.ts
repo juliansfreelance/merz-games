@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { GameHost } from './game-host';
 import { CatalogService } from '../../core/catalog/catalog';
+import { GameSession } from '../../core/session/game-session';
 import { PlatformService } from '../../core/platform/platform.service';
 import { ActivatedRoute } from '@angular/router';
 import { of } from 'rxjs';
@@ -25,14 +26,25 @@ describe('GameHost', () => {
       },
     };
 
+    const mockSession = {
+      remainingLives: signal(3),
+      start: vi.fn(),
+      loseLife: vi.fn(),
+      complete: vi.fn(),
+    };
+
     const mockPlatform = { appVersion: signal('0.1.0') };
 
     TestBed.configureTestingModule({
       imports: [GameHost],
       providers: [
         { provide: CatalogService, useValue: mockCatalog },
+        { provide: GameSession, useValue: mockSession },
         { provide: PlatformService, useValue: mockPlatform },
-        provideRouter([]),
+        provideRouter([
+          { path: 'result/:experienceId/:result', children: [] },
+          { path: '**', children: [] },
+        ]),
         {
           provide: ActivatedRoute,
           useValue: {
@@ -44,30 +56,35 @@ describe('GameHost', () => {
 
     const fixture = TestBed.createComponent(GameHost);
     fixture.detectChanges();
-    return fixture;
+    return { fixture, mockSession };
   }
 
   it('should resolve memory stub for radiesse-memory', () => {
-    const fixture = setup('radiesse-memory');
+    const { fixture } = setup('radiesse-memory');
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('app-memory-play')).toBeTruthy();
   });
 
   it('should resolve triqui stub for radiesse-triqui', () => {
-    const fixture = setup('radiesse-triqui');
+    const { fixture } = setup('radiesse-triqui');
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('app-triqui-play')).toBeTruthy();
   });
 
   it('should show unavailable screen for unknown gameId', () => {
-    const fixture = setup('unknown-engine');
+    const { fixture } = setup('unknown-engine');
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('app-unavailable-screen')).toBeTruthy();
   });
 
   it('should show unavailable screen for unknown experienceId', () => {
-    const fixture = setup('no-existe');
+    const { fixture } = setup('no-existe');
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('app-unavailable-screen')).toBeTruthy();
+  });
+
+  it('should call session.start() when experience is resolved', () => {
+    const { mockSession } = setup('radiesse-memory');
+    expect(mockSession.start).toHaveBeenCalledWith('radiesse-memory');
   });
 });

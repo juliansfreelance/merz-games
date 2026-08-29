@@ -68,6 +68,7 @@ export class BrandSelect {
   private readonly router = inject(Router);
 
   selectBrand(brandId: string): void {
+    this.catalog.setSelectedBrand(brandId);
     this.router.navigate(['/brands', brandId, 'games']);
   }
 
