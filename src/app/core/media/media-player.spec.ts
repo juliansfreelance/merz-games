@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { MediaPlayer } from './media-player';
 import { AppLogger } from '../logging/app-error';
+import { KioskSettings } from '../settings/kiosk-settings';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -11,16 +12,18 @@ class MockMediaElement {
   volume = 1;
   preload = '';
   currentTime = 0;
+  paused = true;
+  ended = false;
 
   play = vi.fn().mockResolvedValue(undefined);
-  pause = vi.fn();
+  pause = vi.fn().mockImplementation(() => { this.paused = true; });
   load = vi.fn();
 }
 
-function buildPlayer() {
-  // Reemplazar createElement para devolver mocks
+function buildPlayer(soundEnabled = true) {
   const elements: MockMediaElement[] = [];
   const origCreateElement = document.createElement.bind(document);
+
   vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
     if (tag === 'audio' || tag === 'video') {
       const el = new MockMediaElement() as unknown as HTMLElement;
@@ -30,13 +33,24 @@ function buildPlayer() {
     return origCreateElement(tag);
   });
 
+  const mockSettings = {
+    soundEnabled: vi.fn().mockReturnValue(soundEnabled),
+    screensaverMode: vi.fn().mockReturnValue('classic'),
+    memoryPairs: vi.fn().mockReturnValue(null),
+  };
+
   TestBed.configureTestingModule({
-    providers: [MediaPlayer, AppLogger],
+    providers: [
+      MediaPlayer,
+      AppLogger,
+      { provide: KioskSettings, useValue: mockSettings },
+    ],
   });
 
   return {
     player: TestBed.inject(MediaPlayer),
     elements,
+    mockSettings,
   };
 }
 
@@ -48,32 +62,31 @@ describe('MediaPlayer', () => {
     vi.restoreAllMocks();
   });
 
-  it('play() debe llamar a element.play()', async () => {
+  // ── Canal media genérico ──────────────────────────────────────────────────
+
+  it('play() debe llamar a element.play()', () => {
     const { player, elements } = buildPlayer();
     player.play('assets/sounds/test.mp3');
-
     expect(elements.length).toBeGreaterThan(0);
     expect(elements[elements.length - 1].play).toHaveBeenCalled();
   });
 
-  it('play() debe respetar loop y volume', async () => {
+  it('play() debe respetar loop y volume', () => {
     const { player, elements } = buildPlayer();
     player.play('assets/sounds/test.mp3', { loop: true, volume: 0.5 });
-
     const el = elements[elements.length - 1];
     expect(el.loop).toBe(true);
     expect(el.volume).toBe(0.5);
   });
 
-  it('stop() debe pausar y limpiar el elemento activo', () => {
+  it('stop() no debe corromper el preloadCache', () => {
     const { player, elements } = buildPlayer();
-    player.play('assets/sounds/test.mp3');
-
-    const el = elements[elements.length - 1];
+    player.preload('assets/sounds/cached.mp3');
+    const cachedEl = elements[0];
+    player.play('assets/sounds/cached.mp3');
     player.stop();
-
-    expect(el.pause).toHaveBeenCalled();
-    expect(el.src).toBe('');
+    // El elemento del cache NO debe tener src vacío
+    expect(cachedEl.src).not.toBe('');
   });
 
   it('stop() sin reproducción activa no debe lanzar error', () => {
@@ -81,32 +94,97 @@ describe('MediaPlayer', () => {
     expect(() => player.stop()).not.toThrow();
   });
 
-  it('play() dos veces debe detener el primero', () => {
+  it('play() dos veces detiene el canal genérico previo', () => {
     const { player, elements } = buildPlayer();
     player.play('assets/sounds/a.mp3');
-    const first = elements[0];
+    const firstCount = elements.length;
     player.play('assets/sounds/b.mp3');
+    // El primero debe haberse pausado
+    expect(elements[firstCount - 1].pause).toHaveBeenCalled();
+  });
 
-    expect(first.pause).toHaveBeenCalled();
-    expect(first.src).toBe('');
+  it('volume debe quedar entre 0 y 1 (clamp)', () => {
+    const { player, elements } = buildPlayer();
+    player.play('assets/sounds/test.mp3', { volume: 2.5 });
+    expect(elements[elements.length - 1].volume).toBe(1);
+    player.stop();
+    player.play('assets/sounds/test.mp3', { volume: -1 });
+    expect(elements[elements.length - 1].volume).toBe(0);
   });
 
   it('preload() no debe iniciar reproducción', () => {
     const { player, elements } = buildPlayer();
     player.preload('assets/sounds/test.mp3');
-
     expect(elements.length).toBe(1);
     expect(elements[0].play).not.toHaveBeenCalled();
     expect(elements[0].preload).toBe('auto');
   });
 
-  it('volume debe quedar entre 0 y 1 (clamp)', () => {
+  // ── Canal SFX ─────────────────────────────────────────────────────────────
+
+  it('dos SFX seguidos no se cancelan entre sí', () => {
     const { player, elements } = buildPlayer();
+    player.playSfx('sfx/flip.mp3');
+    const sfx1Count = elements.length;
+    player.playSfx('sfx/match.mp3');
+    // El primer SFX no debe haberse pausado
+    expect(elements[sfx1Count - 1].pause).not.toHaveBeenCalled();
+    // Ambos deben haber llamado play()
+    expect(elements[sfx1Count - 1].play).toHaveBeenCalled();
+    expect(elements[elements.length - 1].play).toHaveBeenCalled();
+  });
 
-    player.play('assets/sounds/test.mp3', { volume: 2.5 });
-    expect(elements[elements.length - 1].volume).toBe(1);
+  it('SFX no corta el canal media genérico', () => {
+    const { player, elements } = buildPlayer();
+    player.play('assets/media.mp3');
+    const mediaEl = elements[elements.length - 1];
+    player.playSfx('sfx/flip.mp3');
+    // El canal media no se debe haber pausado
+    expect(mediaEl.pause).not.toHaveBeenCalled();
+  });
 
-    player.play('assets/sounds/test.mp3', { volume: -1 });
-    expect(elements[elements.length - 1].volume).toBe(0);
+  // ── Canal BGM ─────────────────────────────────────────────────────────────
+
+  it('BGM sobrevive a un SFX (no se pausa)', () => {
+    const { player, elements } = buildPlayer();
+    player.setBgm('audio/bgm.mp3');
+    player.unlockBgm();
+    const bgmIdx = elements.length - 1;
+    player.playSfx('sfx/flip.mp3');
+    expect(elements[bgmIdx].pause).not.toHaveBeenCalled();
+  });
+
+  it('unlockBgm() es idempotente (no reinicia la música)', () => {
+    const { player, elements } = buildPlayer();
+    player.setBgm('audio/bgm.mp3');
+    player.unlockBgm();
+    const callCountAfterFirst = elements[elements.length - 1].play.mock.calls.length;
+    player.unlockBgm();
+    expect(elements[elements.length - 1].play.mock.calls.length).toBe(callCountAfterFirst);
+  });
+
+  // ── soundEnabled = false ──────────────────────────────────────────────────
+
+  it('play() ignorado con soundEnabled = false', () => {
+    const { player, elements } = buildPlayer(false);
+    player.play('assets/test.mp3');
+    // No debe haber creado ningún elemento de audio
+    const playEl = elements.find(el => (el as MockMediaElement).play.mock.calls.length > 0);
+    expect(playEl).toBeUndefined();
+  });
+
+  it('playSfx() ignorado con soundEnabled = false', () => {
+    const { player, elements } = buildPlayer(false);
+    player.playSfx('sfx/flip.mp3');
+    const played = elements.filter(el => (el as MockMediaElement).play.mock.calls.length > 0);
+    expect(played).toHaveLength(0);
+  });
+
+  it('BGM no arranca con soundEnabled = false', () => {
+    const { player, elements } = buildPlayer(false);
+    player.setBgm('audio/bgm.mp3');
+    player.unlockBgm();
+    const played = elements.filter(el => (el as MockMediaElement).play.mock.calls.length > 0);
+    expect(played).toHaveLength(0);
   });
 });

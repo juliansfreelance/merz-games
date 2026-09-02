@@ -17,9 +17,17 @@ export interface ExperienceTheme {
 export interface ExperienceAssets {
   logo?: string;
   backgroundMusic?: string;
+  /** Dorso de las cartas para experiencias de Memoria. */
   cardBack?: string;
-  [key: string]: string | undefined;
+  /**
+   * Caras de las cartas para experiencias de Memoria.
+   * Array de URLs locales a los PNG individuales.
+   */
+  cardFaces?: string[];
+  /** Índice abierto para otros activos escalares o colecciones. */
+  [key: string]: string | string[] | undefined;
 }
+
 
 /** Parámetros de configuración específicos del motor. */
 export type ExperienceConfig = Record<string, string | number | boolean>;

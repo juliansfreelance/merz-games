@@ -39,4 +39,34 @@ describe('GameChrome', () => {
     expect(hearts.length).toBe(3);
     expect(hearts.filter((h) => h.active).length).toBe(1);
   });
+
+  it('debe renderizar un solo HUD de vidas y el botón de ayuda fuera de su contenedor', () => {
+    const host: HTMLElement = fixture.nativeElement;
+    const livesStatuses = host.querySelectorAll('[role="status"]');
+    expect(livesStatuses.length).toBe(1);
+
+    const helpButtons = host.querySelectorAll('button[aria-label="Ver instrucciones del juego"]');
+    expect(helpButtons.length).toBe(1);
+
+    const helpButton = helpButtons[0] as HTMLButtonElement;
+    const livesContainer = livesStatuses[0].closest('.rounded-2xl');
+    expect(livesContainer).toBeTruthy();
+    expect(livesContainer?.contains(helpButton)).toBe(false);
+    expect(helpButton.parentElement).toBe(livesContainer?.parentElement);
+  });
+
+  it('debe renderizar el botón de ayuda «?» y emitir evento help al pulsarlo', () => {
+    let helpEmitted = false;
+    component.help.subscribe(() => {
+      helpEmitted = true;
+    });
+
+    const host: HTMLElement = fixture.nativeElement;
+    const helpButton = host.querySelector('button[aria-label="Ver instrucciones del juego"]') as HTMLButtonElement;
+    expect(helpButton).toBeTruthy();
+    expect(helpButton.textContent?.trim()).toBe('?');
+
+    helpButton.click();
+    expect(helpEmitted).toBe(true);
+  });
 });

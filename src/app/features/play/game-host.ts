@@ -1,6 +1,7 @@
 import {
   Component,
   computed,
+  DestroyRef,
   effect,
   inject,
   Type,
@@ -14,16 +15,18 @@ import { GameSession } from '../../core/session/game-session';
 import { GameExperience } from '../../core/catalog/game-experience.model';
 import { UnavailableScreen } from '../shared/unavailable-screen';
 import { GameChrome } from '../shared/game-chrome';
+import { ResultScreen } from '../result/result-screen';
 import { MemoryPlay } from './memory-play';
 import { TriquiPlay } from './triqui-play';
 
-type GameStubInputs = Record<string, unknown>;
+type GameComponentInputs = Record<string, unknown>;
 
 /**
- * Registro de motores de juego conocidos.
+ * Registro de componentes de juego por gameId.
  * NO hay if/switch por marca; la lógica es puramente: gameId → componente.
+ * Fase 5: memory ya no es un stub; Fase 6 registrará triqui real.
  */
-const GAME_STUB_BY_ID: Readonly<Record<string, Type<unknown>>> = {
+const GAME_COMPONENT_BY_ID: Readonly<Record<string, Type<unknown>>> = {
   memory: MemoryPlay,
   triqui: TriquiPlay,
 };
@@ -32,11 +35,12 @@ const GAME_STUB_BY_ID: Readonly<Record<string, Type<unknown>>> = {
  * GameHost — Anfitrión genérico de experiencias de juego.
  * - Resuelve experienceId → experiencia → gameId → componente de juego.
  * - Envuelve el juego en el cromado `GameChrome`.
+ * - Superpone el overlay de resultado (glass) sin salir de `/play`.
  * - Sincroniza vidas con `GameSession`.
  */
 @Component({
   selector: 'app-game-host',
-  imports: [NgComponentOutlet, UnavailableScreen, GameChrome],
+  imports: [NgComponentOutlet, UnavailableScreen, GameChrome, ResultScreen],
   host: {
     class: 'flex flex-col flex-1 w-full h-full min-h-0 overflow-y-auto',
     style: 'touch-action: pan-y; -webkit-overflow-scrolling: touch;',
@@ -51,12 +55,25 @@ const GAME_STUB_BY_ID: Readonly<Record<string, Type<unknown>>> = {
         [introText]="gameIntro()"
         [remainingLives]="session.remainingLives()"
         (back)="goBackToGames()"
+        (help)="session.requestTutorial()"
       >
-        <ng-container
-          [ngComponentOutlet]="component"
-          [ngComponentOutletInputs]="resolvedInputs()"
-        />
+        @for (round of [session.round()]; track round) {
+          @if (round > 0) {
+            <ng-container
+              [ngComponentOutlet]="component"
+              [ngComponentOutletInputs]="resolvedInputs()"
+            />
+          }
+        }
       </app-game-chrome>
+      @if (session.playResult(); as result) {
+        <app-result-screen
+          [result]="result"
+          [experienceId]="experienceId()"
+          [brandName]="brandName()"
+          [gameName]="game()?.name ?? ''"
+        />
+      }
     } @else {
       <app-unavailable-screen
         title="Juego no disponible"
@@ -71,7 +88,7 @@ export class GameHost {
   private readonly catalog = inject(CatalogService);
   protected readonly session = inject(GameSession);
 
-  private readonly experienceId = toSignal(
+  protected readonly experienceId = toSignal(
     this.route.paramMap.pipe(map((p) => p.get('experienceId') ?? '')),
     { initialValue: '' },
   );
@@ -114,17 +131,18 @@ export class GameHost {
     );
   });
 
-  /** Componente stub resuelto para el gameId de la experiencia. undefined = no disponible. */
+  /** Componente de juego resuelto para el gameId de la experiencia. undefined = no disponible. */
   protected readonly resolvedComponent = computed<Type<unknown> | undefined>(() => {
     const exp = this.experience();
     if (!exp) return undefined;
-    return GAME_STUB_BY_ID[exp.gameId];
+    return GAME_COMPONENT_BY_ID[exp.gameId];
   });
 
   /** Inputs pasados al componente de juego via NgComponentOutlet. */
-  protected readonly resolvedInputs = computed<GameStubInputs | undefined>(() => {
+  protected readonly resolvedInputs = computed<GameComponentInputs | undefined>(() => {
     const exp = this.experience();
     if (!exp) return undefined;
+    const game = this.game();
     return {
       experienceId: exp.id,
       brandId: exp.brandId,
@@ -133,16 +151,23 @@ export class GameHost {
       theme: exp.theme ?? {},
       assets: exp.assets ?? {},
       config: exp.config ?? {},
+      blurTint: this.catalog.atmosphereForExperience?.(exp.id)?.blurTint
+        ?? this.brand()?.atmosphere?.blurTint,
+      // Configuración y activos del motor (nivel game.config / game.assets en la cascada)
+      gameConfig: game?.config ?? {},
+      gameAssets: game?.assets ?? {},
     };
   });
 
   constructor() {
     effect(() => {
       const exp = this.experience();
-      if (exp) {
+      if (exp && this.session.activeExperienceId() !== exp.id) {
         this.session.start(exp.id);
       }
     });
+
+    inject(DestroyRef).onDestroy(() => this.session.dismissResult());
   }
 
   goBackToGames(): void {

@@ -68,6 +68,10 @@ export class TriquiPlay {
   readonly theme = input<ExperienceTheme>({});
   readonly assets = input<ExperienceAssets>({});
   readonly config = input<ExperienceConfig>({});
+  /** Configuración maestra del motor (game.config). Opcional. */
+  readonly gameConfig = input<ExperienceConfig>({});
+  /** Assets del motor (game.assets). Opcional. */
+  readonly gameAssets = input<Record<string, unknown>>({});
 
   protected readonly session = inject(GameSession);
 

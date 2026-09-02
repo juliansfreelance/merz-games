@@ -134,6 +134,9 @@ export class CatalogService {
     manifestSeed as ContentManifest,
   );
 
+  /** Exposición del manifest completo (solo lectura). Necesario para leer campos raíz como `audio`. */
+  readonly rawManifest = this.manifest.asReadonly();
+
   // ─── Signals públicos de catálogo ───────────────────────────────────────────
 
   /** Atmósfera institucional activa del manifest (con fallback a semilla y DEFAULT_ATMOSPHERE). */

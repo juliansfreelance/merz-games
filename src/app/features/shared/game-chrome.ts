@@ -5,7 +5,7 @@ import { KioskDisclaimer } from './kiosk-disclaimer';
 /**
  * GameChrome — Cromado adaptativo de experiencia de juego con:
  * 1. Encabezado institucional centrado a una sola columna (HOY TU PIEL, TAMBIÉN GANA, Badge del juego).
- * 2. Cuerpo principal en 2 columnas en modo horizontal (Columna 1: Descripción / Columna 2: Vidas y Tablero)
+ * 2. Cuerpo principal en 2 columnas en modo horizontal (Columna 1: Descripción / Columna 2: Vidas arriba a la derecha y Tablero)
  *    y 1 columna centrada en modo vertical.
  * 3. Sticky Footer unificado en la base (Logo al 30% de ancho con mb, botón volver con mb, y disclaimers legales).
  */
@@ -54,36 +54,13 @@ import { KioskDisclaimer } from './kiosk-disclaimer';
             class="text-xs sm:text-sm lg:text-base text-neutral-300 max-w-2xl landscape:max-w-none mx-auto landscape:mx-0 leading-relaxed font-normal [&>strong]:font-bold [&>strong]:text-white px-1"
             [innerHTML]="introText()"
           ></div>
-
-          <!-- Intentos / Vidas en modo Vertical / Portrait -->
-          <div class="flex landscape:hidden items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-4 sm:px-6 py-2 backdrop-blur-md shrink-0 w-full max-w-xl mx-auto mt-2">
-            <span class="text-xs sm:text-sm uppercase tracking-widest text-neutral-300 font-bold">
-              Intentos restantes
-            </span>
-            <div class="flex items-center gap-2" role="status" [attr.aria-label]="remainingLives() + ' vidas restantes'">
-              @for (heart of heartsArray(); track heart.index) {
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  class="w-5 h-5 sm:w-6 sm:h-6 transition-all duration-300"
-                  [class.text-rose-500]="heart.active"
-                  [class.drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]]="heart.active"
-                  [class.text-white/20]="!heart.active"
-                  [class.scale-90]="!heart.active"
-                >
-                  <path d="m11.645 20.91-.007-.003-.022-.012a15.247 15.247 0 0 1-.383-.218 25.18 25.18 0 0 1-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3.5 7.02 3.5c1.82 0 3.393 1.056 4.23 2.593.837-1.537 2.41-2.593 4.23-2.593 2.306 0 4.77 1.822 4.77 4.75 0 3.924-2.438 7.11-4.739 9.266a25.175 25.175 0 0 1-4.244 3.17 15.247 15.247 0 0 1-.383.219l-.022.012-.007.004-.003.001a.752.752 0 0 1-.704 0l-.003-.001Z" />
-                </svg>
-              }
-            </div>
-          </div>
         </aside>
 
         <!-- COLUMNA 2: ÁREA DE JUEGO (INTENTOS EN HORIZONTAL + TABLERO) -->
         <main class="flex-1 min-w-0 flex flex-col justify-between items-center relative w-full gap-3">
 
-          <!-- Intentos / Vidas en modo Horizontal (Top Right) -->
-          <div class="hidden landscape:flex w-full items-center justify-end shrink-0">
+          <!-- Intentos / Vidas (arriba a la derecha) + ayuda al lado, fuera del contenedor -->
+          <div class="flex w-full items-center justify-end shrink-0 gap-3">
             <div class="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-2 backdrop-blur-md">
               <span class="text-xs uppercase tracking-widest text-neutral-300 font-bold">
                 Intentos restantes
@@ -104,11 +81,20 @@ import { KioskDisclaimer } from './kiosk-disclaimer';
                   </svg>
                 }
               </div>
+              <ng-content select="[lives-action]" />
             </div>
+            <button
+              type="button"
+              class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 border border-white/20 flex items-center justify-center text-white/80 hover:text-white text-xs sm:text-sm font-bold shadow-sm transition-all cursor-pointer select-none"
+              aria-label="Ver instrucciones del juego"
+              (click)="help.emit()"
+            >
+              ?
+            </button>
           </div>
 
-          <!-- Slot de Tablero de Juego -->
-          <div class="board-slot w-full flex items-center justify-center relative rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-md p-3 sm:p-5">
+          <!-- Slot de Tablero de Juego (con altura mínima garantizada para no comprimir las cartas) -->
+          <div class="board-slot flex-1 w-full min-h-[340px] sm:min-h-[380px] flex items-center justify-center relative rounded-3xl border border-white/10 bg-white/[0.03] p-3 sm:p-5">
             <ng-content />
           </div>
 
@@ -146,6 +132,7 @@ export class GameChrome {
   readonly maxLives = input<number>(3);
 
   readonly back = output<void>();
+  readonly help = output<void>();
 
   protected readonly cleanBrandName = computed(() => {
     return (this.brandName() || '').replace(/<[^>]*>/g, '').trim();

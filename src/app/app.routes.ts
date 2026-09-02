@@ -37,9 +37,8 @@ export const routes: Routes = [
   },
   {
     path: 'result/:experienceId/:result',
-    canActivate: [appInitGuard],
-    loadComponent: () =>
-      import('./features/result/result-screen').then((m) => m.ResultScreen),
+    redirectTo: '/play/:experienceId',
+    pathMatch: 'full',
   },
   {
     path: '**',

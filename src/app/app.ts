@@ -1,21 +1,31 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, effect, inject } from '@angular/core';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map, startWith } from 'rxjs/operators';
 import { PlatformService } from './core/platform/platform.service';
 import { CatalogService } from './core/catalog/catalog';
+import { MediaPlayer } from './core/media/media-player';
 import { FloatingGradient } from './features/shared/floating-gradient';
 import { Atmosphere } from './core/catalog/content-manifest.model';
+
+/** Volumen de BGM por defecto si el manifest no especifica uno. */
+const DEFAULT_BGM_VOLUME = 0.35;
 
 @Component({
   imports: [RouterOutlet, FloatingGradient],
   selector: 'app-root',
   styleUrl: './app.css',
   templateUrl: './app.html',
+  host: {
+    // El primer pointerup en cualquier punto del shell desbloquea el BGM.
+    // Solo el primer gesto real del usuario activa el audio (requisito de autoplay).
+    '(pointerup)': 'onFirstGesture()',
+  },
 })
 export class App {
   private readonly platformService = inject(PlatformService);
   private readonly catalog = inject(CatalogService);
+  private readonly mediaPlayer = inject(MediaPlayer);
   private readonly router = inject(Router);
 
   protected readonly appVersion = this.platformService.appVersion;
@@ -84,4 +94,28 @@ export class App {
 
     return undefined;
   });
+
+  constructor() {
+    // Configurar el BGM desde el manifest en cuanto el catálogo esté disponible.
+    // La reproducción NO arranca aquí: espera el primer gesto (onFirstGesture).
+    effect(() => {
+      const manifest = this.catalog.rawManifest();
+      const audio = manifest?.audio;
+      if (audio?.backgroundMusic) {
+        this.mediaPlayer.setBgm(
+          audio.backgroundMusic,
+          audio.volume ?? DEFAULT_BGM_VOLUME,
+        );
+      }
+    });
+  }
+
+  /**
+   * Llamado en el primer `pointerup` del host.
+   * Desbloquea el BGM una sola vez (unlockBgm() es idempotente).
+   * Requisito de la política de autoplay de navegadores y WebView2.
+   */
+  protected onFirstGesture(): void {
+    this.mediaPlayer.unlockBgm();
+  }
 }

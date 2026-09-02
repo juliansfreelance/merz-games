@@ -48,7 +48,7 @@ describe('Content Catalog Manifest Contract', () => {
 
   it('should parse manifest and have a valid semver version', () => {
     expect(manifest).toBeTruthy();
-    expect(manifest.version).toBe('0.1.0');
+    expect(manifest.version).toBe('0.5.0');
   });
 
   it('should contain brands, games, and experiences collections', () => {
@@ -81,11 +81,11 @@ describe('Content Catalog Manifest Contract', () => {
     expect(brandIds).toContain('ultherapy');
 
     const radiesse = manifest.brands.find((b) => b.id === 'radiesse');
-    expect(radiesse?.name).toBe('Radiesse');
+    expect(radiesse?.name).toContain('Radiesse');
     expect(radiesse?.enabled).toBe(true);
 
     const ultherapy = manifest.brands.find((b) => b.id === 'ultherapy');
-    expect(ultherapy?.name).toBe('Ultherapy');
+    expect(ultherapy?.name).toContain('Ultherapy');
     expect(ultherapy?.enabled).toBe(true);
   });
 
@@ -222,7 +222,7 @@ describe('CatalogService — Atmósfera y Cards', () => {
     const radiesse = catalog.getBrandById('radiesse')!;
     const card = catalog.cardForBrand(radiesse);
     expect(card.id).toBe('radiesse');
-    expect(card.title).toBe('Radiesse');
+    expect(card.title).toBe(radiesse.name);
     expect(card.description).toContain('colágeno');
     expect(card.image).toBeDefined();
   });
@@ -232,7 +232,7 @@ describe('CatalogService — Atmósfera y Cards', () => {
     const exp = catalog.getExperienceById('radiesse-memory')!;
     const card = catalog.cardForExperience(exp);
     expect(card.id).toBe('radiesse-memory');
-    expect(card.title).toBe('Memoria Radiesse');
+    expect(card.title).toBe(exp.title);
     expect(card.image).toBeDefined();
   });
 

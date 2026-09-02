@@ -1,37 +1,28 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
-import { Router } from '@angular/router';
-import { GameSession, MAX_LIVES } from './game-session';
+import { GameSession, MAX_LIVES, RESULT_REVEAL_DELAY_MS } from './game-session';
 import { AppLogger } from '../logging/app-error';
 
 function buildSession() {
   TestBed.configureTestingModule({
-    providers: [
-      GameSession,
-      AppLogger,
-      provideRouter([
-        // Ruta mínima para que el router no falle al navegar al resultado
-        { path: 'result/:experienceId/:result', children: [] },
-        { path: '**', children: [] },
-      ]),
-    ],
+    providers: [GameSession, AppLogger],
   });
-  return {
-    session: TestBed.inject(GameSession),
-    router: TestBed.inject(Router),
-  };
+  return TestBed.inject(GameSession);
 }
 
 describe('GameSession', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('debe inicializar con MAX_LIVES vidas', () => {
-    const { session } = buildSession();
+    const session = buildSession();
     expect(session.maxLives).toBe(MAX_LIVES);
     expect(session.remainingLives()).toBe(MAX_LIVES);
+    expect(session.playResult()).toBeNull();
   });
 
   it('start() debe reiniciar vidas a MAX_LIVES y registrar experienceId', () => {
-    const { session } = buildSession();
-    // Simular una vida perdida antes de reiniciar
+    const session = buildSession();
     session.start('primera-exp');
     session.loseLife();
     expect(session.remainingLives()).toBe(MAX_LIVES - 1);
@@ -39,10 +30,20 @@ describe('GameSession', () => {
     session.start('nueva-exp');
     expect(session.remainingLives()).toBe(MAX_LIVES);
     expect(session.activeExperienceId()).toBe('nueva-exp');
+    expect(session.playResult()).toBeNull();
+  });
+
+  it('start() incrementa round para remount del motor', () => {
+    const session = buildSession();
+    expect(session.round()).toBe(0);
+    session.start('test-exp');
+    expect(session.round()).toBe(1);
+    session.start('test-exp');
+    expect(session.round()).toBe(2);
   });
 
   it('loseLife() debe restar 1 vida cada vez', () => {
-    const { session } = buildSession();
+    const session = buildSession();
     session.start('test-exp');
 
     expect(session.loseLife()).toBe(2);
@@ -52,55 +53,65 @@ describe('GameSession', () => {
     expect(session.remainingLives()).toBe(1);
   });
 
-  it('tres loseLife() deben navegar a out-of-lives', async () => {
-    const { session, router } = buildSession();
+  it('tres loseLife() programan overlay out-of-lives tras el delay', () => {
+    vi.useFakeTimers();
+    const session = buildSession();
     session.start('test-exp');
-
-    const navigateSpy = vi.spyOn(router, 'navigate');
 
     session.loseLife();
     session.loseLife();
     session.loseLife();
 
     expect(session.remainingLives()).toBe(0);
-    expect(navigateSpy).toHaveBeenCalledWith(['/result', 'test-exp', 'out-of-lives']);
+    expect(session.playResult()).toBeNull();
+
+    vi.advanceTimersByTime(RESULT_REVEAL_DELAY_MS);
+    expect(session.playResult()).toBe('out-of-lives');
   });
 
-  it('complete("win") debe navegar a result con win', () => {
-    const { session, router } = buildSession();
+  it('complete("win") programa overlay win tras el delay', () => {
+    vi.useFakeTimers();
+    const session = buildSession();
     session.start('test-exp');
 
-    const navigateSpy = vi.spyOn(router, 'navigate');
     session.complete('win');
+    expect(session.playResult()).toBeNull();
 
-    expect(navigateSpy).toHaveBeenCalledWith(['/result', 'test-exp', 'win']);
+    vi.advanceTimersByTime(RESULT_REVEAL_DELAY_MS);
+    expect(session.playResult()).toBe('win');
   });
 
-  it('complete("lose") debe navegar a result con lose', () => {
-    const { session, router } = buildSession();
+  it('complete("lose") programa overlay lose tras el delay', () => {
+    vi.useFakeTimers();
+    const session = buildSession();
     session.start('test-exp');
 
-    const navigateSpy = vi.spyOn(router, 'navigate');
     session.complete('lose');
+    expect(session.playResult()).toBeNull();
 
-    expect(navigateSpy).toHaveBeenCalledWith(['/result', 'test-exp', 'lose']);
+    vi.advanceTimersByTime(RESULT_REVEAL_DELAY_MS);
+    expect(session.playResult()).toBe('lose');
   });
 
   it('win no requiere datos personales (sin PII)', () => {
-    const { session } = buildSession();
+    const session = buildSession();
     session.start('test-exp');
-    // complete('win') no exige nombre, DNI, ni ningún campo personal
     expect(() => session.complete('win')).not.toThrow();
   });
 
   it('start() con nuevo experienceId reinicia sin datos del anterior', () => {
-    const { session } = buildSession();
+    vi.useFakeTimers();
+    const session = buildSession();
     session.start('exp-1');
+    session.loseLife();
     session.loseLife();
     session.loseLife();
 
     session.start('exp-2');
+    vi.advanceTimersByTime(RESULT_REVEAL_DELAY_MS);
+
     expect(session.remainingLives()).toBe(MAX_LIVES);
     expect(session.activeExperienceId()).toBe('exp-2');
+    expect(session.playResult()).toBeNull();
   });
 });

@@ -98,9 +98,66 @@ describe('KioskSettings', () => {
     expect(settings2.screensaverMode()).toBe<ScreensaverMode>('video');
   });
 
-  it('JSON corrupto en storage debe usar "classic"', () => {
+  it('JSON corrupto en storage debe usar defaults sin lanzar error', () => {
     const initial = { [SETTINGS_KEY]: '{invalid-json' };
     const { settings } = buildSettings(initial);
     expect(settings.screensaverMode()).toBe<ScreensaverMode>('classic');
+    expect(settings.soundEnabled()).toBe(true);
+    expect(settings.memoryPairs()).toBeNull();
+  });
+
+  it('inicializa soundEnabled en true y memoryPairs en null por defecto', () => {
+    const { settings } = buildSettings();
+    expect(settings.soundEnabled()).toBe(true);
+    expect(settings.memoryPairs()).toBeNull();
+  });
+
+  it('setSoundEnabled() actualiza el Signal', () => {
+    const { settings } = buildSettings();
+    settings.setSoundEnabled(false);
+    expect(settings.soundEnabled()).toBe(false);
+    settings.setSoundEnabled(true);
+    expect(settings.soundEnabled()).toBe(true);
+  });
+
+  it('setMemoryPairs() actualiza el Signal y acepta null', () => {
+    const { settings } = buildSettings();
+    settings.setMemoryPairs(5);
+    expect(settings.memoryPairs()).toBe(5);
+    settings.setMemoryPairs(null);
+    expect(settings.memoryPairs()).toBeNull();
+  });
+
+  it('round-trip: persiste y restaura soundEnabled y memoryPairs', () => {
+    const store: Record<string, string> = {};
+    const mockPlatform = {
+      appVersion: signal('0.1.0'),
+      storageGet: (key: string) => store[key] ?? null,
+      storageSet: (key: string, value: string) => { store[key] = value; },
+    };
+
+    TestBed.configureTestingModule({
+      providers: [
+        KioskSettings,
+        AppLogger,
+        { provide: PlatformService, useValue: mockPlatform },
+      ],
+    });
+    const s1 = TestBed.inject(KioskSettings);
+    s1.setSoundEnabled(false);
+    s1.setMemoryPairs(3);
+    TestBed.flushEffects();
+    TestBed.resetTestingModule();
+
+    TestBed.configureTestingModule({
+      providers: [
+        KioskSettings,
+        AppLogger,
+        { provide: PlatformService, useValue: mockPlatform },
+      ],
+    });
+    const s2 = TestBed.inject(KioskSettings);
+    expect(s2.soundEnabled()).toBe(false);
+    expect(s2.memoryPairs()).toBe(3);
   });
 });

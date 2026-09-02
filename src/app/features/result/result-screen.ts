@@ -1,12 +1,19 @@
-import { Component, computed, inject } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { map } from 'rxjs/operators';
-import { isValidPlayResult, PlayResult } from '../../core/catalog/play-result.model';
+import {
+  afterNextRender,
+  Component,
+  computed,
+  DestroyRef,
+  inject,
+  input,
+  Renderer2,
+  DOCUMENT,
+} from '@angular/core';
+import { Router } from '@angular/router';
+import confetti from 'canvas-confetti';
+import { PlayResult } from '../../core/catalog/play-result.model';
 import { CatalogService } from '../../core/catalog/catalog';
-import { UnavailableScreen } from '../shared/unavailable-screen';
+import { GameSession } from '../../core/session/game-session';
 import { KioskButton } from '../shared/kiosk-button';
-import { KioskDisclaimer } from '../shared/kiosk-disclaimer';
 
 interface ResultConfig {
   icon: string;
@@ -36,117 +43,147 @@ const RESULT_CONFIGS: Record<PlayResult, ResultConfig> = {
   },
 };
 
+/** Duración del efecto Fireworks de canvas-confetti. */
+const FIREWORKS_DURATION_MS = 15_000;
+
 /**
- * Pantalla de resultado genérica con breakpoint responsivo para 1080x1920 (kiosco 55").
+ * Overlay de resultado (victoria / derrota / sin vidas).
+ * Backdrop a pantalla completa con blur glass, igual que el tutorial de memoria.
+ * Se superpone a `/play` sin navegar a otra ruta.
  */
 @Component({
   selector: 'app-result-screen',
-  imports: [UnavailableScreen, KioskButton, KioskDisclaimer],
-  host: {
-    class: 'block w-full h-full min-h-0 overflow-y-auto overscroll-contain',
-  },
+  imports: [KioskButton],
   template: `
-    @if (config()) {
-      <div class="flex flex-col items-center justify-between min-h-full w-full px-6 sm:px-12 lg:px-16 py-6 sm:py-8 text-white select-none gap-6">
-
-        <!-- Resultado y cuerpo central -->
-        <div class="flex-1 flex flex-col items-center justify-center text-center gap-6 sm:gap-8 kiosk:gap-12 max-w-xl kiosk:max-w-2xl my-auto">
-
-          <div class="w-24 h-24 sm:w-32 sm:h-32 lg:w-40 lg:h-40 kiosk:w-48 kiosk:h-48 rounded-3xl kiosk:rounded-[2.5rem] bg-white/10 border border-white/20 backdrop-blur-md flex items-center justify-center shadow-2xl shadow-black/50">
-            <span class="text-5xl sm:text-6xl lg:text-7xl kiosk:text-8xl" role="img" [attr.aria-label]="config()!.title">
-              {{ config()!.icon }}
-            </span>
-          </div>
-
-          <div class="space-y-4 sm:space-y-6 kiosk:space-y-8">
-            <h1 class="text-3xl sm:text-5xl lg:text-6xl kiosk:text-7xl font-extrabold tracking-tight" [class]="config()!.accentClass">
-              {{ config()!.title }}
-            </h1>
-            <p class="text-neutral-300 text-sm sm:text-lg lg:text-xl kiosk:text-2xl leading-relaxed max-w-sm sm:max-w-md kiosk:max-w-xl mx-auto">
-              {{ config()!.message }}
-            </p>
-          </div>
-
-          @if (brandName()) {
-            <span class="inline-flex items-center gap-1.5 px-4 py-1.5 sm:px-6 sm:py-2.5 rounded-full text-xs sm:text-sm kiosk:text-base font-extrabold tracking-[0.2em] uppercase bg-white/10 text-neutral-200 border border-white/15 backdrop-blur-md [&>span>sup]:text-[0.6em] [&>span>sup]:top-[-0.4em] [&>span>sup]:font-normal">
-              <span [innerHTML]="brandName()"></span> · <span [innerHTML]="gameName()"></span>
-            </span>
-          }
-
+    <div
+      class="result-overlay fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+      style="background: rgba(3, 7, 18, 0.52); backdrop-filter: blur(16px);"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-label]="config().title"
+      animate.enter="result-overlay-enter"
+      (click)="stopPropagation($event)"
+    >
+      <div
+        class="result-card relative w-full max-w-lg bg-neutral-900/80 border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col items-center gap-6 text-center select-none"
+        animate.enter="result-card-enter"
+      >
+        <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-white/10 border border-white/20 backdrop-blur-md flex items-center justify-center shadow-2xl shadow-black/50">
+          <span class="text-4xl sm:text-5xl" role="img" [attr.aria-hidden]="true">
+            {{ config().icon }}
+          </span>
         </div>
 
-        <!-- Sticky Footer unificado con CTAs y disclaimers -->
-        <app-kiosk-disclaimer>
-          <div class="w-full max-w-xs sm:max-w-md lg:max-w-lg space-y-2 sm:space-y-3">
-            <!-- Replay si hubo derrota o sin intentos -->
-            @if (result() !== 'win') {
-              <app-kiosk-button variant="primary" (click)="replay()">
-                Volver a jugar
-              </app-kiosk-button>
-            }
-            <app-kiosk-button variant="secondary" (click)="goToExperiences()">
-              Ver más juegos
-            </app-kiosk-button>
-            <app-kiosk-button variant="ghost" (click)="goToBrands()">
-              ← Cambiar de marca
-            </app-kiosk-button>
-          </div>
-        </app-kiosk-disclaimer>
+        <div class="space-y-3 sm:space-y-4">
+          <h1
+            class="text-2xl sm:text-3xl font-extrabold font-['Montserrat'] tracking-tight uppercase"
+            [class]="config().accentClass"
+          >
+            {{ config().title }}
+          </h1>
+          <p class="text-neutral-300 text-sm sm:text-base leading-relaxed max-w-md mx-auto">
+            {{ config().message }}
+          </p>
+        </div>
 
+        @if (brandName()) {
+          <span class="inline-flex items-center gap-1.5 px-4 py-1.5 sm:px-6 sm:py-2 rounded-full text-xs sm:text-sm font-extrabold tracking-[0.2em] uppercase bg-white/10 text-neutral-200 border border-white/15 backdrop-blur-md [&>span>sup]:text-[0.6em] [&>span>sup]:top-[-0.4em] [&>span>sup]:font-normal">
+            <span [innerHTML]="brandName()"></span> · <span [innerHTML]="gameName()"></span>
+          </span>
+        }
+
+        <div class="w-full space-y-2 sm:space-y-3 pt-1">
+          @if (result() !== 'win') {
+            <app-kiosk-button variant="primary" (click)="replay()">
+              Volver a jugar
+            </app-kiosk-button>
+          }
+          <app-kiosk-button variant="secondary" (click)="goToExperiences()">
+            Ver más juegos
+          </app-kiosk-button>
+          <app-kiosk-button variant="ghost" (click)="goToBrands()">
+            ← Cambiar de marca
+          </app-kiosk-button>
+        </div>
       </div>
-    } @else {
-      <app-unavailable-screen
-        title="Resultado desconocido"
-        message="El resultado de este juego no es válido."
-      />
-    }
+    </div>
   `,
+  styles: [`
+    .result-overlay-enter {
+      animation: resultOverlayFade 0.5s ease-out both;
+    }
+
+    .result-card-enter {
+      animation: resultCardIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both;
+    }
+
+    @keyframes resultOverlayFade {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes resultCardIn {
+      from {
+        opacity: 0;
+        transform: scale(0.92) translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .result-overlay-enter,
+      .result-card-enter {
+        animation: none;
+      }
+    }
+  `],
 })
 export class ResultScreen {
-  private readonly route = inject(ActivatedRoute);
   private readonly catalog = inject(CatalogService);
   private readonly router = inject(Router);
+  private readonly session = inject(GameSession);
+  private readonly renderer = inject(Renderer2);
+  private readonly document = inject(DOCUMENT);
 
-  private readonly params = toSignal(
-    this.route.paramMap.pipe(
-      map((p) => ({
-        experienceId: p.get('experienceId') ?? '',
-        result: p.get('result') ?? '',
-      })),
-    ),
-    { initialValue: { experienceId: '', result: '' } },
-  );
+  readonly result = input.required<PlayResult>();
+  readonly experienceId = input.required<string>();
+  readonly brandName = input<string>('');
+  readonly gameName = input<string>('');
 
-  protected readonly result = computed(() => {
-    const r = this.params().result;
-    return isValidPlayResult(r) ? r : null;
-  });
+  protected readonly config = computed<ResultConfig>(() => RESULT_CONFIGS[this.result()]);
 
-  protected readonly config = computed<ResultConfig | null>(() => {
-    const r = this.result();
-    return r ? RESULT_CONFIGS[r] : null;
-  });
+  private _fireworksTimer: ReturnType<typeof setInterval> | null = null;
 
-  private readonly experience = computed(() =>
-    this.catalog.getExperienceById(this.params().experienceId),
-  );
+  constructor() {
+    this._lockScroll();
+    inject(DestroyRef).onDestroy(() => {
+      this._unlockScroll();
+      this._stopFireworks();
+    });
 
-  protected brandName(): string {
-    const exp = this.experience();
-    return exp ? (this.catalog.getBrandById(exp.brandId)?.name ?? exp.brandId) : '';
+    afterNextRender(() => {
+      if (this.result() === 'win') {
+        this._startFireworks();
+      }
+    });
   }
 
-  protected gameName(): string {
-    const exp = this.experience();
-    return exp ? (this.catalog.getGameById(exp.gameId)?.name ?? exp.gameId) : '';
+  protected stopPropagation(event: MouseEvent): void {
+    event.stopPropagation();
   }
 
   replay(): void {
-    this.router.navigate(['/play', this.params().experienceId]);
+    this._stopFireworks();
+    this.session.start(this.experienceId());
   }
 
   goToExperiences(): void {
-    const exp = this.experience();
+    this._stopFireworks();
+    this.session.dismissResult();
+    const exp = this.catalog.getExperienceById(this.experienceId());
     if (exp) {
       this.router.navigate(['/brands', exp.brandId, 'games']);
     } else {
@@ -155,6 +192,77 @@ export class ResultScreen {
   }
 
   goToBrands(): void {
+    this._stopFireworks();
+    this.session.dismissResult();
     this.router.navigate(['/brands']);
+  }
+
+  /**
+   * Fireworks de canvas-confetti: ráfagas desde los lados para no tapar el centro.
+   * @see https://www.kirilv.com/canvas-confetti/
+   */
+  private _startFireworks(): void {
+    this._stopFireworks();
+
+    const duration = FIREWORKS_DURATION_MS;
+    const animationEnd = Date.now() + duration;
+    const defaults = {
+      startVelocity: 30,
+      spread: 360,
+      ticks: 60,
+      zIndex: 60,
+      disableForReducedMotion: true,
+    };
+
+    const randomInRange = (min: number, max: number): number =>
+      Math.random() * (max - min) + min;
+
+    this._fireworksTimer = setInterval(() => {
+      const timeLeft = animationEnd - Date.now();
+      if (timeLeft <= 0) {
+        this._stopFireworks();
+        return;
+      }
+
+      const particleCount = 50 * (timeLeft / duration);
+      void confetti({
+        ...defaults,
+        particleCount,
+        origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+      });
+      void confetti({
+        ...defaults,
+        particleCount,
+        origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+      });
+    }, 250);
+  }
+
+  private _stopFireworks(): void {
+    if (this._fireworksTimer !== null) {
+      clearInterval(this._fireworksTimer);
+      this._fireworksTimer = null;
+    }
+    try {
+      confetti.reset();
+    } catch {
+      // jsdom / entornos sin canvas
+    }
+  }
+
+  private _lockScroll(): void {
+    try {
+      this.renderer.setStyle(this.document.body, 'overflow', 'hidden');
+    } catch {
+      // Entornos de prueba SSR / Vitest
+    }
+  }
+
+  private _unlockScroll(): void {
+    try {
+      this.renderer.removeStyle(this.document.body, 'overflow');
+    } catch {
+      // Entornos de prueba SSR / Vitest
+    }
   }
 }

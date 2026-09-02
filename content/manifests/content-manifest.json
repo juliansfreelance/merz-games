@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "0.5.0",
   "atmosphere": {
     "baseColor": "#0b0914",
     "blurTint": "#7c3aed",
@@ -22,7 +22,7 @@
       {
         "from": "#10b981",
         "to": "#059669",
-        "opacity": 0.30
+        "opacity": 0.3
       },
       {
         "from": "#6366f1",
@@ -54,7 +54,7 @@
           {
             "from": "#06b6d4",
             "to": "#0369a1",
-            "opacity": 0.50
+            "opacity": 0.5
           },
           {
             "from": "#14b8a6",
@@ -69,7 +69,7 @@
           {
             "from": "#00E5FF",
             "to": "#042f2e",
-            "opacity": 0.50
+            "opacity": 0.5
           }
         ]
       }
@@ -106,7 +106,7 @@
           {
             "from": "#B8860B",
             "to": "#451a03",
-            "opacity": 0.50
+            "opacity": 0.5
           },
           {
             "from": "#E5A93C",
@@ -121,10 +121,20 @@
     {
       "id": "memory",
       "name": "Encuentra la Pareja",
-      "version": "0.1.0",
+      "version": "0.5.0",
       "minAppVersion": "0.1.0",
       "enabled": true,
-      "description": "Juego de concentración y memoria visual con elementos de marca."
+      "description": "Juego de concentración y memoria visual con elementos de marca.",
+      "assets": {
+        "sfxFlip": "/content/audio/sfx/flip.mp3",
+        "sfxMatch": "/content/audio/sfx/match.mp3",
+        "sfxMismatch": "/content/audio/sfx/mismatch.mp3",
+        "sfxGameStart": "/content/audio/sfx/game-start.mp3",
+        "sfxGameEnd": "/content/audio/sfx/game-end.mp3"
+      },
+      "config": {
+        "pairs": 4
+      }
     },
     {
       "id": "triqui",
@@ -140,23 +150,95 @@
       "id": "radiesse-memory",
       "brandId": "radiesse",
       "gameId": "memory",
-      "version": "0.1.0",
+      "version": "0.5.0",
       "enabled": true,
       "order": 1,
       "title": "Encuentra la Pareja Radiesse<sup>®</sup>",
       "description": "<strong>Descubre cuánto sabes del universo de la estética mientras te diviertes.</strong> Encuentra todas las parejas de imágenes en este juego de memoria y, al completar el desafío, podrás participar por atractivos premios.<br><strong>¡Juega, acierta y gana!</strong>",
-      "image": "/content/images/experiences/radiesse-memory.jpg"
+      "image": "/content/images/experiences/radiesse-memory.jpg",
+      "theme": {
+        "accentColor": "#00E5FF",
+        "primaryColor": "#0891b2"
+      },
+      "assets": {
+        "cardBack": "/content/images/games/memory/cards/radiesse/card-back.png",
+        "cardFaces": [
+          "/content/images/games/memory/cards/radiesse/card-01.png",
+          "/content/images/games/memory/cards/radiesse/card-02.png",
+          "/content/images/games/memory/cards/radiesse/card-03.png",
+          "/content/images/games/memory/cards/radiesse/card-04.png",
+          "/content/images/games/memory/cards/radiesse/card-05.png",
+          "/content/images/games/memory/cards/radiesse/card-06.png",
+          "/content/images/games/memory/cards/radiesse/card-07.png",
+          "/content/images/games/memory/cards/radiesse/card-08.png",
+          "/content/images/games/memory/cards/radiesse/card-09.png",
+          "/content/images/games/memory/cards/radiesse/card-10.png",
+          "/content/images/games/memory/cards/radiesse/card-11.png",
+          "/content/images/games/memory/cards/radiesse/card-12.png",
+          "/content/images/games/memory/cards/radiesse/card-13.png",
+          "/content/images/games/memory/cards/radiesse/card-14.png",
+          "/content/images/games/memory/cards/radiesse/card-15.png",
+          "/content/images/games/memory/cards/radiesse/card-16.png",
+          "/content/images/games/memory/cards/radiesse/card-17.png",
+          "/content/images/games/memory/cards/radiesse/card-18.png",
+          "/content/images/games/memory/cards/radiesse/card-19.png",
+          "/content/images/games/memory/cards/radiesse/card-20.png",
+          "/content/images/games/memory/cards/radiesse/card-21.png",
+          "/content/images/games/memory/cards/radiesse/card-22.png",
+          "/content/images/games/memory/cards/radiesse/card-23.png",
+          "/content/images/games/memory/cards/radiesse/card-24.png",
+          "/content/images/games/memory/cards/radiesse/card-25.png",
+          "/content/images/games/memory/cards/radiesse/card-26.png",
+          "/content/images/games/memory/cards/radiesse/card-27.png"
+        ]
+      }
     },
     {
       "id": "ultherapy-memory",
       "brandId": "ultherapy",
       "gameId": "memory",
-      "version": "0.1.0",
+      "version": "0.5.0",
       "enabled": true,
       "order": 2,
       "title": "Encuentra la Pareja Ultherapy<sup>®</sup>",
       "description": "<strong>Descubre el universo del lifting facial mientras pones a prueba tu atención.</strong> Encuentra la imagen que completa cada pareja, supera el reto y acércate a uno de nuestros premios.<br><strong>¡Cada coincidencia cuenta!</strong>",
-      "image": "/content/images/experiences/ultherapy-memory.jpg"
+      "image": "/content/images/experiences/ultherapy-memory.jpg",
+      "theme": {
+        "accentColor": "#D4AF37",
+        "primaryColor": "#B8860B"
+      },
+      "assets": {
+        "cardBack": "/content/images/games/memory/cards/ultherapy/card-back.png",
+        "cardFaces": [
+          "/content/images/games/memory/cards/ultherapy/card-28.png",
+          "/content/images/games/memory/cards/ultherapy/card-29.png",
+          "/content/images/games/memory/cards/ultherapy/card-30.png",
+          "/content/images/games/memory/cards/ultherapy/card-31.png",
+          "/content/images/games/memory/cards/ultherapy/card-32.png",
+          "/content/images/games/memory/cards/ultherapy/card-33.png",
+          "/content/images/games/memory/cards/ultherapy/card-34.png",
+          "/content/images/games/memory/cards/ultherapy/card-35.png",
+          "/content/images/games/memory/cards/ultherapy/card-36.png",
+          "/content/images/games/memory/cards/ultherapy/card-37.png",
+          "/content/images/games/memory/cards/ultherapy/card-38.png",
+          "/content/images/games/memory/cards/ultherapy/card-39.png",
+          "/content/images/games/memory/cards/ultherapy/card-40.png",
+          "/content/images/games/memory/cards/ultherapy/card-41.png",
+          "/content/images/games/memory/cards/ultherapy/card-42.png",
+          "/content/images/games/memory/cards/ultherapy/card-43.png",
+          "/content/images/games/memory/cards/ultherapy/card-44.png",
+          "/content/images/games/memory/cards/ultherapy/card-45.png",
+          "/content/images/games/memory/cards/ultherapy/card-46.png",
+          "/content/images/games/memory/cards/ultherapy/card-47.png",
+          "/content/images/games/memory/cards/ultherapy/card-48.png",
+          "/content/images/games/memory/cards/ultherapy/card-49.png",
+          "/content/images/games/memory/cards/ultherapy/card-50.png",
+          "/content/images/games/memory/cards/ultherapy/card-51.png",
+          "/content/images/games/memory/cards/ultherapy/card-52.png",
+          "/content/images/games/memory/cards/ultherapy/card-53.png",
+          "/content/images/games/memory/cards/ultherapy/card-54.png"
+        ]
+      }
     },
     {
       "id": "radiesse-triqui",
@@ -180,5 +262,9 @@
       "description": "Pon a prueba tu habilidad en nuestro reto de tres en línea y <strong>descubre más sobre el lifting facial.</strong> Completa la secuencia, conquista el tablero y acércate a uno de nuestros premios.<br><strong>¡Cada movimiento cuenta!</strong>",
       "image": "/content/images/experiences/ultherapy-triqui.jpg"
     }
-  ]
+  ],
+  "audio": {
+    "backgroundMusic": "/content/audio/bgm.mp3",
+    "volume": 0.35
+  }
 }

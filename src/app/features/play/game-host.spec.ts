@@ -25,17 +25,37 @@ describe('GameHost', () => {
         return experiences[id];
       },
       getBrandById: (id: string) => ({ id, name: id === 'radiesse' ? 'Radiesse' : id, enabled: true }),
-      getGameById: (id: string) => ({ id, name: id === 'memory' ? 'Encuentra la Pareja' : 'Triqui', enabled: true }),
+      selectedBrand: signal({ id: 'radiesse', name: 'Radiesse', disclaimer: 'Disclaimer test' }),
+      activityDisclaimer: signal('Disclaimer actividad test'),
+      getGameById: (id: string) => ({
+        id,
+        name: id === 'memory' ? 'Encuentra la Pareja' : 'Triqui',
+        enabled: true,
+        version: '0.5.0',
+        minAppVersion: '0.1.0',
+        config: id === 'memory' ? { pairs: 4 } : {},
+        assets: {},
+      }),
     };
 
     const mockSession = {
       remainingLives: signal(3),
+      tutorialRequested: signal(0),
+      requestTutorial: vi.fn(),
       start: vi.fn(),
       loseLife: vi.fn(),
       complete: vi.fn(),
+      dismissResult: vi.fn(),
+      playResult: signal<string | null>(null),
+      round: signal(1),
+      activeExperienceId: signal(''),
     };
 
-    const mockPlatform = { appVersion: signal('0.1.0') };
+    const mockPlatform = {
+      appVersion: signal('0.1.0'),
+      storageGet: vi.fn().mockReturnValue(null),
+      storageSet: vi.fn(),
+    };
 
     TestBed.configureTestingModule({
       imports: [GameHost],
@@ -90,5 +110,16 @@ describe('GameHost', () => {
   it('should call session.start() when experience is resolved', () => {
     const { mockSession } = setup('radiesse-memory');
     expect(mockSession.start).toHaveBeenCalledWith('radiesse-memory');
+  });
+
+  it('debe superponer el overlay de resultado sobre el juego sin quitar el tablero', () => {
+    const { fixture, mockSession } = setup('radiesse-memory');
+    mockSession.playResult.set('win');
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('app-memory-play')).toBeTruthy();
+    expect(el.querySelector('app-result-screen')).toBeTruthy();
+    expect(el.querySelector('[role="dialog"]')).toBeTruthy();
   });
 });
