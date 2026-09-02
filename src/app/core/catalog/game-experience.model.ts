@@ -1,8 +1,8 @@
 /**
  * Experiencia de juego concreta (marca × motor).
  *
- * `theme`, `assets` y `config` son opcionales para no romper la semilla actual.
- * Las Fases 4–5 los rellenan con valores reales.
+ * `theme`, `assets`, `config`, `title`, `description` e `image` son opcionales para no romper la semilla actual.
+ * Las Fases 5–6 los rellenan con valores reales.
  */
 
 /** Paleta de colores y tipografía para la experiencia. */
@@ -31,6 +31,12 @@ export interface GameExperience {
   version: string;
   enabled: boolean;
   order: number;
+  /** Título personalizado para la experiencia en la card (si falta, se usa el nombre del motor). Opcional. */
+  title?: string;
+  /** Descripción de la experiencia en la card (si falta, se usa la del motor/marca). Opcional. */
+  description?: string;
+  /** Imagen de portada de la experiencia. Opcional. */
+  image?: string;
   /** Personalización visual de la experiencia. Opcional. */
   theme?: ExperienceTheme;
   /** Activos locales que el motor puede consumir. Opcional. */
@@ -38,4 +44,3 @@ export interface GameExperience {
   /** Configuración específica del motor para esta experiencia. Opcional. */
   config?: ExperienceConfig;
 }
-

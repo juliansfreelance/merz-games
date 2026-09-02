@@ -1,61 +1,65 @@
 import { Component, inject, input } from '@angular/core';
 import { GameSession } from '../../core/session/game-session';
-import { ExperienceAssets, ExperienceConfig, ExperienceTheme } from '../../core/catalog/game-experience.model';
+import {
+  ExperienceAssets,
+  ExperienceConfig,
+  ExperienceTheme,
+} from '../../core/catalog/game-experience.model';
 import { KioskButton } from '../shared/kiosk-button';
 
 /**
  * Stub del motor Memory (Encuentra la Pareja).
- * Fase 2: placeholder de UI para validar navegación.
- * Fase 3: cableado a GameSession (vidas reales, no Router directo).
- * Las Fases 4–5 reemplazarán este stub por la lógica real de Memory.
+ * - Renderiza el área de tablero que se completará en la Fase 5.
+ * - Incluye atajos de QA provisionales para probar la sesión y navegación.
  */
 @Component({
   selector: 'app-memory-play',
   imports: [KioskButton],
   template: `
-    <div class="flex flex-col h-full w-full px-8 py-12 bg-neutral-950 text-white gap-8">
+    <div class="flex flex-col items-center justify-between h-full w-full p-2 text-white gap-4 select-none">
 
-      <!-- Info del juego -->
-      <header class="text-center space-y-2">
-        <p class="text-xs text-neutral-500 uppercase tracking-widest">Experiencia</p>
-        <h1 class="text-3xl font-extrabold">Encuentra la Pareja</h1>
-        <p class="text-neutral-400 text-sm">Marca: {{ brandId() }} · Motor: {{ gameId() }}</p>
-      </header>
-
-      <!-- Área de juego (placeholder) -->
-      <div class="flex-1 flex flex-col items-center justify-center gap-4">
-        <div class="w-32 h-32 rounded-2xl border-2 border-dashed border-white/20 flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-               stroke-width="1" stroke="currentColor" class="w-14 h-14 text-white/30">
-            <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
-          </svg>
+      <!-- Área de Tablero Placeholder (Fase 5 integrará aquí las 6 cartas y Canvas) -->
+      <div class="flex-1 w-full flex flex-col items-center justify-center gap-4">
+        <!-- Mock de cartas 2x3 -->
+        <div class="grid grid-cols-3 gap-3 w-full max-w-xs">
+          @for (card of [1, 2, 3, 4, 5, 6]; track card) {
+            <div class="aspect-[3/4] rounded-2xl border-2 border-dashed border-white/20 bg-white/[0.04] flex flex-col items-center justify-center gap-1 shadow-inner">
+              <span class="text-xs font-bold text-white/30 tracking-wider">#{{ card }}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                   stroke-width="1.2" stroke="currentColor" class="w-6 h-6 text-white/20">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
+              </svg>
+            </div>
+          }
         </div>
-        <p class="text-neutral-500 text-sm text-center max-w-xs">
-          El tablero de Memory aparecerá aquí en la Fase 4.
+        <p class="text-xs text-neutral-400 text-center max-w-xs">
+          Tablero interactivo de memoria visual (Fase 5)
         </p>
       </div>
 
-      <!-- Atajos provisionales — solo para QA de navegación (Fases 4–5 los eliminan) -->
-      <div class="space-y-3">
-        <p class="text-center text-[11px] text-neutral-600 uppercase tracking-wider">
-          [Provisional · Solo QA]
-        </p>
-        <p class="text-center text-sm text-neutral-400">
-          Vidas: <span class="font-bold text-white">{{ session.remainingLives() }}</span>
-        </p>
-        <app-kiosk-button variant="primary" (click)="simulateWin()">
-          Simular victoria
-        </app-kiosk-button>
-        <app-kiosk-button variant="secondary" (click)="simulateLose()">
-          Simular derrota
-        </app-kiosk-button>
-        <app-kiosk-button variant="ghost" (click)="simulateOutOfLives()">
-          Simular sin intentos
-        </app-kiosk-button>
-        <app-kiosk-button variant="ghost" (click)="goBack()">
-          ← Salir al selector
-        </app-kiosk-button>
+      <!-- Barra discreta de QA (Pruebas de navegación y sesión) -->
+      <div class="w-full bg-black/40 border border-white/10 rounded-2xl p-3 backdrop-blur-md space-y-2">
+        <div class="flex items-center justify-between text-[11px] text-neutral-400 font-mono px-1">
+          <span>[Solo QA] Vidas: {{ session.remainingLives() }}</span>
+          <span>exp: {{ experienceId() }}</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <app-kiosk-button variant="primary" (click)="simulateWin()">
+            Ganar 🏆
+          </app-kiosk-button>
+          <app-kiosk-button variant="secondary" (click)="simulateLose()">
+            Perder 1 Vida 💔
+          </app-kiosk-button>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <app-kiosk-button variant="ghost" (click)="simulateOutOfLives()">
+            Agotar Vidas ⏱️
+          </app-kiosk-button>
+          <app-kiosk-button variant="ghost" (click)="goBack()">
+            ← Salir
+          </app-kiosk-button>
+        </div>
       </div>
 
     </div>
@@ -66,29 +70,20 @@ export class MemoryPlay {
   readonly brandId = input.required<string>();
   readonly gameId = input.required<string>();
   readonly remainingLives = input<number>(3);
-  /** Personalización visual pasada por GameHost (vacía en Fase 3). */
   readonly theme = input<ExperienceTheme>({});
-  /** Activos locales pasados por GameHost (vacíos en Fase 3). */
   readonly assets = input<ExperienceAssets>({});
-  /** Configuración del motor pasada por GameHost (vacía en Fase 3). */
   readonly config = input<ExperienceConfig>({});
 
   protected readonly session = inject(GameSession);
 
-  /** [QA] Simula victoria directa. */
   simulateWin(): void {
     this.session.complete('win');
   }
 
-  /** [QA] Simula derrota con descuento de una vida (puede llegar a out-of-lives). */
   simulateLose(): void {
     this.session.loseLife();
   }
 
-  /**
-   * [QA] Simula que el jugador se queda sin vidas:
-   * llama loseLife() hasta agotarlas — el servicio navega automáticamente.
-   */
   simulateOutOfLives(): void {
     const lives = this.session.remainingLives();
     for (let i = 0; i < lives; i++) {
@@ -97,8 +92,6 @@ export class MemoryPlay {
   }
 
   goBack(): void {
-    // Navegar al selector de la marca activa; la sesión queda pendiente
-    // (el guard de experiencia reiniciará al volver a /play).
     window.history.back();
   }
 }

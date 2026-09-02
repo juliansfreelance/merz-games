@@ -1,62 +1,60 @@
 import { Component, inject, input } from '@angular/core';
 import { GameSession } from '../../core/session/game-session';
-import { ExperienceAssets, ExperienceConfig, ExperienceTheme } from '../../core/catalog/game-experience.model';
+import {
+  ExperienceAssets,
+  ExperienceConfig,
+  ExperienceTheme,
+} from '../../core/catalog/game-experience.model';
 import { KioskButton } from '../shared/kiosk-button';
 
 /**
  * Stub del motor Triqui (Tres en Raya).
- * Fase 2: placeholder de UI para validar navegación.
- * Fase 3: cableado a GameSession (vidas reales, no Router directo).
- * Las Fases 4–5 reemplazarán este stub por la lógica real de Triqui.
+ * - Renderiza el área de tablero que se completará en la Fase 6.
+ * - Incluye atajos de QA provisionales para probar la sesión y navegación.
  */
 @Component({
   selector: 'app-triqui-play',
   imports: [KioskButton],
   template: `
-    <div class="flex flex-col h-full w-full px-8 py-12 bg-neutral-950 text-white gap-8">
+    <div class="flex flex-col items-center justify-between h-full w-full p-2 text-white gap-4 select-none">
 
-      <!-- Info del juego -->
-      <header class="text-center space-y-2">
-        <p class="text-xs text-neutral-500 uppercase tracking-widest">Experiencia</p>
-        <h1 class="text-3xl font-extrabold">Tres en Raya</h1>
-        <p class="text-neutral-400 text-sm">Marca: {{ brandId() }} · Motor: {{ gameId() }}</p>
-      </header>
-
-      <!-- Área de juego (placeholder) -->
-      <div class="flex-1 flex flex-col items-center justify-center gap-4">
-        <!-- Tablero 3×3 visual placeholder -->
-        <div class="grid grid-cols-3 gap-2 w-48">
-          @for (cell of [0,1,2,3,4,5,6,7,8]; track cell) {
-            <div class="aspect-square rounded-xl border border-dashed border-white/20 flex items-center justify-center">
+      <!-- Área de Tablero Placeholder (Fase 6 integrará aquí la IA y Canvas) -->
+      <div class="flex-1 w-full flex flex-col items-center justify-center gap-4">
+        <!-- Mock de tablero 3x3 -->
+        <div class="grid grid-cols-3 gap-2.5 w-full max-w-[240px] aspect-square">
+          @for (cell of [0, 1, 2, 3, 4, 5, 6, 7, 8]; track cell) {
+            <div class="aspect-square rounded-2xl border-2 border-dashed border-white/20 bg-white/[0.04] flex items-center justify-center shadow-inner">
               <span class="text-white/20 text-2xl font-bold">·</span>
             </div>
           }
         </div>
-        <p class="text-neutral-500 text-sm text-center max-w-xs">
-          El tablero de Triqui aparecerá aquí en la Fase 5.
+        <p class="text-xs text-neutral-400 text-center max-w-xs">
+          Tablero interactivo de Tres en Raya (Fase 6)
         </p>
       </div>
 
-      <!-- Atajos provisionales — solo para QA de navegación (Fases 4–5 los eliminan) -->
-      <div class="space-y-3">
-        <p class="text-center text-[11px] text-neutral-600 uppercase tracking-wider">
-          [Provisional · Solo QA]
-        </p>
-        <p class="text-center text-sm text-neutral-400">
-          Vidas: <span class="font-bold text-white">{{ session.remainingLives() }}</span>
-        </p>
-        <app-kiosk-button variant="primary" (click)="simulateWin()">
-          Simular victoria
-        </app-kiosk-button>
-        <app-kiosk-button variant="secondary" (click)="simulateLose()">
-          Simular derrota
-        </app-kiosk-button>
-        <app-kiosk-button variant="ghost" (click)="simulateOutOfLives()">
-          Simular sin intentos
-        </app-kiosk-button>
-        <app-kiosk-button variant="ghost" (click)="goBack()">
-          ← Salir al selector
-        </app-kiosk-button>
+      <!-- Barra discreta de QA (Pruebas de navegación y sesión) -->
+      <div class="w-full bg-black/40 border border-white/10 rounded-2xl p-3 backdrop-blur-md space-y-2">
+        <div class="flex items-center justify-between text-[11px] text-neutral-400 font-mono px-1">
+          <span>[Solo QA] Vidas: {{ session.remainingLives() }}</span>
+          <span>exp: {{ experienceId() }}</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <app-kiosk-button variant="primary" (click)="simulateWin()">
+            Ganar 🏆
+          </app-kiosk-button>
+          <app-kiosk-button variant="secondary" (click)="simulateLose()">
+            Perder 1 Vida 💔
+          </app-kiosk-button>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <app-kiosk-button variant="ghost" (click)="simulateOutOfLives()">
+            Agotar Vidas ⏱️
+          </app-kiosk-button>
+          <app-kiosk-button variant="ghost" (click)="goBack()">
+            ← Salir
+          </app-kiosk-button>
+        </div>
       </div>
 
     </div>
@@ -67,29 +65,20 @@ export class TriquiPlay {
   readonly brandId = input.required<string>();
   readonly gameId = input.required<string>();
   readonly remainingLives = input<number>(3);
-  /** Personalización visual pasada por GameHost (vacía en Fase 3). */
   readonly theme = input<ExperienceTheme>({});
-  /** Activos locales pasados por GameHost (vacíos en Fase 3). */
   readonly assets = input<ExperienceAssets>({});
-  /** Configuración del motor pasada por GameHost (vacía en Fase 3). */
   readonly config = input<ExperienceConfig>({});
 
   protected readonly session = inject(GameSession);
 
-  /** [QA] Simula victoria directa. */
   simulateWin(): void {
     this.session.complete('win');
   }
 
-  /** [QA] Simula derrota con descuento de una vida (puede llegar a out-of-lives). */
   simulateLose(): void {
     this.session.loseLife();
   }
 
-  /**
-   * [QA] Simula que el jugador se queda sin vidas:
-   * llama loseLife() hasta agotarlas — el servicio navega automáticamente.
-   */
   simulateOutOfLives(): void {
     const lives = this.session.remainingLives();
     for (let i = 0; i < lives; i++) {

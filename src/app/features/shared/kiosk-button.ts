@@ -4,16 +4,16 @@ export type KioskButtonVariant = 'primary' | 'secondary' | 'ghost';
 
 const VARIANT_CLASSES: Record<KioskButtonVariant, string> = {
   primary:
-    'bg-white text-neutral-900 font-bold hover:bg-neutral-100 active:scale-95 active:bg-neutral-200',
+    'bg-white/[0.08] border border-white/25 text-neutral-100 font-extrabold tracking-[0.18em] uppercase hover:bg-white/[0.16] hover:border-white/40 hover:text-white active:scale-95 active:bg-white/25 backdrop-blur-md shadow-xl shadow-black/40',
   secondary:
-    'border-2 border-white/30 text-white font-semibold hover:border-white/60 active:scale-95 active:bg-white/10',
+    'bg-transparent border border-white/20 text-neutral-300 font-bold tracking-[0.16em] uppercase hover:border-white/40 hover:text-white active:scale-95 active:bg-white/10',
   ghost:
-    'text-neutral-400 font-medium hover:text-white active:scale-95 active:text-neutral-300',
+    'text-neutral-400 font-bold tracking-wider uppercase hover:text-white active:scale-95 active:text-neutral-200',
 };
 
 /**
- * Botón reutilizable para kiosco táctil.
- * Target grande, feedback en :active, sin hover crítico.
+ * Botón reutilizable para kiosco táctil con apariencia de píldora (cápsula de lujo).
+ * Escalado proporcional para kiosco táctil 1080x1920 (55").
  */
 @Component({
   selector: 'app-kiosk-button',
@@ -34,7 +34,7 @@ export class KioskButton {
 
   protected buttonClasses(): string {
     const base =
-      'w-full min-h-14 px-6 py-4 rounded-2xl transition-all duration-150 text-lg leading-tight cursor-pointer select-none';
+      'w-full min-h-12 sm:min-h-14 lg:min-h-16 kiosk:min-h-20 px-8 sm:px-10 lg:px-12 kiosk:px-16 py-3.5 sm:py-4 lg:py-5 kiosk:py-6 rounded-full transition-all duration-150 text-xs sm:text-sm lg:text-base kiosk:text-lg leading-tight cursor-pointer select-none flex items-center justify-center';
     return `${base} ${VARIANT_CLASSES[this.variant()]}`;
   }
 }

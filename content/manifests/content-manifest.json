@@ -1,19 +1,120 @@
 {
   "version": "0.1.0",
+  "atmosphere": {
+    "baseColor": "#0b0914",
+    "blurTint": "#7c3aed",
+    "blobs": [
+      {
+        "from": "#d946ef",
+        "to": "#a855f7",
+        "opacity": 0.32
+      },
+      {
+        "from": "#F3E5AB",
+        "to": "#B8860B",
+        "opacity": 0.28
+      },
+      {
+        "from": "#f43f5e",
+        "to": "#e11d48",
+        "opacity": 0.28
+      },
+      {
+        "from": "#10b981",
+        "to": "#059669",
+        "opacity": 0.30
+      },
+      {
+        "from": "#6366f1",
+        "to": "#3b82f6",
+        "opacity": 0.32
+      }
+    ]
+  },
   "brands": [
     {
       "id": "radiesse",
-      "name": "Radiesse",
+      "name": "Radiesse<sup>®</sup>",
       "version": "0.1.0",
       "enabled": true,
-      "order": 1
+      "order": 1,
+      "image": "/content/images/brands/RadiesseBrand.png",
+      "logo": "/content/images/brands/RadiesseLogo.svg",
+      "description": "Estimulador de colágeno para una piel firme, elástica y definida.",
+      "disclaimer": "Para indicaciones, contraindicaciones, advertencias y precauciones, ver inserto del producto.<br>RADIESSE® CLÁSICO: Registro Sanitario INVIMA 2019DM-0004463-R1. RADIESSE® PLUS: Registro Sanitario INVIMA 2018DM-0017846.<br>RADIESSE es una marca comercial y/o marca registrada de Merz North America, Inc. en Colombia y/o en otros países.",
+      "atmosphere": {
+        "baseColor": "#03171e",
+        "blurTint": "#00E5FF",
+        "blobs": [
+          {
+            "from": "#00E5FF",
+            "to": "#0891b2",
+            "opacity": 0.55
+          },
+          {
+            "from": "#06b6d4",
+            "to": "#0369a1",
+            "opacity": 0.50
+          },
+          {
+            "from": "#14b8a6",
+            "to": "#0284c7",
+            "opacity": 0.48
+          },
+          {
+            "from": "#0284c7",
+            "to": "#0891b2",
+            "opacity": 0.52
+          },
+          {
+            "from": "#00E5FF",
+            "to": "#042f2e",
+            "opacity": 0.50
+          }
+        ]
+      }
     },
     {
       "id": "ultherapy",
-      "name": "Ultherapy",
+      "name": "Ultherapy<sup>®</sup>",
       "version": "0.1.0",
       "enabled": true,
-      "order": 2
+      "order": 2,
+      "image": "/content/images/brands/UltherapyBrand.png",
+      "logo": "/content/images/brands/UltherapyLogo.svg",
+      "description": "Lifting no invasivo con ultrasonido microfocalizado en tiempo real.",
+      "disclaimer": "Para indicaciones, contraindicaciones, advertencias y precauciones, ver inserto del producto.<br>ULTHERAPY®: Registro Sanitario INVIMA 2021DM-0008171-R1.<br>ULTHERA INC, ULTHERAPY y DEEPSEE son marcas comerciales y/o marcas registradas en Colombia.",
+      "atmosphere": {
+        "baseColor": "#151006",
+        "blurTint": "#D4AF37",
+        "blobs": [
+          {
+            "from": "#E5A93C",
+            "to": "#85580e",
+            "opacity": 0.55
+          },
+          {
+            "from": "#F3E5AB",
+            "to": "#B8860B",
+            "opacity": 0.48
+          },
+          {
+            "from": "#D4AF37",
+            "to": "#593d07",
+            "opacity": 0.52
+          },
+          {
+            "from": "#B8860B",
+            "to": "#451a03",
+            "opacity": 0.50
+          },
+          {
+            "from": "#E5A93C",
+            "to": "#78350f",
+            "opacity": 0.52
+          }
+        ]
+      }
     }
   ],
   "games": [
@@ -22,14 +123,16 @@
       "name": "Encuentra la Pareja",
       "version": "0.1.0",
       "minAppVersion": "0.1.0",
-      "enabled": true
+      "enabled": true,
+      "description": "Juego de concentración y memoria visual con elementos de marca."
     },
     {
       "id": "triqui",
       "name": "Triqui (Tres en Raya)",
       "version": "0.1.0",
       "minAppVersion": "0.1.0",
-      "enabled": true
+      "enabled": true,
+      "description": "Juego clásico de estrategia y agilidad mental en tablero 3×3."
     }
   ],
   "experiences": [
@@ -39,7 +142,10 @@
       "gameId": "memory",
       "version": "0.1.0",
       "enabled": true,
-      "order": 1
+      "order": 1,
+      "title": "Encuentra la Pareja Radiesse<sup>®</sup>",
+      "description": "<strong>Descubre cuánto sabes del universo de la estética mientras te diviertes.</strong> Encuentra todas las parejas de imágenes en este juego de memoria y, al completar el desafío, podrás participar por atractivos premios.<br><strong>¡Juega, acierta y gana!</strong>",
+      "image": "/content/images/experiences/radiesse-memory.jpg"
     },
     {
       "id": "ultherapy-memory",
@@ -47,7 +153,10 @@
       "gameId": "memory",
       "version": "0.1.0",
       "enabled": true,
-      "order": 2
+      "order": 2,
+      "title": "Encuentra la Pareja Ultherapy<sup>®</sup>",
+      "description": "<strong>Descubre el universo del lifting facial mientras pones a prueba tu atención.</strong> Encuentra la imagen que completa cada pareja, supera el reto y acércate a uno de nuestros premios.<br><strong>¡Cada coincidencia cuenta!</strong>",
+      "image": "/content/images/experiences/ultherapy-memory.jpg"
     },
     {
       "id": "radiesse-triqui",
@@ -55,7 +164,10 @@
       "gameId": "triqui",
       "version": "0.1.0",
       "enabled": true,
-      "order": 3
+      "order": 3,
+      "title": "Triqui interactivo Radiesse<sup>®</sup>",
+      "description": "Pon a prueba tu habilidad en nuestro reto de tres en línea y <strong>descubre más sobre la estética.</strong> Completa la secuencia, conquista el tablero y acércate a uno de nuestros premios.<br><strong>¡Cada movimiento cuenta!</strong>",
+      "image": "/content/images/experiences/radiesse-triqui.jpg"
     },
     {
       "id": "ultherapy-triqui",
@@ -63,7 +175,10 @@
       "gameId": "triqui",
       "version": "0.1.0",
       "enabled": true,
-      "order": 4
+      "order": 4,
+      "title": "Triqui interactivo Ultherapy<sup>®</sup>",
+      "description": "Pon a prueba tu habilidad en nuestro reto de tres en línea y <strong>descubre más sobre el lifting facial.</strong> Completa la secuencia, conquista el tablero y acércate a uno de nuestros premios.<br><strong>¡Cada movimiento cuenta!</strong>",
+      "image": "/content/images/experiences/ultherapy-triqui.jpg"
     }
   ]
 }

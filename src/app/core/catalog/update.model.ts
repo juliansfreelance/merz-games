@@ -1,7 +1,7 @@
 /**
  * Estados del proceso de actualización del catálogo/app.
  * Fase 3: solo contrato de tipos + valor inicial `idle`.
- * El servicio real de descarga es Fase 6.
+ * El servicio real de descarga es Fase 7.
  */
 export type UpdateStatus =
   | 'idle'

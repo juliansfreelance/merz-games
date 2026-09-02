@@ -35,7 +35,7 @@ export class PlatformService {
    * En Tauri el WebView comparte el mismo `localStorage`, por lo que no se
    * requiere ningún plugin adicional en Fases 3–5.
    *
-   * PUNTO DE EXTENSIÓN (Fase 6): reemplazar el cuerpo de este método para
+   * PUNTO DE EXTENSIÓN (Fase 7): reemplazar el cuerpo de este método para
    * delegar al plugin `@tauri-apps/plugin-fs` y escribir en AppData cuando
    * se requiera acceso nativo al sistema de archivos.
    */

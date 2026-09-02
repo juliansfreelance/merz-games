@@ -1,8 +1,8 @@
 /**
  * Motor de juego registrado en el catálogo.
  *
- * `entry` y `capabilities` son opcionales para no romper la semilla actual.
- * Las Fases 4–5 los rellenan al registrar los motores reales.
+ * `entry`, `capabilities`, `image` y `description` son opcionales para no romper la semilla actual.
+ * Las Fases 5–6 los rellenan al registrar los motores reales.
  */
 export interface Game {
   id: string;
@@ -14,4 +14,8 @@ export interface Game {
   entry?: string;
   /** Capacidades que ofrece este motor (p. ej. ['canvas', 'touch']). Opcional. */
   capabilities?: string[];
+  /** Imagen o icono representativo del juego. Opcional. */
+  image?: string;
+  /** Descripción general del juego. Opcional. */
+  description?: string;
 }

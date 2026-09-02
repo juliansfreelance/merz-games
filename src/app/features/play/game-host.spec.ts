@@ -24,6 +24,8 @@ describe('GameHost', () => {
         };
         return experiences[id];
       },
+      getBrandById: (id: string) => ({ id, name: id === 'radiesse' ? 'Radiesse' : id, enabled: true }),
+      getGameById: (id: string) => ({ id, name: id === 'memory' ? 'Encuentra la Pareja' : 'Triqui', enabled: true }),
     };
 
     const mockSession = {
@@ -63,12 +65,14 @@ describe('GameHost', () => {
     const { fixture } = setup('radiesse-memory');
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('app-memory-play')).toBeTruthy();
+    expect(el.querySelector('app-game-chrome')).toBeTruthy();
   });
 
   it('should resolve triqui stub for radiesse-triqui', () => {
     const { fixture } = setup('radiesse-triqui');
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('app-triqui-play')).toBeTruthy();
+    expect(el.querySelector('app-game-chrome')).toBeTruthy();
   });
 
   it('should show unavailable screen for unknown gameId', () => {

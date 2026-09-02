@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
-import { ContentManifest } from './content-manifest.model';
-import { CatalogService, semverGte } from './catalog';
+import { Atmosphere, ContentManifest } from './content-manifest.model';
+import { CatalogService, DEFAULT_ATMOSPHERE, semverGte } from './catalog';
 import { PlatformService } from '../platform/platform.service';
 import { UpdateSnapshot, UpdateStatus } from './update.model';
 import manifestSeed from '../../../../content/manifests/content-manifest.json';
@@ -55,6 +55,24 @@ describe('Content Catalog Manifest Contract', () => {
     expect(manifest.brands).toBeInstanceOf(Array);
     expect(manifest.games).toBeInstanceOf(Array);
     expect(manifest.experiences).toBeInstanceOf(Array);
+  });
+
+  it('should include institutional atmosphere and brand atmospheres', () => {
+    expect(manifest.atmosphere).toBeDefined();
+    expect(manifest.atmosphere?.baseColor).toBe('#0b0914');
+    expect(manifest.atmosphere?.blobs.length).toBeGreaterThan(0);
+
+    const radiesse = manifest.brands.find((b) => b.id === 'radiesse');
+    expect(radiesse?.atmosphere).toBeDefined();
+    expect(radiesse?.atmosphere?.blurTint).toBe('#00E5FF');
+    expect(radiesse?.image).toBeDefined();
+    expect(radiesse?.description).toBeDefined();
+
+    const ultherapy = manifest.brands.find((b) => b.id === 'ultherapy');
+    expect(ultherapy?.atmosphere).toBeDefined();
+    expect(ultherapy?.atmosphere?.blurTint).toBe('#D4AF37');
+    expect(ultherapy?.image).toBeDefined();
+    expect(ultherapy?.description).toBeDefined();
   });
 
   it('should include radiesse and ultherapy brands', () => {
@@ -112,14 +130,11 @@ describe('Content Catalog Manifest Contract', () => {
   });
 
   it('semilla sigue parseando con campos opcionales ausentes', () => {
-    // Los nuevos campos theme/assets/config son opcionales y no deben romper
     manifest.experiences.forEach((exp) => {
       expect(exp.id).toBeTruthy();
-      // theme, assets, config pueden ser undefined — eso es correcto
     });
     manifest.games.forEach((game) => {
       expect(game.id).toBeTruthy();
-      // entry, capabilities pueden ser undefined — eso es correcto
     });
   });
 });
@@ -154,6 +169,154 @@ describe('semverGte', () => {
 
   it('returns false when version is less (major)', () => {
     expect(semverGte('0.9.9', '1.0.0')).toBe(false);
+  });
+});
+
+// ─── CatalogService — Atmósfera y Cards ───────────────────────────────────────
+
+describe('CatalogService — Atmósfera y Cards', () => {
+  beforeEach(() => TestBed.resetTestingModule());
+
+  it('debe exponer defaultAtmosphere institucional', () => {
+    const { catalog } = buildCatalog();
+    const atmosphere = catalog.defaultAtmosphere();
+    expect(atmosphere).toBeDefined();
+    expect(atmosphere.baseColor).toBe('#0b0914');
+    expect(atmosphere.blobs.length).toBe(5);
+  });
+
+  it('atmosphereForBrand() resuelve atmósfera propia de Radiesse', () => {
+    const { catalog } = buildCatalog();
+    const radiesseAtmosphere = catalog.atmosphereForBrand('radiesse');
+    expect(radiesseAtmosphere.blurTint).toBe('#00E5FF');
+    expect(radiesseAtmosphere.baseColor).toBe('#03171e');
+  });
+
+  it('atmosphereForBrand() resuelve atmósfera propia de Ultherapy', () => {
+    const { catalog } = buildCatalog();
+    const ultherapyAtmosphere = catalog.atmosphereForBrand('ultherapy');
+    expect(ultherapyAtmosphere.blurTint).toBe('#D4AF37');
+    expect(ultherapyAtmosphere.baseColor).toBe('#151006');
+  });
+
+  it('atmosphereForBrand() con marca desconocida o sin atmósfera retorna default', () => {
+    const { catalog } = buildCatalog();
+    const fallback = catalog.atmosphereForBrand('marca-desconocida');
+    expect(fallback).toEqual(catalog.defaultAtmosphere());
+  });
+
+  it('atmosphereForExperience() resuelve atmósfera de la marca correspondiente', () => {
+    const { catalog } = buildCatalog();
+    const radiesseMemoryAtmosphere = catalog.atmosphereForExperience('radiesse-memory');
+    expect(radiesseMemoryAtmosphere.blurTint).toBe('#00E5FF');
+
+    const ultherapyTriquiAtmosphere = catalog.atmosphereForExperience('ultherapy-triqui');
+    expect(ultherapyTriquiAtmosphere.blurTint).toBe('#D4AF37');
+
+    const unknownExpAtmosphere = catalog.atmosphereForExperience('no-existe');
+    expect(unknownExpAtmosphere).toEqual(catalog.defaultAtmosphere());
+  });
+
+  it('cardForBrand() normaliza los datos para CatalogCard', () => {
+    const { catalog } = buildCatalog();
+    const radiesse = catalog.getBrandById('radiesse')!;
+    const card = catalog.cardForBrand(radiesse);
+    expect(card.id).toBe('radiesse');
+    expect(card.title).toBe('Radiesse');
+    expect(card.description).toContain('colágeno');
+    expect(card.image).toBeDefined();
+  });
+
+  it('cardForExperience() normaliza los datos con fallback inteligente', () => {
+    const { catalog } = buildCatalog();
+    const exp = catalog.getExperienceById('radiesse-memory')!;
+    const card = catalog.cardForExperience(exp);
+    expect(card.id).toBe('radiesse-memory');
+    expect(card.title).toBe('Memoria Radiesse');
+    expect(card.image).toBeDefined();
+  });
+
+  it('disclaimerForBrand() resuelve disclaimer legal propio de cada marca', () => {
+    const { catalog } = buildCatalog();
+    const radiesseDisclaimer = catalog.disclaimerForBrand('radiesse');
+    expect(radiesseDisclaimer).toBeDefined();
+    expect(radiesseDisclaimer).toContain('RADIESSE');
+    expect(radiesseDisclaimer).toContain('INVIMA');
+
+    const ultherapyDisclaimer = catalog.disclaimerForBrand('ultherapy');
+    expect(ultherapyDisclaimer).toBeDefined();
+    expect(ultherapyDisclaimer).toContain('ULTHERAPY');
+    expect(ultherapyDisclaimer).toContain('INVIMA');
+
+    const unknownDisclaimer = catalog.disclaimerForBrand('marca-inexistente');
+    expect(unknownDisclaimer).toBeUndefined();
+  });
+
+  it('disclaimerForExperience() resuelve disclaimer según la marca de la experiencia', () => {
+    const { catalog } = buildCatalog();
+    const radiesseExpDisclaimer = catalog.disclaimerForExperience('radiesse-memory');
+    expect(radiesseExpDisclaimer).toContain('RADIESSE');
+
+    const ultherapyExpDisclaimer = catalog.disclaimerForExperience('ultherapy-memory');
+    expect(ultherapyExpDisclaimer).toContain('ULTHERAPY');
+
+    const unknownExpDisclaimer = catalog.disclaimerForExperience('desconocida');
+    expect(unknownExpDisclaimer).toBeUndefined();
+  });
+
+  it('activityDisclaimer() retorna el texto legal de habilidad mental', () => {
+    const { catalog } = buildCatalog();
+    const disclaimer = catalog.activityDisclaimer();
+    expect(disclaimer).toContain('habilidad mental');
+    expect(disclaimer).toContain('clínica participante');
+  });
+
+  it('tercera marca con atmósfera propia en manifest es resuelta sin cambiar código', () => {
+    const customAtmosphere: Atmosphere = {
+      baseColor: '#2b003b',
+      blurTint: '#ff00ff',
+      blobs: [
+        { from: '#ff00ff', to: '#7700aa', opacity: 0.25 },
+        { from: '#aa00ff', to: '#330055', opacity: 0.20 },
+      ],
+    };
+
+    const thirdBrandManifest: ContentManifest = {
+      ...(manifestSeed as ContentManifest),
+      brands: [
+        ...(manifestSeed as ContentManifest).brands,
+        {
+          id: 'neocutis',
+          name: 'Neocutis',
+          version: '0.1.0',
+          enabled: true,
+          order: 3,
+          atmosphere: customAtmosphere,
+        },
+      ],
+      experiences: [
+        ...(manifestSeed as ContentManifest).experiences,
+        {
+          id: 'neocutis-memory',
+          brandId: 'neocutis',
+          gameId: 'memory',
+          version: '0.1.0',
+          enabled: true,
+          order: 5,
+        },
+      ],
+    };
+
+    const { catalog } = buildCatalog('0.1.0', {
+      [MANIFEST_KEY]: JSON.stringify(thirdBrandManifest),
+    });
+
+    const atmosphere = catalog.atmosphereForBrand('neocutis');
+    expect(atmosphere.baseColor).toBe('#2b003b');
+    expect(atmosphere.blurTint).toBe('#ff00ff');
+
+    const expAtmosphere = catalog.atmosphereForExperience('neocutis-memory');
+    expect(expAtmosphere.blurTint).toBe('#ff00ff');
   });
 });
 
@@ -253,16 +416,17 @@ describe('CatalogService', () => {
 describe('CatalogService — selectedBrand', () => {
   beforeEach(() => TestBed.resetTestingModule());
 
-  it('selectedBrand debe inicializar con la primera marca habilitada', () => {
+  it('selectedBrand debe inicializar como undefined (atmósfera institucional por defecto)', () => {
     const { catalog } = buildCatalog();
-    const first = catalog.brands()[0];
-    expect(catalog.selectedBrand()).toEqual(first);
+    expect(catalog.selectedBrand()).toBeUndefined();
   });
 
-  it('setSelectedBrand debe actualizar selectedBrand', () => {
+  it('setSelectedBrand debe actualizar selectedBrand y clearSelectedBrand debe limpiarlo', () => {
     const { catalog } = buildCatalog();
     catalog.setSelectedBrand('ultherapy');
     expect(catalog.selectedBrand()?.id).toBe('ultherapy');
+    catalog.clearSelectedBrand();
+    expect(catalog.selectedBrand()).toBeUndefined();
   });
 
   it('setSelectedBrand con id desconocido no debe cambiar selectedBrand', () => {
@@ -306,7 +470,6 @@ describe('CatalogService — selectedBrand', () => {
 
     const brandIds = catalog.brands().map((b) => b.id);
     expect(brandIds).toContain('tercera');
-    // Los selectores no cambiaron — brands() la expone automáticamente
   });
 });
 
@@ -319,7 +482,6 @@ describe('CatalogService — persistencia', () => {
     const { catalog } = buildCatalog('0.1.0', {
       [MANIFEST_KEY]: '{invalid-json!!}',
     });
-    // Debe arrancar con la semilla (radiesse y ultherapy)
     const brandIds = catalog.brands().map((b) => b.id);
     expect(brandIds).toContain('radiesse');
     expect(brandIds).toContain('ultherapy');
@@ -333,7 +495,7 @@ describe('CatalogService — persistencia', () => {
       experiences: [
         {
           id: 'bad-exp',
-          brandId: 'marca-inexistente', // relación rota
+          brandId: 'marca-inexistente',
           gameId: 'memory',
           version: '0.1.0',
           enabled: true,
@@ -346,7 +508,6 @@ describe('CatalogService — persistencia', () => {
       [MANIFEST_KEY]: JSON.stringify(broken),
     });
 
-    // Debe usar la semilla y no exponer la experiencia con relación rota
     const ids = catalog.experiences().map((e) => e.id);
     expect(ids).not.toContain('bad-exp');
     expect(ids).toContain('radiesse-memory');
@@ -424,7 +585,6 @@ describe('UpdateModel', () => {
       'idle', 'checking', 'available', 'downloading',
       'installing', 'completed', 'error', 'offline',
     ];
-    // Verificar que los tipos compilan y se pueden usar como literales
     validStates.forEach((s) => {
       expect(typeof s).toBe('string');
     });

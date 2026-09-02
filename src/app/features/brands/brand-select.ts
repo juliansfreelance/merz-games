@@ -3,62 +3,71 @@ import { Router } from '@angular/router';
 import { CatalogService } from '../../core/catalog/catalog';
 import { KioskButton } from '../shared/kiosk-button';
 import { KioskCard } from '../shared/kiosk-card';
+import { CatalogCard } from '../shared/catalog-card';
+import { KioskDisclaimer } from '../shared/kiosk-disclaimer';
 
 /**
- * Selector de marcas.
- * @for sobre catalog.brands() — cero listas hardcodeadas.
- * Añadir una marca al JSON semilla la hace aparecer aquí automáticamente.
+ * Selector de marcas con scroll nativo completo (mouse, touch y teclado) y soporte de atmósfera institucional.
  */
 @Component({
   selector: 'app-brand-select',
-  imports: [KioskButton, KioskCard],
+  imports: [KioskButton, KioskCard, CatalogCard, KioskDisclaimer],
+  host: {
+    class: 'block w-full h-full min-h-0 overflow-y-auto overscroll-contain',
+  },
   template: `
-    <div class="flex flex-col h-full w-full px-8 py-12 bg-neutral-950 text-white gap-8">
+    <div class="flex flex-col min-h-full w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 kiosk:py-10 text-white justify-between select-none gap-4">
 
-      <!-- Encabezado -->
-      <header class="text-center space-y-2">
-        <h1 class="text-3xl font-extrabold text-white">Elige tu marca</h1>
-        <p class="text-neutral-400">Selecciona la marca con la que quieres jugar</p>
+      <!-- Encabezado con estética de agencia -->
+      <header class="text-center space-y-2 sm:space-y-3 kiosk:space-y-6 shrink-0 pt-1">
+        <div class="inline-flex flex-col items-center justify-center gap-1.5 sm:gap-2">
+          <span class="w-full flex items-center justify-center px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm kiosk:text-base font-extrabold font-['Montserrat'] tracking-[0.35em] sm:tracking-[0.4em] uppercase bg-white/10 text-white border border-white/20 backdrop-blur-md shadow-md select-none">
+            HOY TU PIEL
+          </span>
+          <h1 class="text-xl sm:text-2xl lg:text-3xl kiosk:text-4xl kiosk-tall:text-5xl font-extrabold font-['Montserrat'] uppercase text-white tracking-tight whitespace-nowrap">
+            TAMBIÉN GANA
+          </h1>
+        </div>
+        <p class="text-neutral-300 text-xs sm:text-base lg:text-lg kiosk:text-2xl max-w-md sm:max-w-xl mx-auto leading-relaxed">
+          Selecciona la marca con la que deseas interactuar y jugar
+        </p>
       </header>
 
-      <!-- Lista de marcas -->
-      <div class="flex-1 flex flex-col justify-center gap-4">
+      <!-- Zona de tarjetas -->
+      <div class="flex-1 w-full my-2 sm:my-4 kiosk:my-8 px-4 sm:px-6">
+        <div class="w-full max-w-6xl mx-auto min-h-full flex flex-row flex-wrap justify-center content-center items-stretch gap-4 sm:gap-6 lg:gap-8 py-4">
+          @if (catalog.brands().length === 0) {
+            <app-kiosk-card class="w-full max-w-md">
+              <p class="text-center text-neutral-400 py-6">
+                No hay marcas disponibles en este momento.
+              </p>
+            </app-kiosk-card>
+          }
 
-        @if (catalog.brands().length === 0) {
-          <!-- Estado vacío -->
-          <app-kiosk-card>
-            <p class="text-center text-neutral-400 py-4">
-              No hay marcas disponibles en este momento.
-            </p>
-          </app-kiosk-card>
-        }
-
-        @for (brand of catalog.brands(); track brand.id) {
-          <button
-            class="w-full min-h-20 rounded-2xl border border-white/10 bg-white/5 active:bg-white/10 active:scale-[0.98] transition-all duration-150 text-left px-6 py-5 cursor-pointer"
-            style="touch-action: manipulation;"
-            (pointerup)="selectBrand(brand.id)"
-            [attr.aria-label]="'Jugar con ' + brand.name"
-          >
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-xl font-bold text-white">{{ brand.name }}</p>
-                <p class="text-sm text-neutral-400 mt-1">Toca para ver los juegos</p>
-              </div>
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                   stroke-width="2" stroke="currentColor" class="w-6 h-6 text-neutral-500 shrink-0">
-                <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-              </svg>
+          @for (brand of catalog.brands(); track brand.id) {
+            <div class="w-full max-w-[340px] sm:w-[380px] md:w-[440px] lg:w-[460px] kiosk:w-[470px] kiosk-tall:w-[480px] flex shrink-0">
+              <app-catalog-card
+                [title]="brand.name"
+                [description]="brand.description ?? 'Toca para descubrir los juegos disponibles.'"
+                [image]="brand.image"
+                badge="Marca"
+                actionLabel="Seleccionar"
+                [ariaLabel]="'Jugar con ' + brand.name"
+                (selected)="selectBrand(brand.id)"
+              />
             </div>
-          </button>
-        }
-
+          }
+        </div>
       </div>
 
-      <!-- Volver -->
-      <app-kiosk-button variant="ghost" (click)="goBack()">
-        ← Volver al inicio
-      </app-kiosk-button>
+      <!-- Sticky Footer unificado con botón volver y disclaimers -->
+      <app-kiosk-disclaimer>
+        <div class="w-full max-w-xs sm:max-w-md kiosk:max-w-lg">
+          <app-kiosk-button variant="ghost" (click)="goBack()">
+            ← Volver al inicio
+          </app-kiosk-button>
+        </div>
+      </app-kiosk-disclaimer>
 
     </div>
   `,
@@ -66,6 +75,10 @@ import { KioskCard } from '../shared/kiosk-card';
 export class BrandSelect {
   protected readonly catalog = inject(CatalogService);
   private readonly router = inject(Router);
+
+  constructor() {
+    this.catalog.clearSelectedBrand();
+  }
 
   selectBrand(brandId: string): void {
     this.catalog.setSelectedBrand(brandId);

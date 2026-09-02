@@ -1,47 +1,77 @@
-import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  inject,
+  OnInit,
+  signal,
+} from '@angular/core';
 import { Router } from '@angular/router';
+import { CatalogService } from '../../core/catalog/catalog';
+import { AppInitService } from '../../core/lifecycle/app-init.service';
 
 /**
- * Pantalla de splash inicial.
- * Auto-navega a /welcome después de 2.5s.
- * Tap adelanta la navegación.
- * Timer siempre limpiado con DestroyRef.
+ * Pantalla de Splash y precarga inteligente de recursos.
+ * - Centrado geométrico perfecto (vertical y horizontal) ocupando el 100% de la altura.
+ * - Espera a que los recursos esenciales (imágenes clave, tipografías y catálogo) se carguen.
+ * - Muestra un indicador visual de progreso responsivo y elegante.
+ * - Al completar al 100%, realiza una transición suave (fade-out) hacia /welcome.
  */
 @Component({
   selector: 'app-splash',
+  host: {
+    class: 'block w-full h-full min-h-0 flex-1 flex flex-col overflow-hidden',
+  },
   template: `
     <div
-      class="flex flex-col items-center justify-center h-full w-full bg-neutral-950 text-white cursor-pointer"
+      class="flex flex-col items-center justify-center h-full w-full flex-1 text-white cursor-pointer select-none px-6 sm:px-12 transition-all duration-700 ease-out"
+      [class.opacity-0]="isExiting()"
+      [class.scale-95]="isExiting()"
       style="touch-action: manipulation;"
-      (pointerup)="advance()"
+      (pointerup)="onTap()"
       role="button"
-      aria-label="Toca para comenzar"
+      aria-label="Toca para continuar"
     >
 
-      <!-- Logo / Ícono -->
-      <div
-        class="w-28 h-28 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-10"
-        [class.animate-pulse]="!ready()"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-             stroke-width="1" stroke="currentColor" class="w-14 h-14 text-white/60">
-          <path stroke-linecap="round" stroke-linejoin="round"
-                d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 0 0 6.16-12.12A14.98 14.98 0 0 0 9.631 8.41m5.96 5.96a14.926 14.926 0 0 1-5.841 2.58m-.119-8.54a6 6 0 0 0-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 0 0-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 0 1-2.448-2.448 14.9 14.9 0 0 1 .06-.312m-2.24 2.39a4.493 4.493 0 0 0-1.757 4.306 4.493 4.493 0 0 0 4.306-1.758M16.5 9a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z" />
-        </svg>
-      </div>
+      <!-- Bloque Central exactamente centrado vertical y horizontalmente -->
+      <div class="flex flex-col items-center justify-center max-w-md kiosk:max-w-lg w-full gap-8 sm:gap-10 kiosk:gap-14 text-center my-auto">
 
-      <!-- Nombre de la app -->
-      <h1 class="text-4xl font-extrabold tracking-widest text-white mb-3 uppercase">
-        Merz Games
-      </h1>
-      <p class="text-neutral-500 text-sm tracking-wider uppercase">
-        Merz Aesthetics · 2026
-      </p>
+        <!-- Icono / Escudo Institucional -->
+        <div
+          class="w-28 h-28 sm:w-36 sm:h-36 kiosk:w-48 kiosk:h-48 rounded-3xl kiosk:rounded-[2.5rem] bg-white/5 border border-white/15 backdrop-blur-md flex items-center justify-center shadow-2xl shadow-black/50 p-4 sm:p-6 shrink-0 transition-transform duration-500"
+          [class.animate-pulse]="!isComplete()"
+          [class.scale-105]="isComplete()"
+        >
+          <img
+            src="/content/images/merzGamesIcono.png"
+            alt="Merz Games Icono"
+            class="w-full h-full object-contain select-none pointer-events-none drop-shadow-md"
+          />
+        </div>
 
-      <!-- Indicador de toque -->
-      <div class="absolute bottom-16 flex flex-col items-center gap-2 opacity-60">
-        <p class="text-neutral-400 text-sm">Toca para continuar</p>
-        <div class="w-px h-8 bg-gradient-to-b from-white/40 to-transparent animate-bounce"></div>
+        <!-- Logotipo Institucional Merz Aesthetics -->
+        <div class="flex flex-col items-center w-full">
+          <img
+            src="/content/images/MerzAestheticsLogo.svg"
+            alt="Merz Aesthetics"
+            class="w-full max-w-[240px] sm:max-w-[300px] kiosk:max-w-[380px] h-auto object-contain drop-shadow-md select-none pointer-events-none"
+          />
+        </div>
+
+        <!-- Barra de Progreso del Loader -->
+        <div class="w-full max-w-[260px] sm:max-w-[320px] kiosk:max-w-[400px] flex flex-col items-center gap-3 pt-2">
+          <div class="w-full h-2 sm:h-2.5 bg-white/10 rounded-full overflow-hidden border border-white/15 backdrop-blur-md p-[2px] shadow-inner">
+            <div
+              class="h-full rounded-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-indigo-500 shadow-[0_0_14px_rgba(0,229,255,0.85)] transition-all duration-300 ease-out"
+              [style.width.%]="progress()"
+            ></div>
+          </div>
+
+          <div class="flex items-center justify-between w-full text-xs sm:text-sm text-neutral-300 font-medium tracking-wider px-1">
+            <span class="truncate max-w-[200px] sm:max-w-[240px] text-left">{{ statusMessage() }}</span>
+            <span class="font-mono tabular-nums text-white font-bold">{{ progress() }}%</span>
+          </div>
+        </div>
+
       </div>
 
     </div>
@@ -49,28 +79,152 @@ import { Router } from '@angular/router';
 })
 export class Splash implements OnInit {
   private readonly router = inject(Router);
+  private readonly catalog = inject(CatalogService);
+  private readonly appInit = inject(AppInitService);
   private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly ready = signal(false);
+  protected readonly progress = signal(0);
+  protected readonly statusMessage = signal('Iniciando...');
+  protected readonly isComplete = signal(false);
+  protected readonly isExiting = signal(false);
 
-  private timerId: ReturnType<typeof setTimeout> | null = null;
+  private timeoutIds: ReturnType<typeof setTimeout>[] = [];
 
   ngOnInit(): void {
-    this.timerId = setTimeout(() => this.advance(), 2500);
-
     this.destroyRef.onDestroy(() => {
-      if (this.timerId !== null) {
-        clearTimeout(this.timerId);
-        this.timerId = null;
+      this.clearAllTimeouts();
+    });
+
+    this.runPreloader();
+  }
+
+  onTap(): void {
+    if (this.isComplete()) {
+      this.advance();
+    }
+  }
+
+  private async runPreloader(): Promise<void> {
+    const startTime = Date.now();
+    this.statusMessage.set('Cargando catálogo...');
+    this.progress.set(20);
+
+    // 1. Recopilar lista de URLs esenciales a precargar
+    const coreUrls = [
+      '/content/images/merzGamesIcono.png',
+      '/content/images/merzGamesLogotipo.png',
+      '/content/images/MerzAestheticsLogo.svg',
+    ];
+
+    const brandUrls = this.catalog
+      .brands()
+      .flatMap((b) => [b.image, b.logo])
+      .filter((img): img is string => !!img);
+
+    const experienceUrls = this.catalog
+      .experiences()
+      .map((e) => e.image)
+      .filter((img): img is string => !!img);
+
+    const allUrls = Array.from(
+      new Set([...coreUrls, ...brandUrls, ...experienceUrls]),
+    );
+
+    let loadedCount = 0;
+    const totalItems = allUrls.length + 1; // +1 para fuentes
+
+    // 2. Esperar fuentes del documento si están soportadas
+    try {
+      if (typeof document !== 'undefined' && 'fonts' in document) {
+        await document.fonts.ready;
       }
+    } catch {
+      // Continuar si falla la comprobación de fuentes
+    }
+
+    loadedCount++;
+    this.updateProgress(loadedCount, totalItems, 'Cargando recursos...');
+
+    // 3. Precarga de imágenes concurrentemente
+    await Promise.all(
+      allUrls.map(async (url) => {
+        await this.preloadImage(url);
+        loadedCount++;
+        this.updateProgress(
+          loadedCount,
+          totalItems,
+          loadedCount === totalItems ? '¡Listo!' : 'Cargando imágenes...',
+        );
+      }),
+    );
+
+    // 4. Asegurar un tiempo mínimo elegante de presentación (1.2s)
+    const elapsed = Date.now() - startTime;
+    const minDisplayTime = 1200;
+    const remainingTime = Math.max(0, minDisplayTime - elapsed);
+
+    this.scheduleTimeout(() => {
+      this.progress.set(100);
+      this.statusMessage.set('¡Listo!');
+      this.isComplete.set(true);
+
+      // 5. Iniciar transición suave y navegar a /welcome
+      this.scheduleTimeout(() => {
+        this.advance();
+      }, 400);
+    }, remainingTime);
+  }
+
+  private updateProgress(
+    loaded: number,
+    total: number,
+    message: string,
+  ): void {
+    const rawPercent = Math.min(95, Math.round((loaded / total) * 95));
+    this.progress.set(Math.max(this.progress(), rawPercent));
+    this.statusMessage.set(message);
+  }
+
+  private preloadImage(url: string): Promise<void> {
+    return new Promise((resolve) => {
+      if (typeof window === 'undefined') {
+        resolve();
+        return;
+      }
+
+      const img = new Image();
+      img.src = url;
+
+      if (img.complete) {
+        resolve();
+        return;
+      }
+
+      img.onload = () => resolve();
+      img.onerror = () => resolve(); // Resiliente: no bloquea si falta un archivo opcional
     });
   }
 
-  advance(): void {
-    if (this.timerId !== null) {
-      clearTimeout(this.timerId);
-      this.timerId = null;
+  private advance(): void {
+    if (this.isExiting()) return;
+    this.isExiting.set(true);
+
+    // Transición suave de 700ms antes de cambiar de ruta
+    this.scheduleTimeout(() => {
+      this.appInit.markAsInitialized();
+      this.router.navigate(['/welcome'], { replaceUrl: true });
+    }, 700);
+  }
+
+  private scheduleTimeout(fn: () => void, delay: number): void {
+    const id = setTimeout(fn, delay);
+    this.timeoutIds.push(id);
+  }
+
+  private clearAllTimeouts(): void {
+    for (const id of this.timeoutIds) {
+      clearTimeout(id);
     }
-    this.router.navigate(['/welcome'], { replaceUrl: true });
+    this.timeoutIds = [];
   }
 }

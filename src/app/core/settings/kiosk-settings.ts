@@ -21,7 +21,7 @@ const DEFAULT_SETTINGS: KioskSettingsData = {
  * Servicio de ajustes locales del kiosco.
  *
  * Gestiona configuraciones que persisten entre reinicios (localStorage).
- * Sin UI de panel: solo la API que Fase 6 enlazará.
+ * Sin UI de panel: solo la API que Fase 7 enlazará.
  *
  * Ajustes actuales:
  * - `screensaverMode`: `'classic' | 'video'` (default: `'classic'`).
@@ -54,7 +54,7 @@ export class KioskSettings {
 
   /**
    * Cambia el modo del protector de pantalla.
-   * La UI del panel (Fase 6) llamará a este método.
+   * La UI del panel (Fase 7) llamará a este método.
    */
   setScreensaverMode(mode: ScreensaverMode): void {
     this.screensaverMode.set(mode);

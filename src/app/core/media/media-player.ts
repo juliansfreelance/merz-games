@@ -22,7 +22,7 @@ export interface PlayOptions {
  * - El elemento DOM se crea dinámicamente y se destruye con el servicio.
  * - Limpieza automática en `DestroyRef`.
  *
- * Fase 7 añadirá el loop de video de atracción; este servicio es el único
+ * Fase 8 añadirá el loop de video de atracción; este servicio es el único
  * reproductor — no crear otros.
  */
 @Injectable({ providedIn: 'root' })
