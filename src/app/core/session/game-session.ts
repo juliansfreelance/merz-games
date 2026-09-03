@@ -12,11 +12,25 @@ export const MAX_LIVES = 3;
  */
 export const RESULT_REVEAL_DELAY_MS = 1100;
 
+/** Estados posibles del turno para juegos por turnos (Triqui). */
+export type TriquiTurnState = 'player' | 'ai' | 'over';
+
+export interface TriquiTurnInfo {
+  state: TriquiTurnState;
+  markXUrl: string;
+  markOUrl: string;
+}
+
 /**
- * Servicio de sesión de partida.
+ * Servicio de sesión de juego en curso.
  *
- * Gestiona las 3 vidas de cada partida y el overlay de resultado (sin navegar).
- * Sin PII, sin persistencia de participaciones: la sesión es volátil (en memoria).
+ * Mantiene el estado efímero de la partida activa en memoria:
+ * - Vidas restantes (`remainingLives`)
+ * - Resultado actual (`playResult`)
+ * - Contador de rondas (`round`)
+ * - Trigger para solicitud de tutorial (`tutorialRequested`)
+ * - Auto-tutorial de sesión (`autoShowTutorial`) — solo en la primera ronda
+ * - Estado del turno para juegos por turnos (`triquiTurn`)
  *
  * API para los motores:
  * - `start(experienceId)` — inicia/reinicia la sesión al entrar a `/play/:experienceId`.
@@ -51,15 +65,37 @@ export class GameSession {
   readonly round = signal<number>(0);
 
   /**
+   * Ronda dentro de la sesión actual (1, 2, 3…).
+   * Se reinicia en `start()` y avanza en `nextRound()` (empates / derrotas).
+   */
+  readonly sessionRound = signal<number>(0);
+
+  /**
    * Contador / trigger de solicitud de tutorial desde el cromado u otros controles globales.
    * Se incrementa cuando el usuario pulsa el botón «?» junto a las vidas.
    */
   readonly tutorialRequested = signal<number>(0);
 
+  /**
+   * Si true, el motor debe abrir el tutorial al montar (sesión nueva, vidas a tope).
+   * `start()` lo activa; `nextRound()` y el primer auto-show lo desactivan.
+   */
+  readonly autoShowTutorial = signal(false);
+
+  /**
+   * Estado del turno en juegos por turnos (como Triqui) para ser proyectado en el cromado exterior.
+   * `null` cuando no hay juego por turnos activo.
+   */
+  readonly triquiTurn = signal<TriquiTurnInfo | null>(null);
+
   private _resultTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     inject(DestroyRef).onDestroy(() => this.dismissResult());
+  }
+
+  setTriquiTurn(turn: TriquiTurnInfo | null): void {
+    this.triquiTurn.set(turn);
   }
 
   /** Solicita la apertura del tutorial interactivo del juego activo. */
@@ -73,10 +109,37 @@ export class GameSession {
    */
   start(experienceId: string): void {
     this.dismissResult();
+    this.setTriquiTurn(null);
     this.activeExperienceId.set(experienceId);
     this.remainingLives.set(MAX_LIVES);
+    this.autoShowTutorial.set(true);
+    this.sessionRound.set(1);
     this.round.update((n) => n + 1);
-    this.logger.info('GameSession', `Sesión iniciada: ${experienceId}, vidas: ${MAX_LIVES}`);
+    this.logger.info(
+      'GameSession',
+      `Sesión iniciada: ${experienceId}, vidas: ${MAX_LIVES}, ronda: 1`,
+    );
+  }
+
+  /**
+   * Avanza a la siguiente ronda dentro de la misma sesión activa.
+   * Conserva las vidas restantes (remainingLives).
+   * Cierra el overlay de resultado e incrementa round para remount del tablero.
+   */
+  nextRound(): void {
+    this.dismissResult();
+    this.autoShowTutorial.set(false);
+    this.sessionRound.update((n) => n + 1);
+    this.round.update((n) => n + 1);
+    this.logger.info(
+      'GameSession',
+      `Siguiente ronda (${this.sessionRound()}): vidas conservadas (${this.remainingLives()})`,
+    );
+  }
+
+  /** El motor ya mostró (o no debe mostrar) el tutorial automático de esta sesión. */
+  markTutorialShown(): void {
+    this.autoShowTutorial.set(false);
   }
 
   /**
@@ -112,6 +175,15 @@ export class GameSession {
     this.scheduleResult(result);
   }
 
+  /**
+   * Anuncia un resultado de ronda (derrota con vidas o empate).
+   * Programa el overlay correspondiente tras RESULT_REVEAL_DELAY_MS sin resetear vidas.
+   */
+  announce(result: 'lose' | 'draw'): void {
+    this.logger.info('GameSession', `Resultado anunciado: ${result}`);
+    this.scheduleResult(result);
+  }
+
   /** Cancela el timer y oculta el overlay de resultado. */
   dismissResult(): void {
     if (this._resultTimer !== null) {
@@ -119,6 +191,18 @@ export class GameSession {
       this._resultTimer = null;
     }
     this.playResult.set(null);
+  }
+
+  /**
+   * Sale de /play (botón Volver del cromado o destrucción del host).
+   * Cierra overlay, turno y desmonta el motor antes de la navegación.
+   */
+  leavePlay(): void {
+    this.dismissResult();
+    this.setTriquiTurn(null);
+    this.autoShowTutorial.set(false);
+    this.activeExperienceId.set('');
+    this.round.set(0);
   }
 
   // ─── Interno ─────────────────────────────────────────────────────────────────

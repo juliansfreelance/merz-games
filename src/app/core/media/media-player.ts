@@ -100,6 +100,35 @@ export class MediaPlayer {
     this.logger.info('MediaPlayer', `[media] Precargando: ${url}`);
   }
 
+  /**
+   * Precarga audio/video y espera a que el buffer esté listo (o falle / expire).
+   * El splash usa esto para no marcar 100 % con SFX aún en vuelo.
+   */
+  preloadUntilReady(url: string, timeoutMs = 12_000): Promise<void> {
+    this.preload(url);
+    const element = this._preloadCache.get(url);
+    if (!element) return Promise.resolve();
+
+    const enough = typeof HTMLMediaElement !== 'undefined' ? HTMLMediaElement.HAVE_ENOUGH_DATA : 4;
+    if (element.readyState >= enough) return Promise.resolve();
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        element.removeEventListener('canplaythrough', finish);
+        element.removeEventListener('error', finish);
+        resolve();
+      };
+
+      const timer = setTimeout(finish, timeoutMs);
+      element.addEventListener('canplaythrough', finish, { once: true });
+      element.addEventListener('error', finish, { once: true });
+    });
+  }
+
   // ─── Canal BGM ────────────────────────────────────────────────────────────
 
   /**

@@ -1,6 +1,7 @@
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { PlatformService } from '../platform/platform.service';
 import { AppLogger } from '../logging/app-error';
+import { Difficulty, FirstPlayer } from '../games/triqui/triqui.model';
 
 /** Clave de localStorage para los ajustes del kiosco. */
 const SETTINGS_STORAGE_KEY = 'merz-games.kiosk-settings';
@@ -22,12 +23,24 @@ interface KioskSettingsData {
    * El panel para cambiar este valor es Fase 7.
    */
   memoryPairs: number | null;
+  /**
+   * Override operativo de la dificultad para el motor de Triqui.
+   * null = sin override; la cascada arranca en el nivel de experiencia/motor.
+   */
+  triquiDifficulty: Difficulty | null;
+  /**
+   * Override operativo de quién empieza para el motor de Triqui.
+   * null = sin override; la cascada arranca en el nivel de experiencia/motor.
+   */
+  triquiFirstPlayer: FirstPlayer | null;
 }
 
 const DEFAULT_SETTINGS: KioskSettingsData = {
   screensaverMode: 'classic',
   soundEnabled: true,
   memoryPairs: null,
+  triquiDifficulty: null,
+  triquiFirstPlayer: null,
 };
 
 /**
@@ -40,6 +53,8 @@ const DEFAULT_SETTINGS: KioskSettingsData = {
  * - `screensaverMode`: `'classic' | 'video'` (default: `'classic'`).
  * - `soundEnabled`: boolean (default: `true`). Con `false`, silencia BGM y SFX.
  * - `memoryPairs`: número de parejas para Memoria | null (sin override).
+ * - `triquiDifficulty`: dificultad para Triqui | null (sin override).
+ * - `triquiFirstPlayer`: quién empieza en Triqui | null (sin override).
  *
  * FUERA DE ALCANCE ahora: UI del panel, activar el protector, timeout de 3 min.
  */
@@ -66,6 +81,18 @@ export class KioskSettings {
    * El panel para cambiar este valor es Fase 7.
    */
   readonly memoryPairs = computed(() => this._data().memoryPairs);
+
+  /**
+   * Override operativo de dificultad para Triqui.
+   * null = sin override (gobierna catálogo).
+   */
+  readonly triquiDifficulty = computed(() => this._data().triquiDifficulty);
+
+  /**
+   * Override operativo del primer jugador para Triqui.
+   * null = sin override (gobierna catálogo).
+   */
+  readonly triquiFirstPlayer = computed(() => this._data().triquiFirstPlayer);
 
   constructor() {
     // Persistir cada vez que cualquier ajuste cambie (efecto secundario real).
@@ -97,6 +124,30 @@ export class KioskSettings {
   setMemoryPairs(pairs: number | null): void {
     this._patch({ memoryPairs: pairs });
     this.logger.info('KioskSettings', `memoryPairs override: ${pairs ?? 'null (catálogo)'}`);
+  }
+
+  /**
+   * Establece el override operativo de dificultad para Triqui.
+   * Pasar `null` restaura el valor del catálogo.
+   */
+  setTriquiDifficulty(difficulty: Difficulty | null): void {
+    this._patch({ triquiDifficulty: difficulty });
+    this.logger.info(
+      'KioskSettings',
+      `triquiDifficulty override: ${difficulty ?? 'null (catálogo)'}`,
+    );
+  }
+
+  /**
+   * Establece el override operativo de primer jugador para Triqui.
+   * Pasar `null` restaura el valor del catálogo.
+   */
+  setTriquiFirstPlayer(firstPlayer: FirstPlayer | null): void {
+    this._patch({ triquiFirstPlayer: firstPlayer });
+    this.logger.info(
+      'KioskSettings',
+      `triquiFirstPlayer override: ${firstPlayer ?? 'null (catálogo)'}`,
+    );
   }
 
   // ─── Interno ─────────────────────────────────────────────────────────────────
@@ -132,7 +183,27 @@ export class KioskSettings {
           ? parsed.memoryPairs
           : DEFAULT_SETTINGS.memoryPairs;
 
-      return { screensaverMode, soundEnabled, memoryPairs };
+      const triquiDifficulty: Difficulty | null =
+        parsed.triquiDifficulty === 'easy' ||
+        parsed.triquiDifficulty === 'medium' ||
+        parsed.triquiDifficulty === 'hard'
+          ? parsed.triquiDifficulty
+          : null;
+
+      const triquiFirstPlayer: FirstPlayer | null =
+        parsed.triquiFirstPlayer === 'patient' ||
+        parsed.triquiFirstPlayer === 'alternate' ||
+        parsed.triquiFirstPlayer === 'random'
+          ? parsed.triquiFirstPlayer
+          : null;
+
+      return {
+        screensaverMode,
+        soundEnabled,
+        memoryPairs,
+        triquiDifficulty,
+        triquiFirstPlayer,
+      };
     } catch {
       this.logger.warn('KioskSettings', 'Ajustes persistidos corruptos, usando defaults.');
       return { ...DEFAULT_SETTINGS };

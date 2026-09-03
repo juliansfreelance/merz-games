@@ -6,6 +6,11 @@ import {
 } from '@angular/core';
 import { MemoryCardState } from '../../core/games/memory/memory.model';
 
+/** Duración del volteo 3D. El pulso de acierto y el SFX de fallo esperan este tiempo. */
+export const CARD_FLIP_DURATION_MS = 350;
+/** Retraso del pulso de acierto tras el volteo 3D. Debe coincidir con `animation-delay` de `.is-matched`. */
+export const MATCH_PULSE_DELAY_MS = CARD_FLIP_DURATION_MS;
+
 /**
  * MemoryCard — Carta individual del juego de Memoria.
  *
@@ -143,7 +148,7 @@ import { MemoryCardState } from '../../core/games/memory/memory.model';
       }
     }
 
-    /* Match visual DESPUÉS del volteo (0.35s): el pulso no pisa rotateY de las caras */
+    /* Match visual DESPUÉS del volteo (MATCH_PULSE_DELAY_MS = 350): el pulso no pisa rotateY de las caras */
     .card-art {
       transition: opacity 0.4s ease-out 0.35s;
     }

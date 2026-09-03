@@ -1,12 +1,32 @@
 import { TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { Splash } from './splash';
 import { provideRouter } from '@angular/router';
+import { MediaPlayer } from '../../core/media/media-player';
 
 describe('Splash (Preloader)', () => {
   beforeEach(async () => {
+    Object.defineProperty(document, 'fonts', {
+      configurable: true,
+      value: {
+        ready: Promise.resolve(),
+        load: vi.fn().mockResolvedValue([]),
+      },
+    });
+
     await TestBed.configureTestingModule({
       imports: [Splash],
-      providers: [provideRouter([])],
+      providers: [
+        provideRouter([]),
+        {
+          provide: MediaPlayer,
+          useValue: {
+            playSfx: vi.fn(),
+            preload: vi.fn(),
+            preloadUntilReady: vi.fn().mockResolvedValue(undefined),
+          },
+        },
+      ],
     }).compileComponents();
   });
 

@@ -1,13 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CatalogCard } from './catalog-card';
+import { MediaPlayer } from '../../core/media/media-player';
+import { UI_SFX } from './ui-sfx';
 
 describe('CatalogCard', () => {
   let fixture: ComponentFixture<CatalogCard>;
   let component: CatalogCard;
+  let playSfx: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
+    playSfx = vi.fn();
     await TestBed.configureTestingModule({
       imports: [CatalogCard],
+      providers: [{ provide: MediaPlayer, useValue: { playSfx } }],
     }).compileComponents();
 
     fixture = TestBed.createComponent(CatalogCard);
@@ -35,5 +40,6 @@ describe('CatalogCard', () => {
     const buttonElement = fixture.nativeElement.querySelector('[role="button"]') as HTMLElement;
     buttonElement.dispatchEvent(new PointerEvent('pointerup'));
     expect(emitted).toBe(true);
+    expect(playSfx).toHaveBeenCalledWith(UI_SFX.select);
   });
 });

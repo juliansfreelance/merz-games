@@ -5,16 +5,18 @@ import { ResultScreen } from './result-screen';
 import { isValidPlayResult } from '../../core/catalog/play-result.model';
 import { GameSession } from '../../core/session/game-session';
 import { CatalogService } from '../../core/catalog/catalog';
+import { MediaPlayer } from '../../core/media/media-player';
 
 describe('isValidPlayResult', () => {
   it('should return true for valid results', () => {
     expect(isValidPlayResult('win')).toBe(true);
     expect(isValidPlayResult('lose')).toBe(true);
     expect(isValidPlayResult('out-of-lives')).toBe(true);
+    expect(isValidPlayResult('draw')).toBe(true);
   });
 
   it('should return false for unknown values', () => {
-    expect(isValidPlayResult('draw')).toBe(false);
+    expect(isValidPlayResult('tie')).toBe(false);
     expect(isValidPlayResult('')).toBe(false);
     expect(isValidPlayResult('WIN')).toBe(false);
     expect(isValidPlayResult('nones')).toBe(false);
@@ -23,19 +25,34 @@ describe('isValidPlayResult', () => {
 
 describe('ResultScreen overlay', () => {
   let fixture: ComponentFixture<ResultScreen>;
+  let mockSession: {
+    start: ReturnType<typeof vi.fn>;
+    nextRound: ReturnType<typeof vi.fn>;
+    dismissResult: ReturnType<typeof vi.fn>;
+    leavePlay: ReturnType<typeof vi.fn>;
+    playResult: ReturnType<typeof signal>;
+    remainingLives: ReturnType<typeof signal>;
+  };
+  let playSfx: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
+    mockSession = {
+      start: vi.fn(),
+      nextRound: vi.fn(),
+      dismissResult: vi.fn(),
+      leavePlay: vi.fn(),
+      playResult: signal(null),
+      remainingLives: signal(2),
+    };
+    playSfx = vi.fn();
+
     await TestBed.configureTestingModule({
       imports: [ResultScreen],
       providers: [
         provideRouter([]),
         {
           provide: GameSession,
-          useValue: {
-            start: vi.fn(),
-            dismissResult: vi.fn(),
-            playResult: signal(null),
-          },
+          useValue: mockSession,
         },
         {
           provide: CatalogService,
@@ -43,6 +60,7 @@ describe('ResultScreen overlay', () => {
             getExperienceById: () => ({ id: 'radiesse-memory', brandId: 'radiesse' }),
           },
         },
+        { provide: MediaPlayer, useValue: { playSfx } },
       ],
     }).compileComponents();
 
@@ -74,15 +92,60 @@ describe('ResultScreen overlay', () => {
     expect(card).toBeTruthy();
   });
 
-  it('en victoria no muestra «Volver a jugar»', () => {
+  it('en victoria no muestra «Volver a jugar» ni «Siguiente ronda»', () => {
     expect(fixture.nativeElement.textContent).not.toContain('Volver a jugar');
+    expect(fixture.nativeElement.textContent).not.toContain('Siguiente ronda');
     expect(fixture.nativeElement.textContent).toContain('Ver más juegos');
   });
 
-  it('en out-of-lives muestra «Volver a jugar»', () => {
+  it('reproduce game-win.mp3 al aparecer el overlay de victoria', async () => {
+    await fixture.whenStable();
+    expect(playSfx).toHaveBeenCalledWith(expect.stringContaining('game-win.mp3'));
+  });
+
+  it('en out-of-lives muestra «Volver a jugar» y llama a start()', () => {
     fixture.componentRef.setInput('result', 'out-of-lives');
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Sin más intentos');
     expect(fixture.nativeElement.textContent).toContain('Volver a jugar');
+
+    const replayBtn = Array.from(
+      fixture.nativeElement.querySelectorAll('button'),
+    ).find((b) => (b as HTMLButtonElement).textContent?.includes('Volver a jugar')) as HTMLButtonElement;
+    replayBtn.click();
+    expect(mockSession.start).toHaveBeenCalledWith('radiesse-memory');
+  });
+
+  it('en draw muestra copy de empate con vidas restantes y botón «Siguiente ronda»', () => {
+    mockSession.remainingLives.set(2);
+    fixture.componentRef.setInput('result', 'draw');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('¡Empate!');
+    expect(fixture.nativeElement.textContent).toContain('Empate. Te quedan 2 oportunidades. Pon atención.');
+    expect(fixture.nativeElement.textContent).toContain('Siguiente ronda');
+    expect(fixture.nativeElement.textContent).not.toContain('Volver a jugar');
+
+    const nextRoundBtn = Array.from(
+      fixture.nativeElement.querySelectorAll('button'),
+    ).find((b) => (b as HTMLButtonElement).textContent?.includes('Siguiente ronda')) as HTMLButtonElement;
+    nextRoundBtn.click();
+    expect(mockSession.nextRound).toHaveBeenCalled();
+  });
+
+  it('en lose muestra copy de derrota con vidas restantes y botón «Siguiente ronda»', () => {
+    mockSession.remainingLives.set(1);
+    fixture.componentRef.setInput('result', 'lose');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Perdiste. Te queda 1 oportunidad. Pon atención.');
+    expect(fixture.nativeElement.textContent).toContain('Siguiente ronda');
+    expect(fixture.nativeElement.textContent).not.toContain('Volver a jugar');
+
+    const nextRoundBtn = Array.from(
+      fixture.nativeElement.querySelectorAll('button'),
+    ).find((b) => (b as HTMLButtonElement).textContent?.includes('Siguiente ronda')) as HTMLButtonElement;
+    nextRoundBtn.click();
+    expect(mockSession.nextRound).toHaveBeenCalled();
   });
 });

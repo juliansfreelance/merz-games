@@ -1,5 +1,7 @@
-import { Component, computed, input, output, signal } from '@angular/core';
+import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { MediaPlayer } from '../../core/media/media-player';
+import { playUiSfx } from './ui-sfx';
 
 /**
  * CatalogCard — Tarjeta interactiva de marca o experiencia para el catálogo.
@@ -75,6 +77,8 @@ import { CommonModule } from '@angular/common';
   `,
 })
 export class CatalogCard {
+  private readonly media = inject(MediaPlayer);
+
   readonly title = input.required<string>();
   readonly description = input.required<string>();
   readonly image = input<string | undefined>(undefined);
@@ -103,11 +107,16 @@ export class CatalogCard {
 
   protected handleClick(event: PointerEvent): void {
     event.preventDefault();
-    this.selected.emit();
+    this.select();
   }
 
   protected handleKey(event: Event): void {
     event.preventDefault();
+    this.select();
+  }
+
+  private select(): void {
+    playUiSfx(this.media, 'select');
     this.selected.emit();
   }
 }

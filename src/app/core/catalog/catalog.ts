@@ -14,6 +14,8 @@ import { Game } from './game.model';
 import { GameExperience } from './game-experience.model';
 import manifestSeed from '../../../../content/manifests/content-manifest.json';
 
+const seed = manifestSeed as unknown as ContentManifest;
+
 /** Clave de localStorage donde se persiste el último manifest válido. */
 const MANIFEST_STORAGE_KEY = 'merz-games.catalog-manifest';
 
@@ -111,6 +113,95 @@ function validateManifest(
   return errors;
 }
 
+function pushAssetUrl(target: Set<string>, value: string | string[] | undefined): void {
+  if (!value) return;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      if (item) target.add(item);
+    }
+    return;
+  }
+  target.add(value);
+}
+
+function pushAssetRecord(
+  target: Set<string>,
+  record: Record<string, string | string[] | undefined> | undefined,
+): void {
+  if (!record) return;
+  for (const value of Object.values(record)) {
+    pushAssetUrl(target, value);
+  }
+}
+
+/**
+ * Recolecta URLs locales de imágenes y audio del manifest (marcas, motores,
+ * experiencias y BGM) para precargarlas en el splash.
+ */
+export function collectContentAssetUrls(manifest: ContentManifest): string[] {
+  const urls = new Set<string>();
+
+  for (const brand of manifest.brands.filter((b) => b.enabled)) {
+    pushAssetUrl(urls, brand.image);
+    pushAssetUrl(urls, brand.logo);
+  }
+
+  for (const game of manifest.games.filter((g) => g.enabled)) {
+    pushAssetUrl(urls, game.image);
+    pushAssetRecord(urls, game.assets);
+  }
+
+  for (const exp of manifest.experiences.filter((e) => e.enabled)) {
+    pushAssetUrl(urls, exp.image);
+    pushAssetUrl(urls, exp.theme?.backgroundImage);
+    pushAssetRecord(urls, exp.assets);
+  }
+
+  pushAssetUrl(urls, manifest.audio?.backgroundMusic);
+  return [...urls];
+}
+
+/** Overlay de contenido embebido sobre un manifest persistido (assets, copy, atmósfera). */
+function hydrateManifestFromSeed(candidate: ContentManifest): void {
+  if (seed.atmosphere) {
+    candidate.atmosphere = seed.atmosphere;
+  }
+  if (seed.audio) {
+    candidate.audio = seed.audio;
+  }
+
+  for (const brand of candidate.brands ?? []) {
+    const seedBrand = seed.brands?.find((b) => b.id === brand.id);
+    if (!seedBrand) continue;
+    if (seedBrand.atmosphere) brand.atmosphere = seedBrand.atmosphere;
+    if (seedBrand.disclaimer) brand.disclaimer = seedBrand.disclaimer;
+    if (seedBrand.image) brand.image = seedBrand.image;
+    if (seedBrand.logo) brand.logo = seedBrand.logo;
+    if (seedBrand.description) brand.description = seedBrand.description;
+    if (seedBrand.name) brand.name = seedBrand.name;
+  }
+
+  for (const exp of candidate.experiences ?? []) {
+    const seedExp = seed.experiences?.find((e) => e.id === exp.id);
+    if (!seedExp) continue;
+    if (seedExp.image) exp.image = seedExp.image;
+    if (seedExp.title) exp.title = seedExp.title;
+    if (seedExp.description) exp.description = seedExp.description;
+    if (seedExp.assets) exp.assets = seedExp.assets;
+    if (seedExp.theme) exp.theme = seedExp.theme;
+    if (seedExp.config) exp.config = seedExp.config;
+  }
+
+  for (const game of candidate.games ?? []) {
+    const seedGame = seed.games?.find((g) => g.id === game.id);
+    if (!seedGame) continue;
+    if (seedGame.assets) game.assets = seedGame.assets;
+    if (seedGame.config) game.config = seedGame.config;
+    if (seedGame.image) game.image = seedGame.image;
+    if (seedGame.description) game.description = seedGame.description;
+  }
+}
+
 /**
  * CatalogService — gestor local del catálogo (Fase 3+).
  *
@@ -130,9 +221,7 @@ export class CatalogService {
   private readonly logger = inject(AppLogger);
 
   /** Manifest activo en memoria. Arranca con la semilla. */
-  private readonly manifest = signal<ContentManifest>(
-    manifestSeed as ContentManifest,
-  );
+  private readonly manifest = signal<ContentManifest>(seed);
 
   /** Exposición del manifest completo (solo lectura). Necesario para leer campos raíz como `audio`. */
   readonly rawManifest = this.manifest.asReadonly();
@@ -143,7 +232,7 @@ export class CatalogService {
   readonly defaultAtmosphere = computed<Atmosphere>(() => {
     return (
       this.manifest().atmosphere ??
-      (manifestSeed as ContentManifest).atmosphere ??
+      seed.atmosphere ??
       DEFAULT_ATMOSPHERE
     );
   });
@@ -369,6 +458,11 @@ export class CatalogService {
     };
   }
 
+  /** URLs de contenido del manifest activo para precargar en el splash. */
+  collectPreloadUrls(): string[] {
+    return collectContentAssetUrls(this.manifest());
+  }
+
   /**
    * Establece la marca activa (p. ej. al entrar a `/brands/:brandId/games`).
    */
@@ -445,51 +539,7 @@ export class CatalogService {
     }
 
     const candidate = parsed as ContentManifest;
-    // Sincronizar siempre la atmósfera institucional y de marcas desde la semilla para que los cambios visuales apliquen de inmediato
-    if ((manifestSeed as ContentManifest).atmosphere) {
-      candidate.atmosphere = (manifestSeed as ContentManifest).atmosphere;
-    }
-    if (candidate.brands) {
-      for (const brand of candidate.brands) {
-        const seedBrand = (manifestSeed as ContentManifest).brands?.find(
-          (b) => b.id === brand.id,
-        );
-        if (seedBrand?.atmosphere) {
-          brand.atmosphere = seedBrand.atmosphere;
-        }
-        if (seedBrand?.disclaimer) {
-          brand.disclaimer = seedBrand.disclaimer;
-        }
-        if (seedBrand?.image) {
-          brand.image = seedBrand.image;
-        }
-        if (seedBrand?.logo) {
-          brand.logo = seedBrand.logo;
-        }
-        if (seedBrand?.description) {
-          brand.description = seedBrand.description;
-        }
-        if (seedBrand?.name) {
-          brand.name = seedBrand.name;
-        }
-      }
-    }
-    if (candidate.experiences) {
-      for (const exp of candidate.experiences) {
-        const seedExp = (manifestSeed as ContentManifest).experiences?.find(
-          (e) => e.id === exp.id,
-        );
-        if (seedExp?.image) {
-          exp.image = seedExp.image;
-        }
-        if (seedExp?.title) {
-          exp.title = seedExp.title;
-        }
-        if (seedExp?.description) {
-          exp.description = seedExp.description;
-        }
-      }
-    }
+    hydrateManifestFromSeed(candidate);
 
     this.manifest.set(candidate);
     this.logger.info('CatalogService', 'Manifest persistido cargado:', candidate.version);

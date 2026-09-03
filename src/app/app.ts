@@ -7,6 +7,7 @@ import { CatalogService } from './core/catalog/catalog';
 import { MediaPlayer } from './core/media/media-player';
 import { FloatingGradient } from './features/shared/floating-gradient';
 import { Atmosphere } from './core/catalog/content-manifest.model';
+import { UI_SFX } from './features/shared/ui-sfx';
 
 /** Volumen de BGM por defecto si el manifest no especifica uno. */
 const DEFAULT_BGM_VOLUME = 0.35;
@@ -96,6 +97,10 @@ export class App {
   });
 
   constructor() {
+    this.mediaPlayer.preload(UI_SFX.click);
+    this.mediaPlayer.preload(UI_SFX.back);
+    this.mediaPlayer.preload(UI_SFX.select);
+
     // Configurar el BGM desde el manifest en cuanto el catálogo esté disponible.
     // La reproducción NO arranca aquí: espera el primer gesto (onFirstGesture).
     effect(() => {

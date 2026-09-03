@@ -113,5 +113,132 @@ describe('GameSession', () => {
     expect(session.remainingLives()).toBe(MAX_LIVES);
     expect(session.activeExperienceId()).toBe('exp-2');
     expect(session.playResult()).toBeNull();
+    expect(session.triquiTurn()).toBeNull();
+  });
+
+  it('nextRound() conserva vidas restantes e incrementa round', () => {
+    const session = buildSession();
+    session.start('test-exp');
+    session.loseLife();
+    expect(session.remainingLives()).toBe(2);
+    expect(session.round()).toBe(1);
+
+    session.nextRound();
+    expect(session.remainingLives()).toBe(2);
+    expect(session.round()).toBe(2);
+    expect(session.sessionRound()).toBe(2);
+    expect(session.playResult()).toBeNull();
+    expect(session.autoShowTutorial()).toBe(false);
+  });
+
+  it('sessionRound se reinicia a 1 en start() y sube en nextRound()', () => {
+    const session = buildSession();
+    expect(session.sessionRound()).toBe(0);
+
+    session.start('test-exp');
+    expect(session.sessionRound()).toBe(1);
+
+    session.nextRound();
+    session.nextRound();
+    expect(session.sessionRound()).toBe(3);
+
+    session.start('test-exp');
+    expect(session.sessionRound()).toBe(1);
+  });
+
+  it('start() activa autoShowTutorial y nextRound() lo apaga', () => {
+    const session = buildSession();
+    expect(session.autoShowTutorial()).toBe(false);
+
+    session.start('test-exp');
+    expect(session.autoShowTutorial()).toBe(true);
+
+    session.markTutorialShown();
+    expect(session.autoShowTutorial()).toBe(false);
+
+    session.start('test-exp');
+    expect(session.autoShowTutorial()).toBe(true);
+    session.nextRound();
+    expect(session.autoShowTutorial()).toBe(false);
+  });
+
+  it('announce("draw") programa overlay draw tras el delay sin restar vidas', () => {
+    vi.useFakeTimers();
+    const session = buildSession();
+    session.start('test-exp');
+
+    session.announce('draw');
+    expect(session.playResult()).toBeNull();
+    expect(session.remainingLives()).toBe(MAX_LIVES);
+
+    vi.advanceTimersByTime(RESULT_REVEAL_DELAY_MS);
+    expect(session.playResult()).toBe('draw');
+    expect(session.remainingLives()).toBe(MAX_LIVES);
+  });
+
+  it('announce("lose") programa overlay lose tras el delay', () => {
+    vi.useFakeTimers();
+    const session = buildSession();
+    session.start('test-exp');
+
+    session.announce('lose');
+    expect(session.playResult()).toBeNull();
+
+    vi.advanceTimersByTime(RESULT_REVEAL_DELAY_MS);
+    expect(session.playResult()).toBe('lose');
+  });
+
+  it('start() limpia el indicador de turno de triqui al cambiar de juego', () => {
+    const session = buildSession();
+    session.start('ultherapy-triqui');
+    session.setTriquiTurn({
+      state: 'ai',
+      markXUrl: '/x.png',
+      markOUrl: '/o.png',
+    });
+
+    session.start('ultherapy-memory');
+    expect(session.triquiTurn()).toBeNull();
+    expect(session.activeExperienceId()).toBe('ultherapy-memory');
+  });
+
+  it('setTriquiTurn() actualiza y limpia el signal triquiTurn', () => {
+    const session = buildSession();
+    expect(session.triquiTurn()).toBeNull();
+
+    session.setTriquiTurn({
+      state: 'player',
+      markXUrl: '/content/x.png',
+      markOUrl: '/content/o.png',
+    });
+    expect(session.triquiTurn()).toEqual({
+      state: 'player',
+      markXUrl: '/content/x.png',
+      markOUrl: '/content/o.png',
+    });
+
+    session.setTriquiTurn(null);
+    expect(session.triquiTurn()).toBeNull();
+  });
+
+  it('leavePlay() cierra overlay, turno y desmonta la ronda', () => {
+    vi.useFakeTimers();
+    const session = buildSession();
+    session.start('ultherapy-triqui');
+    session.setTriquiTurn({
+      state: 'player',
+      markXUrl: '/x.png',
+      markOUrl: '/o.png',
+    });
+    session.announce('draw');
+
+    session.leavePlay();
+    vi.advanceTimersByTime(RESULT_REVEAL_DELAY_MS);
+
+    expect(session.playResult()).toBeNull();
+    expect(session.triquiTurn()).toBeNull();
+    expect(session.round()).toBe(0);
+    expect(session.activeExperienceId()).toBe('');
   });
 });
+

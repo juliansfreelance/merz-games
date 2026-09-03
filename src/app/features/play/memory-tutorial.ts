@@ -7,7 +7,13 @@ import {
   computed,
   Renderer2,
   DOCUMENT,
+  DestroyRef,
 } from '@angular/core';
+import { HeroIcon } from '../shared/hero-icon';
+import { UiSfx } from '../shared/ui-sfx';
+
+/** Espera para que el tablero se vea antes del tutorial automático. */
+export const TUTORIAL_AUTO_REVEAL_MS = 420;
 
 /**
  * MemoryTutorial — Modal de pantalla completa con backdrop para las instrucciones del juego de memoria.
@@ -21,6 +27,7 @@ import {
  */
 @Component({
   selector: 'app-memory-tutorial',
+  imports: [HeroIcon, UiSfx],
   template: `
     <!-- Modal Backdrop a pantalla completa con bloqueo -->
     @if (visible()) {
@@ -30,23 +37,24 @@ import {
         role="dialog"
         aria-modal="true"
         aria-label="Instrucciones del juego de memoria"
+        animate.enter="tutorial-overlay-enter"
         (click)="stopPropagation($event)"
       >
         <!-- Tarjeta / Contenedor Central del Modal -->
         <div
-          class="relative w-full max-w-lg bg-neutral-900/80 border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col items-center gap-6 text-center select-none animate-in fade-in zoom-in-95 duration-200"
-          [style.box-shadow]="'0 0 50px -10px ' + accentColor() + '33'"
+          class="relative w-full max-w-lg bg-neutral-900/80 border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col items-center gap-6 text-center select-none"
+          [style.box-shadow]="'0 0 50px -10px ' + glowColor() + '33'"
+          animate.enter="tutorial-card-enter"
         >
-          <!-- Botón de Cerrar '✕' en la esquina superior derecha -->
+          <!-- Botón de cerrar con Heroicons outline x-mark -->
           <button
             type="button"
-            class="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 border border-white/20 flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer select-none"
+            uiSfx="back"
+            class="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 border border-white/20 flex items-center justify-center text-white/70 hover:text-white text-lg transition-all cursor-pointer select-none"
             aria-label="Cerrar instrucciones"
             (click)="dismiss()"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
-              <path fill-rule="evenodd" d="M5.47 5.47a.75.75 0 0 1 1.06 0L12 10.94l5.47-5.47a.75.75 0 1 1 1.06 1.06L13.06 12l5.47 5.47a.75.75 0 1 1-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 0 1-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
-            </svg>
+            <app-hero-icon name="x-mark" />
           </button>
 
           <!-- Título del Tutorial -->
@@ -176,6 +184,7 @@ import {
           <!-- Botón de Cierre / ¡Entendido! con diseño Glass y borde blanco de la app -->
           <button
             type="button"
+            uiSfx="click"
             class="w-full min-h-12 sm:min-h-14 px-8 sm:px-12 py-3.5 sm:py-4 rounded-full border border-white/25 bg-white/[0.08] backdrop-blur-md text-white font-extrabold font-['Montserrat'] tracking-[0.18em] uppercase text-xs sm:text-sm shadow-xl shadow-black/40 hover:bg-white/[0.16] hover:border-white/40 active:scale-95 transition-all duration-150 cursor-pointer select-none"
             (click)="dismiss()"
           >
@@ -293,11 +302,70 @@ import {
         transform: rotateY(0deg);
       }
     }
+
+    .tutorial-overlay-enter {
+      animation: tutorialOverlayIn 0.45s ease-out both;
+    }
+
+    .tutorial-overlay-leave {
+      animation: tutorialOverlayOut 0.28s ease-in both;
+    }
+
+    .tutorial-card-enter {
+      animation: tutorialCardIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both;
+    }
+
+    .tutorial-card-leave {
+      animation: tutorialCardOut 0.22s ease-in both;
+    }
+
+    @keyframes tutorialOverlayIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes tutorialOverlayOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+
+    @keyframes tutorialCardIn {
+      from {
+        opacity: 0;
+        transform: scale(0.92) translateY(18px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    @keyframes tutorialCardOut {
+      from {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+      to {
+        opacity: 0;
+        transform: scale(0.96) translateY(10px);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .tutorial-overlay-enter,
+      .tutorial-overlay-leave,
+      .tutorial-card-enter,
+      .tutorial-card-leave {
+        animation: none;
+      }
+    }
   `],
 })
 export class MemoryTutorial {
   private readonly renderer = inject(Renderer2);
   private readonly document = inject(DOCUMENT);
+  private readonly destroyRef = inject(DestroyRef);
+  private _openTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** Texto de instrucción desde la configuración o fallback. */
   readonly tutorialText = input<string>('Toca dos cartas y encuentra la pareja');
@@ -309,19 +377,48 @@ export class MemoryTutorial {
   readonly sampleFaceUrl = input<string>('');
   /** Color de acento de la experiencia. */
   readonly accentColor = input<string>('#00E5FF');
+  /** Tinte de atmósfera de la marca (blurTint). */
+  readonly blurTint = input<string | undefined>(undefined);
+
+  /** Color de resplandor para box-shadow: blurTint o accentColor */
+  protected readonly glowColor = computed<string>(() => this.blurTint() || this.accentColor() || '#00E5FF');
 
   /** Emite cuando el modal se cierra mediante su botón de acción. */
   readonly closed = output<void>();
 
   /** Estado visible del modal (inicialmente false hasta que se active explícitamente o al inicio). */
   readonly visible = signal(false);
+  /** True mientras espera el delay del auto-show (el tablero ya está en pantalla). */
+  readonly opening = signal(false);
 
-  showTutorial(): void {
-    this.visible.set(true);
-    this._lockScroll();
+  constructor() {
+    this.destroyRef.onDestroy(() => this._cancelPendingOpen());
+  }
+
+  showTutorial(delayMs = 0): void {
+    this._cancelPendingOpen();
+    if (this.visible()) return;
+
+    const open = (): void => {
+      this.opening.set(false);
+      this.visible.set(true);
+      this._lockScroll();
+    };
+
+    if (delayMs <= 0) {
+      open();
+      return;
+    }
+
+    this.opening.set(true);
+    this._openTimer = setTimeout(() => {
+      this._openTimer = null;
+      open();
+    }, delayMs);
   }
 
   dismiss(): void {
+    this._cancelPendingOpen();
     this.visible.set(false);
     this._unlockScroll();
     this.closed.emit();
@@ -329,6 +426,14 @@ export class MemoryTutorial {
 
   protected stopPropagation(event: MouseEvent): void {
     event.stopPropagation();
+  }
+
+  private _cancelPendingOpen(): void {
+    if (this._openTimer !== null) {
+      clearTimeout(this._openTimer);
+      this._openTimer = null;
+    }
+    this.opening.set(false);
   }
 
   private _lockScroll(): void {

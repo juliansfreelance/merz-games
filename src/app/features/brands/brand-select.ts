@@ -5,13 +5,14 @@ import { KioskButton } from '../shared/kiosk-button';
 import { KioskCard } from '../shared/kiosk-card';
 import { CatalogCard } from '../shared/catalog-card';
 import { KioskDisclaimer } from '../shared/kiosk-disclaimer';
+import { HeroIcon } from '../shared/hero-icon';
 
 /**
  * Selector de marcas con scroll nativo completo (mouse, touch y teclado) y soporte de atmósfera institucional.
  */
 @Component({
   selector: 'app-brand-select',
-  imports: [KioskButton, KioskCard, CatalogCard, KioskDisclaimer],
+  imports: [KioskButton, KioskCard, CatalogCard, KioskDisclaimer, HeroIcon],
   host: {
     class: 'block w-full h-full min-h-0 overflow-y-auto overscroll-contain',
   },
@@ -64,7 +65,8 @@ import { KioskDisclaimer } from '../shared/kiosk-disclaimer';
       <app-kiosk-disclaimer>
         <div class="w-full max-w-xs sm:max-w-md kiosk:max-w-lg">
           <app-kiosk-button variant="ghost" (click)="goBack()">
-            ← Volver al inicio
+            <app-hero-icon name="arrow-left" />
+            Volver al inicio
           </app-kiosk-button>
         </div>
       </app-kiosk-disclaimer>

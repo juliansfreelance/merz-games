@@ -24,13 +24,17 @@ export interface ExperienceAssets {
    * Array de URLs locales a los PNG individuales.
    */
   cardFaces?: string[];
+  /** Ficha X personalizada para experiencias de Triqui. */
+  markX?: string;
+  /** Ficha O personalizada para experiencias de Triqui. */
+  markO?: string;
   /** Índice abierto para otros activos escalares o colecciones. */
   [key: string]: string | string[] | undefined;
 }
 
 
 /** Parámetros de configuración específicos del motor. */
-export type ExperienceConfig = Record<string, string | number | boolean>;
+export type ExperienceConfig = Record<string, string | number | boolean | undefined>;
 
 export interface GameExperience {
   id: string;

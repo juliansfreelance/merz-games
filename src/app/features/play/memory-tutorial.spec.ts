@@ -55,7 +55,7 @@ describe('MemoryTutorial', () => {
     expect(textContent).toContain('perderás una vida');
   });
 
-  it('debe cerrarse al pulsar el botón «¡Entendido, a jugar!» o «✕» y liberar el scroll', () => {
+  it('debe cerrarse al pulsar el botón «¡Entendido, a jugar!» o x-mark y liberar el scroll', () => {
     let closedEmitted = false;
     component.closed.subscribe(() => {
       closedEmitted = true;
@@ -87,6 +87,20 @@ describe('MemoryTutorial', () => {
 
     // Sigue visible porque no hay temporizador de auto-cierre
     expect(component.visible()).toBe(true);
+    vi.useRealTimers();
+  });
+
+  it('showTutorial(delay) espera a que el tablero se vea antes de montar el modal', () => {
+    vi.useFakeTimers();
+    component.showTutorial(420);
+    fixture.detectChanges();
+    expect(component.visible()).toBe(false);
+    expect(component.opening()).toBe(true);
+
+    vi.advanceTimersByTime(420);
+    fixture.detectChanges();
+    expect(component.visible()).toBe(true);
+    expect(component.opening()).toBe(false);
     vi.useRealTimers();
   });
 });

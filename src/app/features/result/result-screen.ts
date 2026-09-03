@@ -14,6 +14,8 @@ import { PlayResult } from '../../core/catalog/play-result.model';
 import { CatalogService } from '../../core/catalog/catalog';
 import { GameSession } from '../../core/session/game-session';
 import { KioskButton } from '../shared/kiosk-button';
+import { HeroIcon } from '../shared/hero-icon';
+import { MediaPlayer } from '../../core/media/media-player';
 
 interface ResultConfig {
   icon: string;
@@ -21,6 +23,13 @@ interface ResultConfig {
   message: string;
   accentClass: string;
 }
+
+const RESULT_SFX: Record<PlayResult, string> = {
+  win: '/content/audio/sfx/game-win.mp3',
+  lose: '/content/audio/sfx/game-lose.mp3',
+  draw: '/content/audio/sfx/game-draw.mp3',
+  'out-of-lives': '/content/audio/sfx/game-lose.mp3',
+};
 
 const RESULT_CONFIGS: Record<PlayResult, ResultConfig> = {
   win: {
@@ -41,19 +50,25 @@ const RESULT_CONFIGS: Record<PlayResult, ResultConfig> = {
     message: 'Agotaste tus intentos para esta sesión. ¡Vuelve a jugar pronto!',
     accentClass: 'text-neutral-300',
   },
+  draw: {
+    icon: '🤝',
+    title: '¡Empate!',
+    message: 'Esta ronda terminó en empate.',
+    accentClass: 'text-amber-200 drop-shadow-[0_0_16px_rgba(251,191,36,0.5)]',
+  },
 };
 
 /** Duración del efecto Fireworks de canvas-confetti. */
 const FIREWORKS_DURATION_MS = 15_000;
 
 /**
- * Overlay de resultado (victoria / derrota / sin vidas).
+ * Overlay de resultado (victoria / derrota / sin vidas / empate).
  * Backdrop a pantalla completa con blur glass, igual que el tutorial de memoria.
  * Se superpone a `/play` sin navegar a otra ruta.
  */
 @Component({
   selector: 'app-result-screen',
-  imports: [KioskButton],
+  imports: [KioskButton, HeroIcon],
   template: `
     <div
       class="result-overlay fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
@@ -82,7 +97,7 @@ const FIREWORKS_DURATION_MS = 15_000;
             {{ config().title }}
           </h1>
           <p class="text-neutral-300 text-sm sm:text-base leading-relaxed max-w-md mx-auto">
-            {{ config().message }}
+            {{ displayMessage() }}
           </p>
         </div>
 
@@ -93,7 +108,11 @@ const FIREWORKS_DURATION_MS = 15_000;
         }
 
         <div class="w-full space-y-2 sm:space-y-3 pt-1">
-          @if (result() !== 'win') {
+          @if (result() === 'draw' || result() === 'lose') {
+            <app-kiosk-button variant="primary" (click)="nextRound()">
+              Siguiente ronda
+            </app-kiosk-button>
+          } @else if (result() === 'out-of-lives') {
             <app-kiosk-button variant="primary" (click)="replay()">
               Volver a jugar
             </app-kiosk-button>
@@ -102,7 +121,8 @@ const FIREWORKS_DURATION_MS = 15_000;
             Ver más juegos
           </app-kiosk-button>
           <app-kiosk-button variant="ghost" (click)="goToBrands()">
-            ← Cambiar de marca
+            <app-hero-icon name="arrow-left" />
+            Cambiar de marca
           </app-kiosk-button>
         </div>
       </div>
@@ -147,6 +167,7 @@ export class ResultScreen {
   private readonly session = inject(GameSession);
   private readonly renderer = inject(Renderer2);
   private readonly document = inject(DOCUMENT);
+  private readonly media = inject(MediaPlayer);
 
   readonly result = input.required<PlayResult>();
   readonly experienceId = input.required<string>();
@@ -154,6 +175,22 @@ export class ResultScreen {
   readonly gameName = input<string>('');
 
   protected readonly config = computed<ResultConfig>(() => RESULT_CONFIGS[this.result()]);
+
+  protected readonly displayMessage = computed<string>(() => {
+    const res = this.result();
+    const lives = this.session.remainingLives();
+    if (res === 'draw') {
+      return lives === 1
+        ? 'Empate. Te queda 1 oportunidad. Pon atención.'
+        : `Empate. Te quedan ${lives} oportunidades. Pon atención.`;
+    }
+    if (res === 'lose') {
+      return lives === 1
+        ? 'Perdiste. Te queda 1 oportunidad. Pon atención.'
+        : `Perdiste. Te quedan ${lives} oportunidades. Pon atención.`;
+    }
+    return this.config().message;
+  });
 
   private _fireworksTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -165,6 +202,7 @@ export class ResultScreen {
     });
 
     afterNextRender(() => {
+      this.media.playSfx(RESULT_SFX[this.result()]);
       if (this.result() === 'win') {
         this._startFireworks();
       }
@@ -175,6 +213,11 @@ export class ResultScreen {
     event.stopPropagation();
   }
 
+  nextRound(): void {
+    this._stopFireworks();
+    this.session.nextRound();
+  }
+
   replay(): void {
     this._stopFireworks();
     this.session.start(this.experienceId());
@@ -182,7 +225,7 @@ export class ResultScreen {
 
   goToExperiences(): void {
     this._stopFireworks();
-    this.session.dismissResult();
+    this.session.leavePlay();
     const exp = this.catalog.getExperienceById(this.experienceId());
     if (exp) {
       this.router.navigate(['/brands', exp.brandId, 'games']);
@@ -193,7 +236,7 @@ export class ResultScreen {
 
   goToBrands(): void {
     this._stopFireworks();
-    this.session.dismissResult();
+    this.session.leavePlay();
     this.router.navigate(['/brands']);
   }
 

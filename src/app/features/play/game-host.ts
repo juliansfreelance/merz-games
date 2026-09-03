@@ -3,8 +3,10 @@ import {
   computed,
   DestroyRef,
   effect,
+  ElementRef,
   inject,
   Type,
+  untracked,
 } from '@angular/core';
 import { NgComponentOutlet } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -54,9 +56,41 @@ const GAME_COMPONENT_BY_ID: Readonly<Record<string, Type<unknown>>> = {
         [brandDisclaimer]="brand()?.disclaimer"
         [introText]="gameIntro()"
         [remainingLives]="session.remainingLives()"
+        [roundNumber]="roundCounter()"
         (back)="goBackToGames()"
         (help)="session.requestTutorial()"
       >
+        <!-- Indicador de turno alineado a la izquierda fuera del slot del juego -->
+        @if (session.triquiTurn(); as turn) {
+          <div board-header-left class="flex items-center">
+            @if (turn.state === 'ai') {
+              <div class="flex items-center gap-2 sm:gap-2.5 bg-white/5 border border-white/10 rounded-2xl px-4 sm:px-5 py-2 backdrop-blur-md shadow-md text-xs sm:text-sm">
+                <div class="relative w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center shrink-0">
+                  @if (turn.markOUrl) {
+                    <img [src]="turn.markOUrl" alt="O" class="w-4 h-4 sm:w-5 sm:h-5 object-contain drop-shadow animate-pulse" />
+                  } @else {
+                    <span class="text-sm sm:text-base font-bold text-amber-300 animate-pulse">○</span>
+                  }
+                </div>
+                <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                <span class="text-amber-200 font-medium">Analizando jugada…</span>
+              </div>
+            } @else if (turn.state === 'player') {
+              <div class="flex items-center gap-2 sm:gap-2.5 bg-white/5 border border-white/10 rounded-2xl px-4 sm:px-5 py-2 backdrop-blur-md shadow-md text-xs sm:text-sm">
+                <div class="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center shrink-0">
+                  @if (turn.markXUrl) {
+                    <img [src]="turn.markXUrl" alt="X" class="w-4 h-4 sm:w-5 sm:h-5 object-contain drop-shadow" />
+                  } @else {
+                    <span class="text-sm sm:text-base font-black text-cyan-300">✕</span>
+                  }
+                </div>
+                <span class="text-white font-bold tracking-wide">Tu turno</span>
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              </div>
+            }
+          </div>
+        }
+
         @for (round of [session.round()]; track round) {
           @if (round > 0) {
             <ng-container
@@ -87,10 +121,13 @@ export class GameHost {
   private readonly router = inject(Router);
   private readonly catalog = inject(CatalogService);
   protected readonly session = inject(GameSession);
+  private readonly hostEl = inject(ElementRef<HTMLElement>);
+  private startedExperienceId = '';
+  private leaving = false;
 
   protected readonly experienceId = toSignal(
     this.route.paramMap.pipe(map((p) => p.get('experienceId') ?? '')),
-    { initialValue: '' },
+    { initialValue: this.route.snapshot.paramMap.get('experienceId') ?? '' },
   );
 
   protected readonly experience = computed<GameExperience | undefined>(() =>
@@ -105,6 +142,11 @@ export class GameHost {
   protected readonly game = computed(() => {
     const exp = this.experience();
     return exp ? this.catalog.getGameById(exp.gameId) : undefined;
+  });
+
+  /** Contador de ronda visible solo en Triqui (empates sucesivos). */
+  protected readonly roundCounter = computed<number | null>(() => {
+    return this.game()?.id === 'triqui' ? this.session.sessionRound() : null;
   });
 
   protected readonly gameTitle = computed(() => {
@@ -160,22 +202,50 @@ export class GameHost {
   });
 
   constructor() {
+    // Una sola sesión por experienceId mientras este host viva.
+    // Reentrar al mismo juego destruye el host (se sale de /play) y vuelve a llamar start().
     effect(() => {
       const exp = this.experience();
-      if (exp && this.session.activeExperienceId() !== exp.id) {
+      if (!exp) return;
+      untracked(() => {
+        if (this.startedExperienceId === exp.id) return;
+        this.startedExperienceId = exp.id;
         this.session.start(exp.id);
-      }
+      });
     });
 
-    inject(DestroyRef).onDestroy(() => this.session.dismissResult());
+    inject(DestroyRef).onDestroy(() => {
+      this.cancelHostAnimations();
+      this.session.leavePlay();
+    });
   }
 
   goBackToGames(): void {
+    if (this.leaving) return;
+    this.leaving = true;
+    this.cancelHostAnimations();
+    this.session.leavePlay();
+
     const brandId = this.brand()?.id;
-    if (brandId) {
-      this.router.navigate(['/brands', brandId, 'games']);
-    } else {
-      this.router.navigate(['/brands']);
+    const target = brandId
+      ? ['/brands', brandId, 'games']
+      : ['/brands'];
+
+    requestAnimationFrame(() => {
+      void this.router.navigate(target);
+    });
+  }
+
+  /** Cancela animaciones CSS/WAAPI del tablero para no dejar Animation.startTime huérfano. */
+  private cancelHostAnimations(): void {
+    const root = this.hostEl.nativeElement;
+    if (typeof root.getAnimations !== 'function') return;
+    try {
+      for (const animation of root.getAnimations({ subtree: true })) {
+        animation.cancel();
+      }
+    } catch {
+      // jsdom / WebKit sin getAnimations subtree
     }
   }
 }

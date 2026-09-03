@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { Atmosphere, ContentManifest } from './content-manifest.model';
-import { CatalogService, DEFAULT_ATMOSPHERE, semverGte } from './catalog';
+import { CatalogService, collectContentAssetUrls, DEFAULT_ATMOSPHERE, semverGte } from './catalog';
 import { PlatformService } from '../platform/platform.service';
 import { UpdateSnapshot, UpdateStatus } from './update.model';
 import manifestSeed from '../../../../content/manifests/content-manifest.json';
@@ -48,7 +48,7 @@ describe('Content Catalog Manifest Contract', () => {
 
   it('should parse manifest and have a valid semver version', () => {
     expect(manifest).toBeTruthy();
-    expect(manifest.version).toBe('0.5.0');
+    expect(manifest.version).toBe('0.6.0');
   });
 
   it('should contain brands, games, and experiences collections', () => {
@@ -234,6 +234,24 @@ describe('CatalogService — Atmósfera y Cards', () => {
     expect(card.id).toBe('radiesse-memory');
     expect(card.title).toBe(exp.title);
     expect(card.image).toBeDefined();
+  });
+
+  it('collectContentAssetUrls incluye imágenes y audio nuevos del catálogo', () => {
+    const urls = collectContentAssetUrls(manifestSeed as ContentManifest);
+    expect(urls).toContain('/content/images/games/triqui/radiesse/mark-x.png');
+    expect(urls).toContain('/content/images/games/triqui/ultherapy/mark-o.png');
+    expect(urls).toContain('/content/images/games/memory/cards/radiesse/card-back.png');
+    expect(urls).toContain('/content/audio/sfx/put.mp3');
+    expect(urls).toContain('/content/audio/sfx/game-win.mp3');
+    expect(urls).toContain('/content/audio/bgm.mp3');
+  });
+
+  it('collectPreloadUrls() expone las mismas URLs del manifest activo', () => {
+    const { catalog } = buildCatalog();
+    const urls = catalog.collectPreloadUrls();
+    expect(urls.length).toBeGreaterThan(20);
+    expect(urls).toContain('/content/audio/sfx/put.mp3');
+    expect(urls).toEqual(collectContentAssetUrls(manifestSeed as ContentManifest));
   });
 
   it('disclaimerForBrand() resuelve disclaimer legal propio de cada marca', () => {

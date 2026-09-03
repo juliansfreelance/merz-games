@@ -160,4 +160,55 @@ describe('KioskSettings', () => {
     expect(s2.soundEnabled()).toBe(false);
     expect(s2.memoryPairs()).toBe(3);
   });
+
+  it('triquiDifficulty inicializa en null y se actualiza con setTriquiDifficulty', () => {
+    const { settings } = buildSettings();
+    expect(settings.triquiDifficulty()).toBeNull();
+    settings.setTriquiDifficulty('hard');
+    expect(settings.triquiDifficulty()).toBe('hard');
+    settings.setTriquiDifficulty(null);
+    expect(settings.triquiDifficulty()).toBeNull();
+  });
+
+  it('triquiFirstPlayer inicializa en null y se actualiza con setTriquiFirstPlayer', () => {
+    const { settings } = buildSettings();
+    expect(settings.triquiFirstPlayer()).toBeNull();
+    settings.setTriquiFirstPlayer('alternate');
+    expect(settings.triquiFirstPlayer()).toBe('alternate');
+    settings.setTriquiFirstPlayer(null);
+    expect(settings.triquiFirstPlayer()).toBeNull();
+  });
+
+  it('round-trip: persiste y restaura triquiDifficulty y triquiFirstPlayer', () => {
+    const store: Record<string, string> = {};
+    const mockPlatform = {
+      appVersion: signal('0.1.0'),
+      storageGet: (key: string) => store[key] ?? null,
+      storageSet: (key: string, value: string) => { store[key] = value; },
+    };
+
+    TestBed.configureTestingModule({
+      providers: [
+        KioskSettings,
+        AppLogger,
+        { provide: PlatformService, useValue: mockPlatform },
+      ],
+    });
+    const s1 = TestBed.inject(KioskSettings);
+    s1.setTriquiDifficulty('easy');
+    s1.setTriquiFirstPlayer('random');
+    TestBed.flushEffects();
+    TestBed.resetTestingModule();
+
+    TestBed.configureTestingModule({
+      providers: [
+        KioskSettings,
+        AppLogger,
+        { provide: PlatformService, useValue: mockPlatform },
+      ],
+    });
+    const s2 = TestBed.inject(KioskSettings);
+    expect(s2.triquiDifficulty()).toBe('easy');
+    expect(s2.triquiFirstPlayer()).toBe('random');
+  });
 });

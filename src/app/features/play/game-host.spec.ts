@@ -3,7 +3,7 @@ import { signal } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { GameHost } from './game-host';
 import { CatalogService } from '../../core/catalog/catalog';
-import { GameSession } from '../../core/session/game-session';
+import { GameSession, TriquiTurnInfo } from '../../core/session/game-session';
 import { PlatformService } from '../../core/platform/platform.service';
 import { ActivatedRoute } from '@angular/router';
 import { of } from 'rxjs';
@@ -14,7 +14,7 @@ function buildParamMap(params: Record<string, string>): ParamMap {
 }
 
 describe('GameHost', () => {
-  function setup(experienceId: string) {
+  function setup(experienceId: string, activeExperienceId = '') {
     const mockCatalog = {
       getExperienceById: (id: string) => {
         const experiences: Record<string, { id: string; brandId: string; gameId: string; version: string; enabled: boolean; order: number }> = {
@@ -46,9 +46,15 @@ describe('GameHost', () => {
       loseLife: vi.fn(),
       complete: vi.fn(),
       dismissResult: vi.fn(),
+      leavePlay: vi.fn(),
+      autoShowTutorial: signal(false),
+      markTutorialShown: vi.fn(),
       playResult: signal<string | null>(null),
       round: signal(1),
-      activeExperienceId: signal(''),
+      sessionRound: signal(1),
+      activeExperienceId: signal(activeExperienceId),
+      triquiTurn: signal<TriquiTurnInfo | null>(null),
+      setTriquiTurn: vi.fn(),
     };
 
     const mockPlatform = {
@@ -70,6 +76,7 @@ describe('GameHost', () => {
         {
           provide: ActivatedRoute,
           useValue: {
+            snapshot: { paramMap: buildParamMap({ experienceId }) },
             paramMap: of(buildParamMap({ experienceId })),
           },
         },
@@ -93,6 +100,7 @@ describe('GameHost', () => {
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('app-triqui-play')).toBeTruthy();
     expect(el.querySelector('app-game-chrome')).toBeTruthy();
+    expect(el.textContent).toContain('Ronda');
   });
 
   it('should show unavailable screen for unknown gameId', () => {
@@ -109,6 +117,12 @@ describe('GameHost', () => {
 
   it('should call session.start() when experience is resolved', () => {
     const { mockSession } = setup('radiesse-memory');
+    expect(mockSession.start).toHaveBeenCalledTimes(1);
+    expect(mockSession.start).toHaveBeenCalledWith('radiesse-memory');
+  });
+
+  it('reinicia la sesión al reentrar al mismo juego aunque ya estuviera activo', () => {
+    const { mockSession } = setup('radiesse-memory', 'radiesse-memory');
     expect(mockSession.start).toHaveBeenCalledWith('radiesse-memory');
   });
 
@@ -121,5 +135,20 @@ describe('GameHost', () => {
     expect(el.querySelector('app-memory-play')).toBeTruthy();
     expect(el.querySelector('app-result-screen')).toBeTruthy();
     expect(el.querySelector('[role="dialog"]')).toBeTruthy();
+  });
+
+  it('renderiza el indicador de turno en board-header-left cuando session.triquiTurn está activo', () => {
+    const { fixture, mockSession } = setup('radiesse-triqui');
+    mockSession.triquiTurn.set({
+      state: 'player',
+      markXUrl: '/content/x.png',
+      markOUrl: '/content/o.png',
+    });
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const headerLeft = el.querySelector('[board-header-left]');
+    expect(headerLeft).toBeTruthy();
+    expect(headerLeft?.textContent).toContain('Tu turno');
   });
 });

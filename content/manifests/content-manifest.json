@@ -1,5 +1,5 @@
 {
-  "version": "0.5.0",
+  "version": "0.6.0",
   "atmosphere": {
     "baseColor": "#0b0914",
     "blurTint": "#7c3aed",
@@ -130,7 +130,9 @@
         "sfxMatch": "/content/audio/sfx/match.mp3",
         "sfxMismatch": "/content/audio/sfx/mismatch.mp3",
         "sfxGameStart": "/content/audio/sfx/game-start.mp3",
-        "sfxGameEnd": "/content/audio/sfx/game-end.mp3"
+        "sfxWin": "/content/audio/sfx/game-win.mp3",
+        "sfxLose": "/content/audio/sfx/game-lose.mp3",
+        "sfxDraw": "/content/audio/sfx/game-draw.mp3"
       },
       "config": {
         "pairs": 4
@@ -139,10 +141,22 @@
     {
       "id": "triqui",
       "name": "Triqui (Tres en Raya)",
-      "version": "0.1.0",
+      "version": "0.6.0",
       "minAppVersion": "0.1.0",
       "enabled": true,
-      "description": "Juego clásico de estrategia y agilidad mental en tablero 3×3."
+      "description": "Juego clásico de estrategia y agilidad mental en tablero 3×3.",
+      "assets": {
+        "markX": "/content/images/games/triqui/mark-x.png",
+        "markO": "/content/images/games/triqui/mark-o.png",
+        "sfxPut": "/content/audio/sfx/put.mp3",
+        "sfxWin": "/content/audio/sfx/game-win.mp3",
+        "sfxLose": "/content/audio/sfx/game-lose.mp3",
+        "sfxDraw": "/content/audio/sfx/game-draw.mp3"
+      },
+      "config": {
+        "difficulty": "medium",
+        "firstPlayer": "patient"
+      }
     }
   ],
   "experiences": [
@@ -244,23 +258,39 @@
       "id": "radiesse-triqui",
       "brandId": "radiesse",
       "gameId": "triqui",
-      "version": "0.1.0",
+      "version": "0.6.0",
       "enabled": true,
       "order": 3,
       "title": "Triqui interactivo Radiesse<sup>®</sup>",
       "description": "Pon a prueba tu habilidad en nuestro reto de tres en línea y <strong>descubre más sobre la estética.</strong> Completa la secuencia, conquista el tablero y acércate a uno de nuestros premios.<br><strong>¡Cada movimiento cuenta!</strong>",
-      "image": "/content/images/experiences/radiesse-triqui.jpg"
+      "image": "/content/images/experiences/radiesse-triqui.jpg",
+      "theme": {
+        "accentColor": "#00E5FF",
+        "primaryColor": "#0891b2"
+      },
+      "assets": {
+        "markX": "/content/images/games/triqui/radiesse/mark-x.png",
+        "markO": "/content/images/games/triqui/radiesse/mark-o.png"
+      }
     },
     {
       "id": "ultherapy-triqui",
       "brandId": "ultherapy",
       "gameId": "triqui",
-      "version": "0.1.0",
+      "version": "0.6.0",
       "enabled": true,
       "order": 4,
       "title": "Triqui interactivo Ultherapy<sup>®</sup>",
       "description": "Pon a prueba tu habilidad en nuestro reto de tres en línea y <strong>descubre más sobre el lifting facial.</strong> Completa la secuencia, conquista el tablero y acércate a uno de nuestros premios.<br><strong>¡Cada movimiento cuenta!</strong>",
-      "image": "/content/images/experiences/ultherapy-triqui.jpg"
+      "image": "/content/images/experiences/ultherapy-triqui.jpg",
+      "theme": {
+        "accentColor": "#D4AF37",
+        "primaryColor": "#B8860B"
+      },
+      "assets": {
+        "markX": "/content/images/games/triqui/ultherapy/mark-x.png",
+        "markO": "/content/images/games/triqui/ultherapy/mark-o.png"
+      }
     }
   ],
   "audio": {

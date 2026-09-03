@@ -5,6 +5,7 @@ import { KioskButton } from '../shared/kiosk-button';
 import { KioskCard } from '../shared/kiosk-card';
 import { CatalogCard } from '../shared/catalog-card';
 import { KioskDisclaimer } from '../shared/kiosk-disclaimer';
+import { HeroIcon } from '../shared/hero-icon';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs/operators';
 
@@ -13,7 +14,7 @@ import { map } from 'rxjs/operators';
  */
 @Component({
   selector: 'app-experience-select',
-  imports: [KioskButton, KioskCard, CatalogCard, KioskDisclaimer],
+  imports: [KioskButton, KioskCard, CatalogCard, KioskDisclaimer, HeroIcon],
   host: {
     class: 'block w-full h-full min-h-0 overflow-y-auto overscroll-contain',
   },
@@ -74,7 +75,8 @@ import { map } from 'rxjs/operators';
       >
         <div class="w-full max-w-xs sm:max-w-md kiosk:max-w-lg">
           <app-kiosk-button variant="ghost" (click)="goBack()">
-            ← Volver a marcas
+            <app-hero-icon name="arrow-left" />
+            Volver a marcas
           </app-kiosk-button>
         </div>
       </app-kiosk-disclaimer>

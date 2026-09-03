@@ -55,6 +55,21 @@ describe('GameChrome', () => {
     expect(helpButton.parentElement).toBe(livesContainer?.parentElement);
   });
 
+  it('muestra el contador de ronda entre vidas y el botón de ayuda', () => {
+    fixture.componentRef.setInput('roundNumber', 4);
+    fixture.detectChanges();
+
+    const host: HTMLElement = fixture.nativeElement;
+    const bar = host.querySelector('.ml-auto') as HTMLElement;
+    expect(bar).toBeTruthy();
+    const children = Array.from(bar.children) as HTMLElement[];
+    expect(children.length).toBe(3);
+    expect(children[1].textContent).toContain('Ronda');
+    expect(children[1].textContent).toContain('4');
+    expect(children[1].getAttribute('aria-label')).toBe('Ronda 4');
+    expect(children[2].getAttribute('aria-label')).toBe('Ver instrucciones del juego');
+  });
+
   it('debe renderizar el botón de ayuda «?» y emitir evento help al pulsarlo', () => {
     let helpEmitted = false;
     component.help.subscribe(() => {

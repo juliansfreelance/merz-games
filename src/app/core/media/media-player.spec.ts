@@ -15,9 +15,12 @@ class MockMediaElement {
   paused = true;
   ended = false;
 
+  readyState = 4;
   play = vi.fn().mockResolvedValue(undefined);
   pause = vi.fn().mockImplementation(() => { this.paused = true; });
   load = vi.fn();
+  addEventListener = vi.fn();
+  removeEventListener = vi.fn();
 }
 
 function buildPlayer(soundEnabled = true) {
@@ -115,6 +118,14 @@ describe('MediaPlayer', () => {
   it('preload() no debe iniciar reproducción', () => {
     const { player, elements } = buildPlayer();
     player.preload('assets/sounds/test.mp3');
+    expect(elements.length).toBe(1);
+    expect(elements[0].play).not.toHaveBeenCalled();
+    expect(elements[0].preload).toBe('auto');
+  });
+
+  it('preloadUntilReady() espera el buffer sin reproducir', async () => {
+    const { player, elements } = buildPlayer();
+    await player.preloadUntilReady('assets/sounds/test.mp3');
     expect(elements.length).toBe(1);
     expect(elements[0].play).not.toHaveBeenCalled();
     expect(elements[0].preload).toBe('auto');

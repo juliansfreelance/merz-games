@@ -7,6 +7,7 @@ import {
   inject,
   input,
   signal,
+  untracked,
   viewChild,
   OnInit,
 } from '@angular/core';
@@ -29,8 +30,8 @@ import {
   MIN_CARD_WIDTH,
   MAX_CARD_WIDTH,
 } from '../../core/games/memory/card-layout';
-import { MemoryCard } from './memory-card';
-import { MemoryTutorial } from './memory-tutorial';
+import { MemoryCard, CARD_FLIP_DURATION_MS, MATCH_PULSE_DELAY_MS } from './memory-card';
+import { MemoryTutorial, TUTORIAL_AUTO_REVEAL_MS } from './memory-tutorial';
 
 /** URL de dorso de fallback si el manifest no provee uno. */
 const FALLBACK_CARD_BACK = '/content/images/games/memory/cards/card-back.png';
@@ -47,7 +48,9 @@ const SFX = {
   match:     '/content/audio/sfx/match.mp3',
   mismatch:  '/content/audio/sfx/mismatch.mp3',
   gameStart: '/content/audio/sfx/game-start.mp3',
-  gameEnd:   '/content/audio/sfx/game-end.mp3',
+  win:       '/content/audio/sfx/game-win.mp3',
+  lose:      '/content/audio/sfx/game-lose.mp3',
+  draw:      '/content/audio/sfx/game-draw.mp3',
 };
 
 /**
@@ -58,7 +61,7 @@ const SFX = {
  * - Precargar el dorso, las caras de la ronda y los SFX.
  * - Instanciar MemoryEngine y traducir sus eventos a sesión, sonido y UI.
  * - Renderizar el tablero con rejilla derivada.
- * - Mostrar el tutorial al entrar y al pulsar «?».
+ * - Mostrar el tutorial al iniciar la sesión y al pulsar «?».
  *
  * SIN atajos QA: fueron eliminados en esta fase (los de TriquiPlay se conservan).
  * SIN ramificaciones por brandId.
@@ -99,6 +102,7 @@ const SFX = {
           [backUrl]="backUrl()"
           [sampleFaceUrl]="sampleFaceUrl()"
           [accentColor]="accentColor()"
+          [blurTint]="blurTint()"
           (closed)="onTutorialClosed()"
         />
 
@@ -157,6 +161,9 @@ export class MemoryPlay implements OnInit {
   private readonly _engine      = signal<MemoryEngine | null>(null);
   private readonly _cards       = signal<readonly MemoryCardModel[]>([]);
   private _mismatchTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly _delayedSfxTimers: ReturnType<typeof setTimeout>[] = [];
+  private _destroyed = false;
+  private lastHelpReq = 0;
 
   // ── Computados ──────────────────────────────────────────────────────────────
 
@@ -306,22 +313,27 @@ export class MemoryPlay implements OnInit {
       }
     });
 
-    // Abrir automáticamente el modal del tutorial al iniciar la partida (una vez que cargue)
+    // Tutorial automático solo al iniciar la sesión, no en cada ronda
     effect(() => {
       const isLoaded = !this.loading();
       const modal = this.tutorialModal();
-      if (isLoaded && modal) {
-        modal.showTutorial();
+      const auto = this.session.autoShowTutorial();
+      if (isLoaded && modal && auto) {
+        untracked(() => {
+          modal.showTutorial(TUTORIAL_AUTO_REVEAL_MS);
+          this.session.markTutorialShown();
+        });
       }
     });
 
-    // Abrir el modal cada vez que el usuario presione el botón «?» junto a las vidas
+    // Abrir el modal cada vez que el usuario presione el botón «?» junto a las vidas.
+    // untracked: showTutorial() lee visible(); si el effect lo rastrea, al cerrar se reabre solo.
     effect(() => {
       const req = this.session.tutorialRequested();
       const modal = this.tutorialModal();
-      if (req > 0 && modal) {
-        modal.showTutorial();
-      }
+      if (req <= this.lastHelpReq || !modal) return;
+      this.lastHelpReq = req;
+      untracked(() => modal.showTutorial());
     });
   }
 
@@ -330,7 +342,13 @@ export class MemoryPlay implements OnInit {
   ngOnInit(): void {
     this._preloadAndInit();
     this.destroyRef.onDestroy(() => {
-      if (this._mismatchTimer !== null) clearTimeout(this._mismatchTimer);
+      this._destroyed = true;
+      if (this._mismatchTimer !== null) {
+        clearTimeout(this._mismatchTimer);
+        this._mismatchTimer = null;
+      }
+      for (const timer of this._delayedSfxTimers) clearTimeout(timer);
+      this._delayedSfxTimers.length = 0;
       if (this._resizeObserver) {
         this._resizeObserver.disconnect();
         this._resizeObserver = null;
@@ -346,7 +364,7 @@ export class MemoryPlay implements OnInit {
 
   protected onCardFlip(cardId: string): void {
     const eng = this._engine();
-    if (!eng) return;
+    if (!eng || this._destroyed) return;
 
     const events = eng.reveal(cardId);
     if (events.length === 0) return;
@@ -358,28 +376,38 @@ export class MemoryPlay implements OnInit {
           break;
 
         case 'match':
-          this.media.playSfx(SFX.match);
+          // El pulso de escala arranca tras el volteo 3D (MATCH_PULSE_DELAY_MS)
+          this._delayedSfxTimers.push(
+            setTimeout(() => {
+              if (!this._destroyed) this.media.playSfx(SFX.match);
+            }, MATCH_PULSE_DELAY_MS),
+          );
           break;
 
         case 'mismatch':
-          this.media.playSfx(SFX.mismatch);
+          // Esperar a que termine el volteo de la segunda carta
+          this._delayedSfxTimers.push(
+            setTimeout(() => {
+              if (!this._destroyed) this.media.playSfx(SFX.mismatch);
+            }, CARD_FLIP_DURATION_MS),
+          );
           // Programar la resolución de la ventana de evaluación
           this._mismatchTimer = setTimeout(() => {
+            this._mismatchTimer = null;
+            if (this._destroyed) return;
             eng.resolvePending();
             this._refreshCards(eng);
-            this._mismatchTimer = null;
           }, MISMATCH_DELAY_MS);
           // Restar vida (el GameChrome actualizará los corazones via session.remainingLives())
           this.session.loseLife();
           break;
 
         case 'win':
-          this.media.playSfx(SFX.gameEnd);
           this.session.complete('win');
           break;
 
         case 'lose':
-          // loseLife() ya navega a out-of-lives cuando llega a 0
+          // Overlay + SFX de resultado se disparan al aparecer el modal
           break;
       }
     }
@@ -416,6 +444,8 @@ export class MemoryPlay implements OnInit {
     ];
 
     await Promise.allSettled(preloadPromises);
+
+    if (this._destroyed) return;
 
     this._engine.set(eng);
     this._refreshCards(eng);
