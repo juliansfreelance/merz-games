@@ -9,7 +9,7 @@ import { Router } from '@angular/router';
 import { CatalogService, Brand, GameExperience } from '../../core/catalog/catalog';
 import { CatalogDiffItem } from '../../core/catalog/compare-catalogs';
 import { UpdateStatus } from '../../core/catalog/update.model';
-import { KioskSettings, ScreensaverMode } from '../../core/settings/kiosk-settings';
+import { KioskSettings, ScreensaverMode, ScreensaverVideoOrder } from '../../core/settings/kiosk-settings';
 import { PlatformService } from '../../core/platform/platform.service';
 import { UpdateCoordinator } from '../../core/update/update-coordinator';
 import { Difficulty, FirstPlayer } from '../../core/games/triqui/triqui.model';
@@ -541,42 +541,135 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                   />
                 </div>
 
+                <!-- Slider Volumen Videos de atracción -->
+                <div class="space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-bold text-neutral-200 flex items-center gap-2">
+                      <app-hero-icon name="video-camera" class="text-sm text-yellow-400" />
+                      <span>Videos de atracción (clips)</span>
+                    </span>
+                    <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-white/10 text-yellow-400">
+                      {{ Math.round(settings.videoVolume() * 100) }}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    [value]="settings.videoVolume() * 100"
+                    class="w-full h-2.5 rounded-lg bg-white/[0.08] border border-white/15 backdrop-blur-md accent-white cursor-pointer"
+                    (input)="onVideoVolumeInput($event)"
+                    (change)="onVideoVolumeCommit($event)"
+                  />
+                </div>
+
                 <div class="p-3 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-neutral-300 flex items-start gap-2">
                   <app-hero-icon name="information-circle" class="text-yellow-400 shrink-0 mt-0.5" />
-                  <span>BGM controla la música ambiental continua. SFX controla toques táctiles, aciertos y sonidos de juego. Al soltar el control se escucha la muestra del volumen.</span>
+                  <span>BGM controla la música ambiental continua. SFX controla toques táctiles y aciertos. Videos controla el volumen independiente de clips (en silencio si el audio general está desactivado).</span>
                 </div>
               </div>
 
               <!-- Protector de Pantalla -->
-              <div class="space-y-3 p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+              <div class="space-y-4 p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
                 <div class="flex items-center gap-2 pb-1 border-b border-white/10">
                   <app-hero-icon name="tv" class="text-base text-yellow-400" />
                   <p class="font-bold uppercase tracking-wider text-sm kiosk:text-base text-white">Protector de pantalla</p>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    uiSfx="select"
-                    [class]="chipClass(settings.screensaverMode() === 'classic')"
-                    style="touch-action: manipulation;"
-                    (click)="changeScreensaver('classic')"
-                  >
-                    Clásico
-                  </button>
-                  <button
-                    type="button"
-                    uiSfx="select"
-                    [class]="chipClass(settings.screensaverMode() === 'video')"
-                    style="touch-action: manipulation;"
-                    (click)="changeScreensaver('video')"
-                  >
-                    Video
-                  </button>
+
+                <!-- Modo Clásico / Video -->
+                <div class="space-y-2">
+                  <p class="text-xs font-bold uppercase tracking-wider text-neutral-400">Modo de visualización</p>
+                  <div class="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      uiSfx="select"
+                      [class]="chipClass(settings.screensaverMode() === 'classic')"
+                      style="touch-action: manipulation;"
+                      (click)="changeScreensaver('classic')"
+                    >
+                      Clásico
+                    </button>
+                    <button
+                      type="button"
+                      uiSfx="select"
+                      [class]="chipClass(settings.screensaverMode() === 'video')"
+                      style="touch-action: manipulation;"
+                      (click)="changeScreensaver('video')"
+                    >
+                      Video
+                    </button>
+                  </div>
+                  <div class="p-3 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-neutral-300 flex items-start gap-2">
+                    <app-hero-icon name="information-circle" class="text-yellow-400 shrink-0 mt-0.5" />
+                    <span>{{ screensaverExplanation(settings.screensaverMode()) }}</span>
+                  </div>
                 </div>
-                <div class="p-3 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-neutral-300 flex items-start gap-2">
-                  <app-hero-icon name="information-circle" class="text-yellow-400 shrink-0 mt-0.5" />
-                  <span>{{ screensaverExplanation(settings.screensaverMode()) }}</span>
+
+                <!-- Tiempo de aparición (Inactividad) -->
+                <div class="space-y-2.5 pt-2 border-t border-white/10">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-neutral-400">Tiempo de inactividad</span>
+                    <span class="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-yellow-400/10 border border-yellow-400/20 text-yellow-400">
+                      {{ formatIdleTime(settings.screensaverIdleMs()) }}
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <button
+                      type="button"
+                      uiSfx="select"
+                      class="flex-1 py-3 px-3 rounded-xl bg-white/10 hover:bg-white/15 active:bg-white/20 border border-white/15 text-white font-bold text-xs sm:text-sm uppercase tracking-wider transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex items-center justify-center gap-1.5"
+                      style="touch-action: manipulation;"
+                      [disabled]="settings.screensaverIdleMs() <= 30000"
+                      (click)="adjustIdleTime(-30000)"
+                    >
+                      <span>- 30 s</span>
+                    </button>
+                    <button
+                      type="button"
+                      uiSfx="select"
+                      class="flex-1 py-3 px-3 rounded-xl bg-white/10 hover:bg-white/15 active:bg-white/20 border border-white/15 text-white font-bold text-xs sm:text-sm uppercase tracking-wider transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer flex items-center justify-center gap-1.5"
+                      style="touch-action: manipulation;"
+                      [disabled]="settings.screensaverIdleMs() >= 900000"
+                      (click)="adjustIdleTime(30000)"
+                    >
+                      <span>+ 30 s</span>
+                    </button>
+                  </div>
+                  <p class="text-[11px] text-neutral-400">
+                    Aparece tras {{ formatIdleTime(settings.screensaverIdleMs()) }} sin toques en pantallas de paciente. En el panel administrativo permanece pausado.
+                  </p>
                 </div>
+
+                <!-- Orden de videos (solo si modo === 'video') -->
+                @if (settings.screensaverMode() === 'video') {
+                  <div class="space-y-2 pt-2 border-t border-white/10">
+                    <p class="text-xs font-bold uppercase tracking-wider text-neutral-400">Orden de videos de atracción</p>
+                    <div class="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        uiSfx="select"
+                        [class]="chipClass(settings.screensaverVideoOrder() === 'sequential')"
+                        style="touch-action: manipulation;"
+                        (click)="changeVideoOrder('sequential')"
+                      >
+                        Ordenado
+                      </button>
+                      <button
+                        type="button"
+                        uiSfx="select"
+                        [class]="chipClass(settings.screensaverVideoOrder() === 'random')"
+                        style="touch-action: manipulation;"
+                        (click)="changeVideoOrder('random')"
+                      >
+                        Al azar
+                      </button>
+                    </div>
+                    <p class="text-[11px] text-neutral-400">
+                      {{ videoOrderExplanation(settings.screensaverVideoOrder()) }}
+                    </p>
+                  </div>
+                }
               </div>
 
               <!-- Zona Restaurar por Defecto -->
@@ -1953,8 +2046,42 @@ export class AdminPanel {
 
   protected screensaverExplanation(mode: ScreensaverMode): string {
     return mode === 'classic'
-      ? 'Clásico: Animación de degradados y logotipos institucionales tras inactividad prolongada.'
-      : 'Video: Reproducción continua de video promocional o institucional en el kiosco.';
+      ? 'Clásico: Solo logotipos institucionales y de marcas en movimiento continuo sobre fondo atenuado. Cero videos.'
+      : 'Video: Playlist intercalada: al menos 20 s de animación clásica entre cada clip promocional de marcas habilitadas.';
+  }
+
+  protected formatIdleTime(ms: number): string {
+    const totalSeconds = Math.round(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes === 0) {
+      return `${seconds} s`;
+    }
+    if (seconds === 0) {
+      return minutes === 1 ? '1 minuto' : `${minutes} min`;
+    }
+    return `${minutes} min ${seconds} s`;
+  }
+
+  protected adjustIdleTime(deltaMs: number): void {
+    const current = this.settings.screensaverIdleMs();
+    const next = current + deltaMs;
+    this.settings.setScreensaverIdleMs(next);
+    this.showToast('Tiempo Protector', `Aparece tras: ${this.formatIdleTime(this.settings.screensaverIdleMs())}`);
+  }
+
+  protected changeVideoOrder(order: ScreensaverVideoOrder): void {
+    this.settings.setScreensaverVideoOrder(order);
+    this.showToast(
+      'Orden de Videos',
+      order === 'sequential' ? 'Ordenado por catálogo' : 'Aleatorio sin repetición',
+    );
+  }
+
+  protected videoOrderExplanation(order: ScreensaverVideoOrder): string {
+    return order === 'sequential'
+      ? 'Ordenado: Reproduce los videos en el orden del catálogo (1, 2, 3...) con ≥ 20 s de animación clásica entre cada clip.'
+      : 'Al azar: Baraja la lista evitando repetir el mismo video consecutivamente, siempre con ≥ 20 s de animación clásica entre clips.';
   }
 
   protected toggleSound(): void {
@@ -1984,6 +2111,17 @@ export class AdminPanel {
     const input = event.target as HTMLInputElement;
     this.showToast('Volumen SFX', `${input.value}%`);
     this.testSfx();
+  }
+
+  protected onVideoVolumeInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const vol = parseFloat(input.value) / 100;
+    this.settings.setVideoVolume(vol);
+  }
+
+  protected onVideoVolumeCommit(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.showToast('Volumen Video', `${input.value}%`);
   }
 
   protected testSfx(): void {

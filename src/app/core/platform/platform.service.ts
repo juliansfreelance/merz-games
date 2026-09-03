@@ -95,6 +95,11 @@ export class PlatformService {
     return this.invokeKioskCommand('leave_kiosk');
   }
 
+  /** Pone la ventana a pantalla completa y quita decoraciones (modo kiosco). En navegador no aplica. */
+  async enterKiosk(): Promise<KioskCommandResult> {
+    return this.invokeKioskCommand('enter_kiosk');
+  }
+
   private async invokeKioskCommand(command: string): Promise<KioskCommandResult> {
     if (!this._isNative) {
       return { ok: false, message: BROWSER_ONLY_MESSAGE };

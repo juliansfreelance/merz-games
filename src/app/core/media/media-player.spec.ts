@@ -200,4 +200,62 @@ describe('MediaPlayer', () => {
     const played = elements.filter(el => (el as MockMediaElement).play.mock.calls.length > 0);
     expect(played).toHaveLength(0);
   });
+
+  // ── Fase 8: BGM pause/resume, volumen de video y mute-safety ──────────────
+
+  it('pauseBgm() pausa el BGM sin resetear currentTime', () => {
+    const { player, elements } = buildPlayer(true);
+    player.setBgm('audio/bgm.mp3');
+    player.unlockBgm();
+    const bgmEl = elements[elements.length - 1];
+    bgmEl.currentTime = 15.5;
+
+    player.pauseBgm();
+    expect(bgmEl.pause).toHaveBeenCalled();
+    expect(bgmEl.currentTime).toBe(15.5);
+  });
+
+  it('resumeBgm() reanuda el BGM con el volumen configurado', () => {
+    const { player, elements } = buildPlayer(true);
+    player.setBgm('audio/bgm.mp3', 0.4);
+    player.unlockBgm();
+    const bgmEl = elements[elements.length - 1];
+
+    player.pauseBgm();
+    bgmEl.play.mockClear();
+
+    player.resumeBgm();
+    expect(bgmEl.play).toHaveBeenCalled();
+    expect(bgmEl.volume).toBe(0.4);
+  });
+
+  it('resumeBgm() no reanuda si soundEnabled = false', () => {
+    const { player, elements } = buildPlayer(false);
+    player.setBgm('audio/bgm.mp3');
+    player.unlockBgm();
+    player.resumeBgm();
+    const played = elements.filter(el => (el as MockMediaElement).play.mock.calls.length > 0);
+    expect(played).toHaveLength(0);
+  });
+
+  it('effectiveVideoVolume() retorna 0 cuando soundEnabled = false', () => {
+    const { player } = buildPlayer(false);
+    expect(player.effectiveVideoVolume(0.8)).toBe(0);
+    expect(player.effectiveVideoVolume()).toBe(0);
+  });
+
+  it('effectiveVideoVolume() respeta el volumen y aplica clamping con soundEnabled = true', () => {
+    const { player } = buildPlayer(true);
+    expect(player.effectiveVideoVolume(0.75)).toBe(0.75);
+    expect(player.effectiveVideoVolume(-0.2)).toBe(0);
+    expect(player.effectiveVideoVolume(1.5)).toBe(1);
+  });
+
+  it('play() de video (.mp4) NO se aborta con soundEnabled = false, sino que se reproduce con volume 0', () => {
+    const { player, elements } = buildPlayer(false);
+    player.play('content/videos/test.mp4', { volume: 0.8 });
+    const videoEl = elements.find(el => (el as MockMediaElement).play.mock.calls.length > 0);
+    expect(videoEl).toBeDefined();
+    expect(videoEl?.volume).toBe(0);
+  });
 });

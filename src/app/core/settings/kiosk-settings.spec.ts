@@ -273,4 +273,101 @@ describe('KioskSettings', () => {
     expect(settings.screensaverMode()).toBe('classic');
     expect(settings.getExperienceMemoryPairs('radiesse-memory')).toBeNull();
   });
+
+  describe('Fase 8: Ajustes del protector y video', () => {
+    it('inicializa videoVolume en 0.5, order en "sequential" e idleMs en 180_000', () => {
+      const { settings } = buildSettings();
+      expect(settings.videoVolume()).toBe(0.5);
+      expect(settings.screensaverVideoOrder()).toBe('sequential');
+      expect(settings.screensaverIdleMs()).toBe(180_000);
+    });
+
+    it('setVideoVolume actualiza el Signal y aplica clamping entre 0 y 1', () => {
+      const { settings } = buildSettings();
+      settings.setVideoVolume(0.8);
+      expect(settings.videoVolume()).toBe(0.8);
+
+      settings.setVideoVolume(-0.5);
+      expect(settings.videoVolume()).toBe(0);
+
+      settings.setVideoVolume(1.5);
+      expect(settings.videoVolume()).toBe(1);
+    });
+
+    it('setScreensaverVideoOrder actualiza a "random" y "sequential"', () => {
+      const { settings } = buildSettings();
+      settings.setScreensaverVideoOrder('random');
+      expect(settings.screensaverVideoOrder()).toBe('random');
+
+      settings.setScreensaverVideoOrder('sequential');
+      expect(settings.screensaverVideoOrder()).toBe('sequential');
+    });
+
+    it('setScreensaverIdleMs aplica clamping entre 30s (30_000) y 15m (900_000)', () => {
+      const { settings } = buildSettings();
+      settings.setScreensaverIdleMs(60_000);
+      expect(settings.screensaverIdleMs()).toBe(60_000);
+
+      settings.setScreensaverIdleMs(10_000); // Demasiado bajo
+      expect(settings.screensaverIdleMs()).toBe(30_000);
+
+      settings.setScreensaverIdleMs(1_200_000); // Demasiado alto
+      expect(settings.screensaverIdleMs()).toBe(900_000);
+
+      settings.setScreensaverIdleMs(NaN); // Inválido -> fallback a default 180_000
+      expect(settings.screensaverIdleMs()).toBe(180_000);
+    });
+
+    it('round-trip: persiste y recupera videoVolume, screensaverVideoOrder y screensaverIdleMs', () => {
+      const store: Record<string, string> = {};
+      const mockPlatform = {
+        appVersion: signal('0.1.0'),
+        storageGet: (key: string) => store[key] ?? null,
+        storageSet: (key: string, value: string) => { store[key] = value; },
+      };
+
+      TestBed.configureTestingModule({
+        providers: [
+          KioskSettings,
+          AppLogger,
+          { provide: PlatformService, useValue: mockPlatform },
+        ],
+      });
+      const s1 = TestBed.inject(KioskSettings);
+      s1.setVideoVolume(0.25);
+      s1.setScreensaverVideoOrder('random');
+      s1.setScreensaverIdleMs(120_000);
+      TestBed.flushEffects();
+      TestBed.resetTestingModule();
+
+      TestBed.configureTestingModule({
+        providers: [
+          KioskSettings,
+          AppLogger,
+          { provide: PlatformService, useValue: mockPlatform },
+        ],
+      });
+      const s2 = TestBed.inject(KioskSettings);
+      expect(s2.videoVolume()).toBe(0.25);
+      expect(s2.screensaverVideoOrder()).toBe('random');
+      expect(s2.screensaverIdleMs()).toBe(120_000);
+    });
+
+    it('resetToDefault restaura los ajustes de protector y video', () => {
+      const { settings } = buildSettings();
+      settings.setVideoVolume(0.9);
+      settings.setScreensaverVideoOrder('random');
+      settings.setScreensaverIdleMs(60_000);
+
+      expect(settings.videoVolume()).toBe(0.9);
+      expect(settings.screensaverVideoOrder()).toBe('random');
+      expect(settings.screensaverIdleMs()).toBe(60_000);
+
+      settings.resetToDefault();
+
+      expect(settings.videoVolume()).toBe(0.5);
+      expect(settings.screensaverVideoOrder()).toBe('sequential');
+      expect(settings.screensaverIdleMs()).toBe(180_000);
+    });
+  });
 });

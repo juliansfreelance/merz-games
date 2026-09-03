@@ -189,7 +189,7 @@ describe('AdminPanel', () => {
     fixture.detectChanges();
 
     const rangeSliders = el.querySelectorAll('input[type="range"]') as NodeListOf<HTMLInputElement>;
-    expect(rangeSliders.length).toBe(2);
+    expect(rangeSliders.length).toBe(3); // BGM, SFX, Videos de atracción
 
     const bgmSlider = rangeSliders[0];
     bgmSlider.value = '65';
@@ -426,6 +426,52 @@ describe('AdminPanel', () => {
       component['resetExperienceMemoryToDefault'](exp, 'Marca Test');
       expect(component['getEffectiveMemoryConfig'](exp).isCustomOverride).toBe(false);
       expect(component['getEffectiveMemoryConfig'](exp).lives).toBe(4);
+    });
+  });
+
+  describe('Fase 8: Protector de pantalla y video en AdminPanel', () => {
+    it('changeScreensaver actualiza el modo y el copy explicativo', () => {
+      component['changeScreensaver']('video');
+      const settings = TestBed.inject(KioskSettings);
+      expect(settings.screensaverMode()).toBe('video');
+
+      expect(component['screensaverExplanation']('classic')).toContain('Cero videos');
+      expect(component['screensaverExplanation']('video')).toContain('Playlist intercalada');
+    });
+
+    it('adjustIdleTime incrementa y decrementa en pasos de 30 segundos respetando límites', () => {
+      const settings = TestBed.inject(KioskSettings);
+      settings.setScreensaverIdleMs(180_000);
+
+      component['adjustIdleTime'](30_000);
+      expect(settings.screensaverIdleMs()).toBe(210_000);
+      expect(component['formatIdleTime'](210_000)).toBe('3 min 30 s');
+
+      component['adjustIdleTime'](-60_000);
+      expect(settings.screensaverIdleMs()).toBe(150_000);
+      expect(component['formatIdleTime'](150_000)).toBe('2 min 30 s');
+
+      expect(component['formatIdleTime'](60_000)).toBe('1 minuto');
+      expect(component['formatIdleTime'](30_000)).toBe('30 s');
+    });
+
+    it('changeVideoOrder actualiza a "random" y "sequential"', () => {
+      const settings = TestBed.inject(KioskSettings);
+      component['changeVideoOrder']('random');
+      expect(settings.screensaverVideoOrder()).toBe('random');
+      expect(component['videoOrderExplanation']('random')).toContain('Al azar');
+
+      component['changeVideoOrder']('sequential');
+      expect(settings.screensaverVideoOrder()).toBe('sequential');
+      expect(component['videoOrderExplanation']('sequential')).toContain('Ordenado');
+    });
+
+    it('onVideoVolumeInput actualiza el volumen de video en KioskSettings', () => {
+      const settings = TestBed.inject(KioskSettings);
+      const event = { target: { value: '75' } } as unknown as Event;
+
+      component['onVideoVolumeInput'](event);
+      expect(settings.videoVolume()).toBe(0.75);
     });
   });
 });

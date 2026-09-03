@@ -70,9 +70,11 @@ export class MediaPlayer {
    * Inicia la reproducción de un activo local (audio o video).
    * Corta la reproducción genérica anterior.
    * No afecta al BGM ni al pool de SFX.
+   * Si es un video y soundEnabled = false, se reproduce con volumen 0 (no se cancela la imagen).
    */
   play(url: string, options: PlayOptions = {}): void {
-    if (!this.settings.soundEnabled()) {
+    const isVideo = /\.(mp4|webm)$/i.test(url);
+    if (!this.settings.soundEnabled() && !isVideo) {
       this.logger.info('MediaPlayer', 'play() ignorado: soundEnabled = false.');
       return;
     }
@@ -82,14 +84,15 @@ export class MediaPlayer {
     const { loop = false, volume = 1 } = options;
     const element = this._preloadCache.get(url) ?? this._createElement(url);
     element.loop = loop;
-    element.volume = Math.max(0, Math.min(1, volume));
+    const effectiveVol = this.settings.soundEnabled() ? Math.max(0, Math.min(1, volume)) : 0;
+    element.volume = effectiveVol;
     this._mediaElement = element;
 
     void element.play()?.catch((err: unknown) => {
       this.logger.error('MediaPlayer', `Error al reproducir "${url}":`, err);
     });
 
-    this.logger.info('MediaPlayer', `[media] Reproduciendo: ${url}`, { loop, volume });
+    this.logger.info('MediaPlayer', `[media] Reproduciendo: ${url}`, { loop, volume: effectiveVol });
   }
 
   /**
@@ -99,6 +102,23 @@ export class MediaPlayer {
    */
   stop(): void {
     this._stopMediaOnly();
+  }
+
+  /**
+   * Calcula el volumen efectivo de video respetando el interruptor maestro de audio.
+   * Si soundEnabled() es false, retorna 0 (clip mudo pero visible).
+   */
+  effectiveVideoVolume(videoVolume?: number): number {
+    if (!this.settings.soundEnabled()) {
+      return 0;
+    }
+    const vol =
+      typeof videoVolume === 'number'
+        ? videoVolume
+        : this.settings.videoVolume
+        ? this.settings.videoVolume()
+        : 0.5;
+    return Math.max(0, Math.min(1, vol));
   }
 
   /** Precarga un activo local para minimizar la latencia al hacer `play()`. */
@@ -167,6 +187,35 @@ export class MediaPlayer {
     if (this._bgmUnlocked) return;
     this._bgmUnlocked = true;
     this._startBgm();
+  }
+
+  /**
+   * Pausa temporalmente el BGM sin reiniciar currentTime.
+   * Utilizado durante clips de video del protector para no solapar audio.
+   */
+  pauseBgm(): void {
+    if (!this._bgmElement) return;
+    this._bgmElement.pause();
+    this.logger.info('MediaPlayer', '[BGM] Pausada temporalmente.');
+  }
+
+  /**
+   * Reanuda el BGM si fue desbloqueado previamente y soundEnabled está activo.
+   * Utilizado en tramos clásicos del protector o al salir del protector.
+   */
+  resumeBgm(): void {
+    if (!this._bgmElement || !this._bgmUnlocked) return;
+    if (!this.settings.soundEnabled()) {
+      this.logger.info('MediaPlayer', '[BGM] resumeBgm() ignorado: soundEnabled = false.');
+      return;
+    }
+
+    const currentVol = this.settings.bgmVolume ? this.settings.bgmVolume() : this._bgmVolume;
+    this._bgmElement.volume = currentVol;
+    void this._bgmElement.play()?.catch((err: unknown) => {
+      this.logger.warn('MediaPlayer', '[BGM] Error al reanudar BGM:', err);
+    });
+    this.logger.info('MediaPlayer', '[BGM] Reanudada.');
   }
 
   stopBgm(): void {

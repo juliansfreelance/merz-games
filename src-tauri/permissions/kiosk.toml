@@ -1,4 +1,4 @@
 [[permission]]
 identifier = "allow-kiosk-ops"
 description = "Permite reiniciar, cerrar y salir del modo kiosco."
-commands.allow = ["restart_app", "exit_app", "leave_kiosk"]
+commands.allow = ["restart_app", "exit_app", "leave_kiosk", "enter_kiosk"]

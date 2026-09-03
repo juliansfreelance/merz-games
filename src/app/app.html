@@ -25,5 +25,10 @@
       v{{ appVersion() }}
     </span>
 
+    <!-- Protector de pantalla tras inactividad -->
+    @if (isScreensaverActive()) {
+      <app-screensaver (dismiss)="onDismissScreensaver()" />
+    }
+
   </div>
 </div>

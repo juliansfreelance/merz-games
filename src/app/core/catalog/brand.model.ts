@@ -16,6 +16,8 @@ export interface Brand {
   atmosphere?: Atmosphere;
   /** Disclaimer legal específico de la marca (INVIMA, registros, indicaciones). Opcional. */
   disclaimer?: string;
+  /** Video de atracción promocional de la marca para el protector de pantalla (ruta local). Opcional. */
+  attractionVideo?: string;
   /** Indica si la marca se encuentra en fase de desarrollo o beta (requiere PIN superadmin). Opcional. */
   develop?: boolean;
 }

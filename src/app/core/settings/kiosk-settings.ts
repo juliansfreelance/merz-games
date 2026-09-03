@@ -10,9 +10,27 @@ const SETTINGS_STORAGE_KEY = 'merz-games.kiosk-settings';
 /** Modo del protector de pantalla. */
 export type ScreensaverMode = 'classic' | 'video';
 
+/** Orden de reproducción de los videos de atracción. */
+export type ScreensaverVideoOrder = 'sequential' | 'random';
+
+/** Valores y límites de inactividad para el protector (en milisegundos). */
+export const SCREENSAVER_IDLE_DEFAULT_MS = 180_000; // 3 minutos
+export const SCREENSAVER_IDLE_MIN_MS = 30_000;      // 30 segundos
+export const SCREENSAVER_IDLE_MAX_MS = 900_000;     // 15 minutos
+export const SCREENSAVER_IDLE_STEP_MS = 30_000;    // 30 segundos
+
+/** Volumen por defecto para los clips de video. */
+export const DEFAULT_VIDEO_VOLUME = 0.5;
+
 /** Forma de los ajustes persistidos (todos los campos opcionales para compatibilidad). */
 interface KioskSettingsData {
   screensaverMode: ScreensaverMode;
+  /** Orden de los videos en modo protector de video ('sequential' | 'random'). */
+  screensaverVideoOrder: ScreensaverVideoOrder;
+  /** Tiempo de inactividad antes de activar el protector en ms (default 3 min: 180_000). */
+  screensaverIdleMs: number;
+  /** Volumen de los videos de atracción (0.0 a 1.0, default 0.5). */
+  videoVolume: number;
   /**
    * Habilita o deshabilita todo el audio de la aplicación.
    * Default: true. El interruptor vive en el panel de administración.
@@ -52,6 +70,9 @@ export interface ExperienceSettingsOverride {
 
 const DEFAULT_SETTINGS: KioskSettingsData = {
   screensaverMode: 'classic',
+  screensaverVideoOrder: 'sequential',
+  screensaverIdleMs: SCREENSAVER_IDLE_DEFAULT_MS,
+  videoVolume: DEFAULT_VIDEO_VOLUME,
   soundEnabled: true,
   bgmVolume: 0.4,
   sfxVolume: 0.8,
@@ -65,10 +86,13 @@ const DEFAULT_SETTINGS: KioskSettingsData = {
  * Servicio de ajustes locales del kiosco.
  *
  * Gestiona configuraciones que persisten entre reinicios (localStorage).
- * La UI del panel (Fase 7) llama a los setters; el protector en sí es Fase 8.
+ * La UI del panel (Fase 7 y 8) llama a los setters; el protector en sí es Fase 8.
  *
  * Ajustes actuales:
  * - `screensaverMode`: `'classic' | 'video'` (default: `'classic'`).
+ * - `screensaverVideoOrder`: `'sequential' | 'random'` (default: `'sequential'`).
+ * - `screensaverIdleMs`: tiempo de inactividad en ms (default: `180_000`, 3 min).
+ * - `videoVolume`: volumen independiente de clips (0 a 1, default: `0.5`).
  * - `soundEnabled`: boolean (default: `true`). Con `false`, silencia BGM y SFX.
  * - `memoryPairs`: número de parejas para Memoria | null (sin override).
  * - `triquiDifficulty`: dificultad para Triqui | null (sin override).
@@ -83,6 +107,21 @@ export class KioskSettings {
 
   /** Modo del protector de pantalla actualmente configurado. */
   readonly screensaverMode = computed(() => this._data().screensaverMode);
+
+  /** Orden de los videos en modo protector de video ('sequential' | 'random'). */
+  readonly screensaverVideoOrder = computed(
+    () => this._data().screensaverVideoOrder ?? DEFAULT_SETTINGS.screensaverVideoOrder,
+  );
+
+  /** Tiempo de inactividad antes de mostrar el protector en ms (default 3 min: 180_000). */
+  readonly screensaverIdleMs = computed(
+    () => this._data().screensaverIdleMs ?? DEFAULT_SETTINGS.screensaverIdleMs,
+  );
+
+  /** Volumen de los clips de video del protector (0 a 1). */
+  readonly videoVolume = computed(
+    () => this._data().videoVolume ?? DEFAULT_SETTINGS.videoVolume,
+  );
 
   /**
    * Audio habilitado/deshabilitado a nivel de kiosco.
@@ -131,6 +170,33 @@ export class KioskSettings {
   setScreensaverMode(mode: ScreensaverMode): void {
     this._patch({ screensaverMode: mode });
     this.logger.info('KioskSettings', `Modo protector cambiado a: ${mode}`);
+  }
+
+  setScreensaverVideoOrder(order: ScreensaverVideoOrder): void {
+    const valid = order === 'random' ? 'random' : 'sequential';
+    this._patch({ screensaverVideoOrder: valid });
+    this.logger.info('KioskSettings', `Orden videos protector cambiado a: ${valid}`);
+  }
+
+  setScreensaverIdleMs(idleMs: number): void {
+    const sanitized =
+      typeof idleMs === 'number' && !isNaN(idleMs)
+        ? Math.max(
+            SCREENSAVER_IDLE_MIN_MS,
+            Math.min(SCREENSAVER_IDLE_MAX_MS, Math.round(idleMs)),
+          )
+        : SCREENSAVER_IDLE_DEFAULT_MS;
+    this._patch({ screensaverIdleMs: sanitized });
+    this.logger.info('KioskSettings', `Tiempo de inactividad cambiado a: ${sanitized} ms`);
+  }
+
+  setVideoVolume(volume: number): void {
+    const clamped =
+      typeof volume === 'number' && !isNaN(volume)
+        ? Math.max(0, Math.min(1, volume))
+        : DEFAULT_SETTINGS.videoVolume;
+    this._patch({ videoVolume: clamped });
+    this.logger.info('KioskSettings', `Volumen video cambiado a: ${clamped}`);
   }
 
   setSoundEnabled(enabled: boolean): void {
@@ -390,6 +456,24 @@ export class KioskSettings {
           ? parsed.triquiFirstPlayer
           : null;
 
+      const screensaverVideoOrder: ScreensaverVideoOrder =
+        parsed.screensaverVideoOrder === 'random' || parsed.screensaverVideoOrder === 'sequential'
+          ? parsed.screensaverVideoOrder
+          : DEFAULT_SETTINGS.screensaverVideoOrder;
+
+      const screensaverIdleMs: number =
+        typeof parsed.screensaverIdleMs === 'number' &&
+        !isNaN(parsed.screensaverIdleMs) &&
+        parsed.screensaverIdleMs >= SCREENSAVER_IDLE_MIN_MS &&
+        parsed.screensaverIdleMs <= SCREENSAVER_IDLE_MAX_MS
+          ? Math.round(parsed.screensaverIdleMs)
+          : DEFAULT_SETTINGS.screensaverIdleMs;
+
+      const videoVolume: number =
+        typeof parsed.videoVolume === 'number' && !isNaN(parsed.videoVolume)
+          ? Math.max(0, Math.min(1, parsed.videoVolume))
+          : DEFAULT_SETTINGS.videoVolume;
+
       const experienceOverrides: Record<string, ExperienceSettingsOverride> =
         typeof parsed.experienceOverrides === 'object' && parsed.experienceOverrides !== null
           ? parsed.experienceOverrides
@@ -397,6 +481,9 @@ export class KioskSettings {
 
       return {
         screensaverMode,
+        screensaverVideoOrder,
+        screensaverIdleMs,
+        videoVolume,
         soundEnabled,
         bgmVolume,
         sfxVolume,

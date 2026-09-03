@@ -40,6 +40,7 @@
       "order": 1,
       "image": "/content/images/brands/RadiesseBrand.png",
       "logo": "/content/images/brands/RadiesseLogo.svg",
+      "attractionVideo": "/content/videos/radiesse.mp4",
       "description": "Estimulador de colágeno para una piel firme, elástica y definida.",
       "disclaimer": "Para indicaciones, contraindicaciones, advertencias y precauciones, ver inserto del producto.<br>RADIESSE® CLÁSICO: Registro Sanitario INVIMA 2019DM-0004463-R1. RADIESSE® PLUS: Registro Sanitario INVIMA 2018DM-0017846.<br>RADIESSE es una marca comercial y/o marca registrada de Merz North America, Inc. en Colombia y/o en otros países.",
       "atmosphere": {
@@ -82,6 +83,7 @@
       "order": 2,
       "image": "/content/images/brands/UltherapyBrand.png",
       "logo": "/content/images/brands/UltherapyLogo.svg",
+      "attractionVideo": "/content/videos/ultherapy.mp4",
       "description": "Lifting no invasivo con ultrasonido microfocalizado en tiempo real.",
       "disclaimer": "Para indicaciones, contraindicaciones, advertencias y precauciones, ver inserto del producto.<br>ULTHERAPY®: Registro Sanitario INVIMA 2021DM-0008171-R1.<br>ULTHERA INC, ULTHERAPY y DEEPSEE son marcas comerciales y/o marcas registradas en Colombia.",
       "atmosphere": {
@@ -115,39 +117,6 @@
           }
         ]
       }
-    },
-    {
-      "id": "merz",
-      "name": "Merz Aesthetics<sup>®</sup>",
-      "version": "0.1.0",
-      "enabled": true,
-      "develop": true,
-      "order": 3,
-      "image": "/content/images/brands/RadiesseBrand.png",
-      "logo": "/content/images/brands/RadiesseLogo.svg",
-      "description": "Innovación y medicina estética basada en evidencia clínica.",
-      "disclaimer": "Para indicaciones, contraindicaciones y precauciones, consulte la documentación oficial de Merz Aesthetics.<br>MERZ AESTHETICS es una marca registrada de Merz Pharma GmbH & Co. KGaA.",
-      "atmosphere": {
-        "baseColor": "#0b0914",
-        "blurTint": "#ec4899",
-        "blobs": [
-          {
-            "from": "#ec4899",
-            "to": "#be185d",
-            "opacity": 0.55
-          },
-          {
-            "from": "#8b5cf6",
-            "to": "#6d28d9",
-            "opacity": 0.5
-          },
-          {
-            "from": "#d946ef",
-            "to": "#a21caf",
-            "opacity": 0.48
-          }
-        ]
-      }
     }
   ],
   "games": [
@@ -168,8 +137,8 @@
         "sfxDraw": "/content/audio/sfx/game-draw.mp3"
       },
       "config": {
-        "pairs": 4,
-        "lives": 4,
+        "pairs": 3,
+        "lives": 3,
         "difficulty": "medium"
       }
     },
@@ -179,7 +148,6 @@
       "version": "0.6.0",
       "minAppVersion": "0.1.0",
       "enabled": true,
-      "develop": true,
       "description": "Juego clásico de estrategia y agilidad mental en tablero 3×3.",
       "assets": {
         "markX": "/content/images/games/triqui/mark-x.png",
@@ -204,12 +172,12 @@
       "enabled": true,
       "order": 1,
       "config": {
-        "pairs": 4,
-        "lives": 4,
+        "pairs": 3,
+        "lives": 3,
         "difficulty": "medium"
       },
-      "title": "Encuentra la Pareja Radiesse<sup>®</sup>",
-      "description": "<strong>Descubre cuánto sabes del universo de la estética mientras te diviertes.</strong> Encuentra todas las parejas de imágenes en este juego de memoria y, al completar el desafío, podrás participar por atractivos premios.<br><strong>¡Juega, acierta y gana!</strong>",
+      "title": "Encuentra la Pareja",
+      "description": "<strong>Descubre cuánto sabes del universo de la estética mientras te diviertes.</strong> Encuentra todas las parejas de imágenes en este juego de memoria y, al completar el desafío, podrás participar por atractivos premios.<br><strong>¡Cada coincidencia cuenta!</strong>",
       "image": "/content/images/experiences/radiesse-memory.jpg",
       "theme": {
         "accentColor": "#00E5FF",
@@ -336,38 +304,6 @@
       "assets": {
         "markX": "/content/images/games/triqui/ultherapy/mark-x.png",
         "markO": "/content/images/games/triqui/ultherapy/mark-o.png"
-      }
-    },
-    {
-      "id": "merz-memory",
-      "brandId": "merz",
-      "gameId": "memory",
-      "version": "0.5.0",
-      "enabled": true,
-      "develop": true,
-      "order": 5,
-      "config": {
-        "pairs": 4,
-        "lives": 4,
-        "difficulty": "medium"
-      },
-      "title": "Encuentra la Pareja Merz Aesthetics<sup>®</sup>",
-      "description": "Descubre las parejas de tarjetas médicas y pon a prueba tu concentración con Merz Aesthetics.",
-      "image": "/content/images/experiences/radiesse-memory.jpg",
-      "theme": {
-        "accentColor": "#ec4899",
-        "primaryColor": "#be185d"
-      },
-      "assets": {
-        "cardBack": "/content/images/games/memory/card-back.png",
-        "cardFaces": [
-          "/content/images/games/memory/cards/radiesse/card-1.png",
-          "/content/images/games/memory/cards/radiesse/card-2.png",
-          "/content/images/games/memory/cards/radiesse/card-3.png",
-          "/content/images/games/memory/cards/radiesse/card-4.png",
-          "/content/images/games/memory/cards/radiesse/card-5.png",
-          "/content/images/games/memory/cards/radiesse/card-6.png"
-        ]
       }
     }
   ],

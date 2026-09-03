@@ -197,6 +197,7 @@ function hydrateManifestFromSeed(candidate: ContentManifest): void {
     if (seedBrand.logo) brand.logo = seedBrand.logo;
     if (seedBrand.description) brand.description = seedBrand.description;
     if (seedBrand.name) brand.name = seedBrand.name;
+    if (seedBrand.attractionVideo) brand.attractionVideo = seedBrand.attractionVideo;
   }
 
   for (const exp of candidate.experiences ?? []) {

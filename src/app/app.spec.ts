@@ -10,16 +10,20 @@ class DummyAdmin {}
 
 describe('App', () => {
   let mockPlatformService: {
+    isNative: boolean;
     appVersion: ReturnType<typeof signal<string>>;
     storageGet: (key: string) => string | null;
     storageSet: (key: string, value: string) => void;
+    enterKiosk: () => Promise<any>;
   };
 
   beforeEach(async () => {
     mockPlatformService = {
+      isNative: false,
       appVersion: signal('0.1.0'),
       storageGet: () => null,
       storageSet: () => {},
+      enterKiosk: vi.fn().mockResolvedValue({ ok: false }),
     };
 
     await TestBed.configureTestingModule({

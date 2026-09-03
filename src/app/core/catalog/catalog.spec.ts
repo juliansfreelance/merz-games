@@ -89,6 +89,17 @@ describe('Content Catalog Manifest Contract', () => {
     expect(ultherapy?.enabled).toBe(true);
   });
 
+  it('debe definir attractionVideo para radiesse y ultherapy pero no para merz', () => {
+    const radiesse = manifest.brands.find((b) => b.id === 'radiesse');
+    expect(radiesse?.attractionVideo).toBe('/content/videos/radiesse.mp4');
+
+    const ultherapy = manifest.brands.find((b) => b.id === 'ultherapy');
+    expect(ultherapy?.attractionVideo).toBe('/content/videos/ultherapy.mp4');
+
+    const merz = manifest.brands.find((b) => b.id === 'merz');
+    expect(merz?.attractionVideo).toBeUndefined();
+  });
+
   it('should include memory and triqui games', () => {
     const gameIds = manifest.games.map((g) => g.id);
     expect(gameIds).toContain('memory');
@@ -565,6 +576,28 @@ describe('CatalogService — persistencia', () => {
 
     const brandIds = catalog.brands().map((b) => b.id);
     expect(brandIds).toContain('extra');
+  });
+
+  it('hydrateManifestFromSeed hidrata attractionVideo en un manifest persistido', () => {
+    // Simular un manifest persistido versión 0.6.0 donde las marcas no traían attractionVideo
+    const persistedWithoutVideo: ContentManifest = {
+      ...(manifestSeed as ContentManifest),
+      brands: (manifestSeed as ContentManifest).brands.map((b) => {
+        const copy = { ...b };
+        delete copy.attractionVideo;
+        return copy;
+      }),
+    };
+
+    const { catalog } = buildCatalog('0.1.0', {
+      [MANIFEST_KEY]: JSON.stringify(persistedWithoutVideo),
+    });
+
+    const radiesse = catalog.brands().find((b) => b.id === 'radiesse');
+    expect(radiesse?.attractionVideo).toBe('/content/videos/radiesse.mp4');
+
+    const ultherapy = catalog.brands().find((b) => b.id === 'ultherapy');
+    expect(ultherapy?.attractionVideo).toBe('/content/videos/ultherapy.mp4');
   });
 
   it('loadManifest() con manifest inválido debe rechazarlo y conservar el actual', () => {

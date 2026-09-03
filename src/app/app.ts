@@ -8,6 +8,8 @@ import { MediaPlayer } from './core/media/media-player';
 import { FloatingGradient } from './features/shared/floating-gradient';
 import { Atmosphere } from './core/catalog/content-manifest.model';
 import { UI_SFX } from './features/shared/ui-sfx';
+import { IdleWatchdog } from './core/kiosk/idle-watchdog';
+import { Screensaver } from './features/screensaver/screensaver';
 
 /** Volumen de BGM por defecto si el manifest no especifica uno. */
 const DEFAULT_BGM_VOLUME = 0.35;
@@ -16,7 +18,7 @@ const DEFAULT_BGM_VOLUME = 0.35;
 const ADMIN_LONG_PRESS_MS = 2000;
 
 @Component({
-  imports: [RouterOutlet, FloatingGradient],
+  imports: [RouterOutlet, FloatingGradient, Screensaver],
   selector: 'app-root',
   styleUrl: './app.css',
   templateUrl: './app.html',
@@ -32,9 +34,11 @@ export class App {
   private readonly mediaPlayer = inject(MediaPlayer);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly watchdog = inject(IdleWatchdog);
   private versionPressTimer: ReturnType<typeof setTimeout> | null = null;
 
   protected readonly appVersion = this.platformService.appVersion;
+  protected readonly isScreensaverActive = this.watchdog.isActive;
 
   private readonly currentUrl = toSignal(
     this.router.events.pipe(
@@ -113,6 +117,11 @@ export class App {
     this.mediaPlayer.preload(UI_SFX.back);
     this.mediaPlayer.preload(UI_SFX.select);
 
+    // Entrar al modo kiosco nativo en Tauri al iniciar
+    if (this.platformService.isNative) {
+      void this.platformService.enterKiosk();
+    }
+
     // Configurar el BGM desde el manifest en cuanto el catálogo esté disponible.
     // La reproducción NO arranca aquí: espera el primer gesto (onFirstGesture).
     effect(() => {
@@ -125,6 +134,13 @@ export class App {
         );
       }
     });
+  }
+
+  /**
+   * Cierra el protector de pantalla y reanuda el flujo de paciente.
+   */
+  protected onDismissScreensaver(): void {
+    this.watchdog.dismiss();
   }
 
   /**

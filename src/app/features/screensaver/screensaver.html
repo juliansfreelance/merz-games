@@ -1,0 +1,42 @@
+@if (isShowingVideo()) {
+  <!-- Modo Video: Reproducción a pantalla completa de clip promocional -->
+  <div class="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
+    <video
+      #screensaverVideo
+      [src]="currentClip()?.videoUrl"
+      [volume]="effectiveVolume()"
+      [muted]="effectiveVolume() === 0"
+      [loop]="false"
+      autoplay
+      playsinline
+      (ended)="onVideoEnded()"
+      (error)="onVideoError()"
+      class="w-full h-full object-cover pointer-events-none"
+    ></video>
+  </div>
+} @else {
+  <!-- Modo Clásico (o Dwell intercalado ≥ 20 s en modo video): Logos institucionales y marcas en movimiento suave -->
+  <div class="relative w-full h-full flex flex-col items-center justify-center px-8 overflow-hidden">
+    
+    <!-- Aura ambiental sutil de fondo -->
+    <div
+      class="absolute size-[600px] rounded-full bg-gradient-to-br from-indigo-900/20 via-purple-900/10 to-transparent blur-3xl pointer-events-none animate-pulse-glow"
+    ></div>
+
+    <!-- Contenedor flotante del logotipo activo -->
+    <div class="relative z-10 flex flex-col items-center justify-center p-8 animate-gentle-float">
+      <img
+        [src]="currentLogo()"
+        alt="Merz Games"
+        class="max-w-[340px] sm:max-w-[420px] max-h-[160px] sm:max-h-[200px] w-auto h-auto object-contain filter drop-shadow-[0_10px_30px_rgba(255,255,255,0.06)] animate-logo-cycle"
+      />
+    </div>
+
+    <!-- Mensaje sutil de interacción táctil -->
+    <div class="absolute bottom-16 sm:bottom-20 z-10 flex flex-col items-center gap-2 pointer-events-none opacity-60">
+      <p class="text-xs sm:text-sm kiosk:text-base font-semibold uppercase tracking-[0.25em] text-neutral-400 font-mono text-center">
+        Toca la pantalla para comenzar
+      </p>
+    </div>
+  </div>
+}
