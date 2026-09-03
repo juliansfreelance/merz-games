@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { effect, inject, Injectable } from '@angular/core';
 import { AppLogger } from '../logging/app-error';
 import { KioskSettings } from '../settings/kiosk-settings';
 
@@ -54,6 +54,16 @@ export class MediaPlayer {
   // ── Canal SFX ─────────────────────────────────────────────────────────────
   private readonly _sfxPool: HTMLAudioElement[] = [];
 
+  constructor() {
+    effect(() => {
+      const enabled = this.settings.soundEnabled();
+      const bgmVol = this.settings.bgmVolume ? this.settings.bgmVolume() : this._bgmVolume;
+      if (this._bgmElement) {
+        this._bgmElement.volume = enabled ? bgmVol : 0;
+      }
+    });
+  }
+
   // ─── Canal media genérico ─────────────────────────────────────────────────
 
   /**
@@ -75,7 +85,7 @@ export class MediaPlayer {
     element.volume = Math.max(0, Math.min(1, volume));
     this._mediaElement = element;
 
-    element.play().catch((err: unknown) => {
+    void element.play()?.catch((err: unknown) => {
       this.logger.error('MediaPlayer', `Error al reproducir "${url}":`, err);
     });
 
@@ -178,9 +188,10 @@ export class MediaPlayer {
 
     const element = this._acquireSfxVoice();
     element.src = url;
-    element.volume = Math.max(0, Math.min(1, volume));
+    const sfxScale = this.settings.sfxVolume ? this.settings.sfxVolume() : 1;
+    element.volume = Math.max(0, Math.min(1, volume * sfxScale));
     element.currentTime = 0;
-    element.play().catch((err: unknown) => {
+    void element.play()?.catch((err: unknown) => {
       this.logger.warn('MediaPlayer', `[SFX] Error al reproducir "${url}":`, err);
     });
   }
@@ -206,7 +217,7 @@ export class MediaPlayer {
     }
 
     this._bgmElement.volume = this._bgmVolume;
-    this._bgmElement.play().catch((err: unknown) => {
+    void this._bgmElement.play()?.catch((err: unknown) => {
       this.logger.warn('MediaPlayer', '[BGM] Autoplay bloqueado por el navegador:', err);
     });
 

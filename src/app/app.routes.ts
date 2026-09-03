@@ -2,12 +2,25 @@ import { Routes } from '@angular/router';
 import { brandGuard } from './features/brands/brand.guard';
 import { experienceGuard } from './features/experiences/experience.guard';
 import { appInitGuard } from './core/lifecycle/app-init.guard';
+import { adminGuard } from './features/admin/admin.guard';
 
 export const routes: Routes = [
   {
     path: '',
     loadComponent: () =>
       import('./features/splash/splash').then((m) => m.Splash),
+  },
+  {
+    path: 'admin/login',
+    canActivate: [appInitGuard],
+    loadComponent: () =>
+      import('./features/admin/admin-login').then((m) => m.AdminLogin),
+  },
+  {
+    path: 'admin',
+    canActivate: [appInitGuard, adminGuard],
+    loadComponent: () =>
+      import('./features/admin/admin-panel').then((m) => m.AdminPanel),
   },
   {
     path: 'welcome',

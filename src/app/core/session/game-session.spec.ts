@@ -16,7 +16,7 @@ describe('GameSession', () => {
 
   it('debe inicializar con MAX_LIVES vidas', () => {
     const session = buildSession();
-    expect(session.maxLives).toBe(MAX_LIVES);
+    expect(session.maxLives()).toBe(MAX_LIVES);
     expect(session.remainingLives()).toBe(MAX_LIVES);
     expect(session.playResult()).toBeNull();
   });
@@ -31,6 +31,16 @@ describe('GameSession', () => {
     expect(session.remainingLives()).toBe(MAX_LIVES);
     expect(session.activeExperienceId()).toBe('nueva-exp');
     expect(session.playResult()).toBeNull();
+  });
+
+  it('start() acepta initialLives personalizado', () => {
+    const session = buildSession();
+    session.start('memory-6-pairs', 6);
+    expect(session.maxLives()).toBe(6);
+    expect(session.remainingLives()).toBe(6);
+
+    session.loseLife();
+    expect(session.remainingLives()).toBe(5);
   });
 
   it('start() incrementa round para remount del motor', () => {

@@ -41,4 +41,14 @@ describe('KioskButton', () => {
     fixture.nativeElement.querySelector('button')?.click();
     expect(playSfx).toHaveBeenCalledWith(UI_SFX.click);
   });
+
+  it('no reproduce SFX ni dispara click útil cuando está deshabilitado', () => {
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+
+    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    button.click();
+    expect(playSfx).not.toHaveBeenCalled();
+  });
 });

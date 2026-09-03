@@ -51,3 +51,16 @@ export interface MemoryEngineOptions {
    */
   readonly rng?: () => number;
 }
+
+/** Nivel de dificultad de Memoria según la tolerancia a fallos. */
+export type MemoryDifficulty = 'easy' | 'medium' | 'hard' | 'custom';
+
+/** Configuración de partida para una experiencia del juego de Memoria. */
+export interface MemoryConfig {
+  readonly pairs: number;
+  readonly lives: number;
+  readonly difficulty: MemoryDifficulty;
+}
+
+/** Configuración parcial para sobreescrituras en catálogo o ajustes de kiosco. */
+export type MemoryConfigOverride = Partial<MemoryConfig>;

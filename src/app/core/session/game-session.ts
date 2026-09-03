@@ -44,7 +44,7 @@ export interface TriquiTurnInfo {
 export class GameSession {
   private readonly logger = inject(AppLogger);
 
-  readonly maxLives = MAX_LIVES;
+  readonly maxLives = signal<number>(MAX_LIVES);
 
   /** Vidas restantes en la sesión activa. */
   readonly remainingLives = signal<number>(MAX_LIVES);
@@ -106,18 +106,22 @@ export class GameSession {
   /**
    * Inicia (o reinicia) la sesión para la experiencia indicada.
    * Llamar al entrar a `/play/:experienceId` y al pulsar «Volver a jugar».
+   *
+   * @param experienceId ID de la experiencia que se va a jugar.
+   * @param initialLives Cantidad de vidas iniciales (por defecto MAX_LIVES = 3).
    */
-  start(experienceId: string): void {
+  start(experienceId: string, initialLives: number = MAX_LIVES): void {
     this.dismissResult();
     this.setTriquiTurn(null);
     this.activeExperienceId.set(experienceId);
-    this.remainingLives.set(MAX_LIVES);
+    this.maxLives.set(initialLives);
+    this.remainingLives.set(initialLives);
     this.autoShowTutorial.set(true);
     this.sessionRound.set(1);
     this.round.update((n) => n + 1);
     this.logger.info(
       'GameSession',
-      `Sesión iniciada: ${experienceId}, vidas: ${MAX_LIVES}, ronda: 1`,
+      `Sesión iniciada: ${experienceId}, vidas: ${initialLives}, ronda: 1`,
     );
   }
 

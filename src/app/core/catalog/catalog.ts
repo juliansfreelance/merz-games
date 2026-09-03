@@ -12,6 +12,10 @@ import { Atmosphere, ContentManifest } from './content-manifest.model';
 import { Brand } from './brand.model';
 import { Game } from './game.model';
 import { GameExperience } from './game-experience.model';
+
+export type { Brand } from './brand.model';
+export type { Game } from './game.model';
+export type { GameExperience } from './game-experience.model';
 import manifestSeed from '../../../../content/manifests/content-manifest.json';
 
 const seed = manifestSeed as unknown as ContentManifest;
@@ -32,6 +36,19 @@ export const DEFAULT_ATMOSPHERE: Readonly<Atmosphere> = {
   ],
 };
 
+/** Atmósfera técnica del panel de administración (tonos sirena de policía: exclusivamente rojos y azules vibrantes). */
+export const ADMIN_ATMOSPHERE: Readonly<Atmosphere> = {
+  baseColor: '#050814',
+  blurTint: '#3b82f6',
+  blobs: [
+    { from: '#ef4444', to: '#b91c1c', opacity: 0.45 },
+    { from: '#3b82f6', to: '#1d4ed8', opacity: 0.45 },
+    { from: '#dc2626', to: '#991b1b', opacity: 0.40 },
+    { from: '#2563eb', to: '#1e40af', opacity: 0.42 },
+    { from: '#f87171', to: '#60a5fa', opacity: 0.35 },
+  ],
+};
+
 /** Disclaimer general de la actividad para todas las pantallas de navegación. */
 export const DEFAULT_ACTIVITY_DISCLAIMER =
   'Esta actividad corresponde a una dinámica de habilidad mental y no a un concurso, sorteo o juego de azar. La ejecución, administración y cumplimiento de la mecánica son responsabilidad exclusiva de cada clínica participante.';
@@ -45,6 +62,7 @@ export interface CatalogCardItem {
   image?: string;
   badge?: string;
   ariaLabel: string;
+  develop?: boolean;
 }
 
 /**
@@ -344,6 +362,37 @@ export class CatalogService {
   }
 
   /**
+   * Determina si una marca está en fase de desarrollo o beta.
+   */
+  isBrandDevelop(brand: Brand | string): boolean {
+    const b = typeof brand === 'string' ? this.getBrandById(brand) : brand;
+    return b?.develop === true;
+  }
+
+  /**
+   * Determina si un motor de juego está en fase de desarrollo o beta.
+   */
+  isGameDevelop(gameId: string): boolean {
+    return this.getGameById(gameId)?.develop === true;
+  }
+
+  /**
+   * Determina si una experiencia concreta está en desarrollo o beta.
+   * Es verdadero si la propia experiencia, su marca o su motor tienen develop: true.
+   */
+  isExperienceDevelop(experience: GameExperience | string): boolean {
+    const exp =
+      typeof experience === 'string'
+        ? this.rawManifest().experiences.find((e) => e.id === experience)
+        : experience;
+    if (!exp) return false;
+    if (exp.develop === true) return true;
+    if (this.isBrandDevelop(exp.brandId)) return true;
+    if (this.isGameDevelop(exp.gameId)) return true;
+    return false;
+  }
+
+  /**
    * Resuelve la atmósfera visual de una marca. Si no tiene atmósfera propia o no existe,
    * recurre a la semilla o a defaultAtmosphere. Cero ramificaciones `if (brandId === 'radiesse')`.
    */
@@ -372,6 +421,13 @@ export class CatalogService {
     if (seedExp) return this.atmosphereForBrand(seedExp.brandId);
 
     return this.defaultAtmosphere();
+  }
+
+  /**
+   * Resuelve la atmósfera técnica para el panel y login administrativo.
+   */
+  adminAtmosphere(): Atmosphere {
+    return ADMIN_ATMOSPHERE;
   }
 
   /**
@@ -425,6 +481,7 @@ export class CatalogService {
         'Toca para descubrir los juegos disponibles.',
       image: brand.image ?? seedBrand?.image,
       ariaLabel: `Seleccionar marca ${brand.name}`,
+      develop: brand.develop ?? seedBrand?.develop ?? false,
     };
   }
 
@@ -455,6 +512,7 @@ export class CatalogService {
       description,
       image,
       ariaLabel: `Jugar ${title}`,
+      develop: this.isExperienceDevelop(exp),
     };
   }
 
@@ -504,6 +562,52 @@ export class CatalogService {
     return true;
   }
 
+  /**
+   * Habilita o deshabilita una experiencia específica en el catálogo y persiste el cambio.
+   */
+  setExperienceEnabled(experienceId: string, enabled: boolean): void {
+    const current = this.manifest();
+    const updated = {
+      ...current,
+      experiences: current.experiences.map((exp) =>
+        exp.id === experienceId ? { ...exp, enabled } : exp,
+      ),
+    };
+    this.manifest.set(updated);
+    this.logger.info('CatalogService', `Experiencia "${experienceId}" enabled: ${enabled}`);
+  }
+
+  /**
+   * Habilita o deshabilita una marca específica en el catálogo y persiste el cambio.
+   */
+  setBrandEnabled(brandId: string, enabled: boolean): void {
+    const current = this.manifest();
+    const updated = {
+      ...current,
+      brands: current.brands.map((b) =>
+        b.id === brandId ? { ...b, enabled } : b,
+      ),
+    };
+    this.manifest.set(updated);
+    this.logger.info('CatalogService', `Marca "${brandId}" enabled: ${enabled}`);
+  }
+
+  /**
+   * Restaura el catálogo completo a los valores por defecto del manifest original (content-manifest.json).
+   * Restablece las marcas y experiencias habilitadas/deshabilitadas a su estado original de fábrica.
+   */
+  resetToDefault(): void {
+    const cleanManifest = JSON.parse(JSON.stringify(manifestSeed)) as ContentManifest;
+    this.manifest.set(cleanManifest);
+    this.selectedBrand.set(undefined);
+    try {
+      this.platform.storageSet(MANIFEST_STORAGE_KEY, JSON.stringify(cleanManifest));
+    } catch {
+      this.logger.warn('CatalogService', 'No se pudo persistir el manifest tras restaurar.');
+    }
+    this.logger.info('CatalogService', 'Catálogo restaurado a los valores por defecto de content-manifest.json');
+  }
+
   // ─── Internos ───────────────────────────────────────────────────────────────
 
   /**
@@ -539,7 +643,11 @@ export class CatalogService {
     }
 
     const candidate = parsed as ContentManifest;
-    hydrateManifestFromSeed(candidate);
+    // Solo hidratar desde la semilla embebida si es la misma versión.
+    // Un catálogo aplicado por el updater (versión distinta) debe conservarse.
+    if (candidate.version === seed.version) {
+      hydrateManifestFromSeed(candidate);
+    }
 
     this.manifest.set(candidate);
     this.logger.info('CatalogService', 'Manifest persistido cargado:', candidate.version);

@@ -1,9 +1,12 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
-import { signal } from '@angular/core';
+import { provideRouter, Router } from '@angular/router';
+import { Component, signal } from '@angular/core';
 import { App } from './app';
 import { PlatformService } from './core/platform/platform.service';
 import { CatalogService } from './core/catalog/catalog';
+
+@Component({ template: '' })
+class DummyAdmin {}
 
 describe('App', () => {
   let mockPlatformService: {
@@ -24,7 +27,9 @@ describe('App', () => {
       providers: [
         { provide: PlatformService, useValue: mockPlatformService },
         CatalogService,
-        provideRouter([]),
+        provideRouter([
+          { path: 'admin/login', component: DummyAdmin },
+        ]),
       ],
     }).compileComponents();
   });
@@ -48,5 +53,19 @@ describe('App', () => {
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('0.1.0');
+  });
+
+  it('debe activar la atmósfera de administración cuando la ruta inicia con /admin', async () => {
+    const fixture = TestBed.createComponent(App);
+    const catalog = TestBed.inject(CatalogService);
+    const router = TestBed.inject(Router);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const app = fixture.componentInstance as any;
+    await router.navigateByUrl('/admin/login');
+    fixture.detectChanges();
+
+    expect(app.currentAtmosphere()).toEqual(catalog.adminAtmosphere());
   });
 });

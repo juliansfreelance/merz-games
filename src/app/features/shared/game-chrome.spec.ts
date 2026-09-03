@@ -25,19 +25,24 @@ describe('GameChrome', () => {
     expect(host.textContent).toContain('Radiesse');
   });
 
-  it('debe calcular 3 corazones activos con 3 vidas restantes', () => {
-    const hearts = component['heartsArray']();
-    expect(hearts.length).toBe(3);
-    expect(hearts.filter((h) => h.active).length).toBe(3);
+  it('debe renderizar el indicador de vidas con 3 corazones para 3 vidas', () => {
+    const host: HTMLElement = fixture.nativeElement;
+    const indicator = host.querySelector('app-lives-indicator');
+    expect(indicator).toBeTruthy();
+    expect(indicator?.querySelectorAll('svg').length).toBe(3);
   });
 
-  it('debe reflejar 1 corazón activo con 1 vida restante', () => {
+  it('debe reflejar 1 vida restante en el indicador', () => {
+    vi.useFakeTimers();
     fixture.componentRef.setInput('remainingLives', 1);
     fixture.detectChanges();
+    vi.advanceTimersByTime(500);
+    fixture.detectChanges();
 
-    const hearts = component['heartsArray']();
-    expect(hearts.length).toBe(3);
-    expect(hearts.filter((h) => h.active).length).toBe(1);
+    const host: HTMLElement = fixture.nativeElement;
+    const indicator = host.querySelector('app-lives-indicator');
+    expect(indicator?.querySelectorAll('svg').length).toBe(1);
+    vi.useRealTimers();
   });
 
   it('debe renderizar un solo HUD de vidas y el botón de ayuda fuera de su contenedor', () => {

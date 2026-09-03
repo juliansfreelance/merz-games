@@ -14,6 +14,8 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs/operators';
 import { CatalogService } from '../../core/catalog/catalog';
 import { GameSession } from '../../core/session/game-session';
+import { KioskSettings } from '../../core/settings/kiosk-settings';
+import { resolveMemoryConfig } from '../../core/games/memory/memory-config';
 import { GameExperience } from '../../core/catalog/game-experience.model';
 import { UnavailableScreen } from '../shared/unavailable-screen';
 import { GameChrome } from '../shared/game-chrome';
@@ -56,6 +58,7 @@ const GAME_COMPONENT_BY_ID: Readonly<Record<string, Type<unknown>>> = {
         [brandDisclaimer]="brand()?.disclaimer"
         [introText]="gameIntro()"
         [remainingLives]="session.remainingLives()"
+        [maxLives]="session.maxLives()"
         [roundNumber]="roundCounter()"
         (back)="goBackToGames()"
         (help)="session.requestTutorial()"
@@ -121,6 +124,7 @@ export class GameHost {
   private readonly router = inject(Router);
   private readonly catalog = inject(CatalogService);
   protected readonly session = inject(GameSession);
+  private readonly settings = inject(KioskSettings);
   private readonly hostEl = inject(ElementRef<HTMLElement>);
   private startedExperienceId = '';
   private leaving = false;
@@ -210,7 +214,17 @@ export class GameHost {
       untracked(() => {
         if (this.startedExperienceId === exp.id) return;
         this.startedExperienceId = exp.id;
-        this.session.start(exp.id);
+        let initialLives = 3;
+        if (exp.gameId === 'memory') {
+          const kioskOverride = this.settings.getExperienceMemoryConfig(exp.id);
+          const resolved = resolveMemoryConfig({
+            kioskOverride,
+            experienceConfig: exp.config,
+            gameConfig: this.game()?.config,
+          });
+          initialLives = resolved.lives;
+        }
+        this.session.start(exp.id, initialLives);
       });
     });
 

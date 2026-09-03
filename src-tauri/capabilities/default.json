@@ -9,6 +9,7 @@
     "core:window:default",
     "core:app:default",
     "core:resources:default",
-    "updater:default"
+    "updater:default",
+    "allow-kiosk-ops"
   ]
 }

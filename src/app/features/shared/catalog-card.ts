@@ -2,15 +2,16 @@ import { Component, computed, inject, input, output, signal } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { MediaPlayer } from '../../core/media/media-player';
 import { playUiSfx } from './ui-sfx';
+import { HeroIcon } from './hero-icon';
 
 /**
  * CatalogCard — Tarjeta interactiva de marca o experiencia para el catálogo.
  *
- * Optimizada con mayor ancho útil y padding refinado para visualización amplia en kiosco 1080x1920.
+ * Optimizada con soporte para elementos en desarrollo/beta (tonos tenues, translúcidos e insignia con candado).
  */
 @Component({
   selector: 'app-catalog-card',
-  imports: [CommonModule],
+  imports: [CommonModule, HeroIcon],
   host: {
     class: 'block w-full h-full',
   },
@@ -18,7 +19,10 @@ import { playUiSfx } from './ui-sfx';
     <div
       role="button"
       tabindex="0"
-      class="group relative w-full h-full min-h-[340px] sm:min-h-[380px] kiosk:min-h-[480px] rounded-3xl kiosk:rounded-[2.5rem] border border-white/15 bg-white/[0.06] backdrop-blur-md active:bg-white/[0.12] active:scale-[0.98] transition-all duration-200 p-4 sm:p-5 lg:p-6 kiosk:p-6 overflow-hidden cursor-pointer shadow-md shadow-black/20 hover:shadow-lg hover:shadow-black/25 flex flex-col items-center text-center justify-between gap-3 sm:gap-4 kiosk:gap-5 select-none hover:border-white/30 hover:bg-white/[0.09]"
+      class="group relative w-full h-full min-h-[340px] sm:min-h-[380px] kiosk:min-h-[480px] rounded-3xl kiosk:rounded-[2.5rem] transition-all duration-200 p-4 sm:p-5 lg:p-6 kiosk:p-6 overflow-hidden cursor-pointer shadow-md shadow-black/20 hover:shadow-lg hover:shadow-black/25 flex flex-col items-center text-center justify-between gap-3 sm:gap-4 kiosk:gap-5 select-none"
+      [class]="develop()
+        ? 'border-2 border-dashed border-amber-400/30 bg-white/[0.02] opacity-65 hover:opacity-90 hover:border-amber-400/50 backdrop-blur-sm'
+        : 'border border-white/15 bg-white/[0.06] backdrop-blur-md active:bg-white/[0.12] active:scale-[0.98] hover:border-white/30 hover:bg-white/[0.09]'"
       style="touch-action: manipulation;"
       (pointerup)="handleClick($event)"
       (keydown.enter)="handleKey($event)"
@@ -38,16 +42,17 @@ import { playUiSfx } from './ui-sfx';
         } @else {
           <!-- Fallback elegante con icono y texto "Imagen" -->
           <div class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-white/10 to-white/5 text-white/40 gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                 stroke-width="1.5" stroke="currentColor" class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 opacity-70">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-            </svg>
+            <app-hero-icon name="photo" class="text-3xl sm:text-4xl lg:text-5xl opacity-70" />
             <span class="text-xs sm:text-sm kiosk:text-base font-medium text-white/50 tracking-wider">Imagen</span>
           </div>
         }
 
-        @if (badge()) {
+        @if (develop()) {
+          <span class="absolute top-2.5 right-2.5 kiosk:top-3.5 kiosk:right-3.5 px-3 py-1 kiosk:px-3.5 kiosk:py-1.5 rounded-full text-[10px] sm:text-xs font-extrabold tracking-wider uppercase bg-amber-500/25 text-amber-300 border border-amber-400/40 backdrop-blur-md shadow-sm flex items-center gap-1.5">
+            <app-hero-icon name="lock-closed" class="text-xs" />
+            <span>En desarrollo</span>
+          </span>
+        } @else if (badge()) {
           <span class="absolute top-2.5 right-2.5 kiosk:top-3.5 kiosk:right-3.5 px-3 py-1 kiosk:px-4 kiosk:py-1.5 rounded-full text-[11px] sm:text-xs kiosk:text-sm font-extrabold tracking-widest uppercase bg-black/50 text-white border border-white/20 backdrop-blur-md shadow-sm">
             {{ badge() }}
           </span>
@@ -68,9 +73,17 @@ import { playUiSfx } from './ui-sfx';
       <!-- 3. Botón CTA Inferior con apariencia de píldora (cápsula) -->
       <div class="w-full pt-1 flex justify-center shrink-0">
         <div
-          class="inline-flex items-center justify-center min-w-[140px] sm:min-w-[180px] lg:min-w-[200px] kiosk:min-w-[240px] px-8 sm:px-10 lg:px-12 kiosk:px-12 py-2.5 sm:py-3 lg:py-3.5 kiosk:py-4 rounded-full font-extrabold text-xs sm:text-sm lg:text-base kiosk:text-base tracking-[0.2em] uppercase text-neutral-100 bg-white/[0.08] border border-white/25 backdrop-blur-md shadow-lg shadow-black/40 group-hover:bg-white/[0.16] group-hover:text-white group-hover:border-white/40 group-active:scale-95 transition-all duration-150 select-none"
+          class="inline-flex items-center justify-center min-w-[140px] sm:min-w-[180px] lg:min-w-[200px] kiosk:min-w-[240px] px-8 sm:px-10 lg:px-12 kiosk:px-12 py-2.5 sm:py-3 lg:py-3.5 kiosk:py-4 rounded-full font-extrabold text-xs sm:text-sm lg:text-base kiosk:text-base tracking-[0.2em] uppercase transition-all duration-150 select-none gap-2"
+          [class]="develop()
+            ? 'text-amber-300 bg-amber-500/15 border border-amber-400/35 group-hover:bg-amber-500/25 group-hover:border-amber-400/50'
+            : 'text-neutral-100 bg-white/[0.08] border border-white/25 backdrop-blur-md shadow-lg shadow-black/40 group-hover:bg-white/[0.16] group-hover:text-white group-hover:border-white/40 group-active:scale-95'"
         >
-          {{ actionLabel() }}
+          @if (develop()) {
+            <app-hero-icon name="lock-closed" class="text-xs" />
+            <span>Acceso Beta</span>
+          } @else {
+            <span>{{ actionLabel() }}</span>
+          }
         </div>
       </div>
     </div>
@@ -85,6 +98,7 @@ export class CatalogCard {
   readonly badge = input<string | undefined>(undefined);
   readonly actionLabel = input<string>('Jugar');
   readonly ariaLabel = input<string | undefined>(undefined);
+  readonly develop = input<boolean>(false);
 
   readonly selected = output<void>();
 

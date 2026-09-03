@@ -178,16 +178,24 @@ export class TriquiPlay implements OnInit {
   // ── Computados de Configuración ─────────────────────────────────────────────
 
   readonly resolvedDifficulty = computed(() => {
+    const expId = this.experienceId();
+    const kioskOverride = this.settings.getExperienceTriquiDifficulty
+      ? this.settings.getExperienceTriquiDifficulty(expId)
+      : this.settings.triquiDifficulty();
     return resolveTriquiDifficulty({
-      kioskOverride: this.settings.triquiDifficulty(),
+      kioskOverride,
       experienceConfig: this.config(),
       gameConfig: this.gameConfig(),
     }).difficulty;
   });
 
   protected readonly resolvedFirstPlayer = computed(() => {
+    const expId = this.experienceId();
+    const kioskOverride = this.settings.getExperienceTriquiFirstPlayer
+      ? this.settings.getExperienceTriquiFirstPlayer(expId)
+      : this.settings.triquiFirstPlayer();
     return resolveTriquiFirstPlayer({
-      kioskOverride: this.settings.triquiFirstPlayer(),
+      kioskOverride,
       experienceConfig: this.config(),
       gameConfig: this.gameConfig(),
     }).firstPlayer;

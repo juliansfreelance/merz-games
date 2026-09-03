@@ -7,11 +7,17 @@
 
 import {
   GRID_COLUMNS_BY_TOTAL,
+  MEMORY_DIFFICULTY_DEFAULT,
+  MEMORY_LIVES_MIN,
   MEMORY_PAIRS_DEFAULT,
   MEMORY_PAIRS_MAX,
   MEMORY_PAIRS_MIN,
   getGridColumns,
+  getRecommendedLives,
+  resolveMemoryConfig,
   resolveMemoryPairs,
+  validateDifficulty,
+  validateLives,
   validatePairs,
 } from './memory-config';
 
@@ -165,3 +171,131 @@ describe('getGridColumns — tabla de rejilla', () => {
     }
   });
 });
+
+describe('validateLives', () => {
+  it('acepta valores enteros >= 3', () => {
+    expect(validateLives(3)).toBe(3);
+    expect(validateLives(4)).toBe(4);
+    expect(validateLives(10)).toBe(10);
+  });
+
+  it('descarta valores < 3, no enteros, negativos o inválidos', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(validateLives(2)).toBeNull();
+    expect(validateLives(0)).toBeNull();
+    expect(validateLives(-1)).toBeNull();
+    expect(validateLives(3.5)).toBeNull();
+    expect(validateLives('tres')).toBeNull();
+    expect(validateLives(null)).toBeNull();
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+});
+
+describe('validateDifficulty', () => {
+  it('acepta "easy", "medium", "hard", "custom"', () => {
+    expect(validateDifficulty('easy')).toBe('easy');
+    expect(validateDifficulty('medium')).toBe('medium');
+    expect(validateDifficulty('hard')).toBe('hard');
+    expect(validateDifficulty('custom')).toBe('custom');
+  });
+
+  it('descarta valores no reconocidos', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(validateDifficulty('expert')).toBeNull();
+    expect(validateDifficulty('')).toBeNull();
+    expect(validateDifficulty(123)).toBeNull();
+    expect(validateDifficulty(null)).toBeNull();
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+});
+
+describe('getRecommendedLives — heurística de vidas', () => {
+  it('fácil: Math.max(3, Math.ceil(pairs * 1.5))', () => {
+    expect(getRecommendedLives(2, 'easy')).toBe(3); // ceil(3)=3
+    expect(getRecommendedLives(3, 'easy')).toBe(5); // ceil(4.5)=5
+    expect(getRecommendedLives(4, 'easy')).toBe(6); // ceil(6)=6
+    expect(getRecommendedLives(5, 'easy')).toBe(8); // ceil(7.5)=8
+    expect(getRecommendedLives(6, 'easy')).toBe(9); // ceil(9)=9
+  });
+
+  it('medio: Math.max(3, pairs)', () => {
+    expect(getRecommendedLives(2, 'medium')).toBe(3); // max(3, 2)=3
+    expect(getRecommendedLives(3, 'medium')).toBe(3); // max(3, 3)=3
+    expect(getRecommendedLives(4, 'medium')).toBe(4);
+    expect(getRecommendedLives(5, 'medium')).toBe(5);
+    expect(getRecommendedLives(6, 'medium')).toBe(6);
+  });
+
+  it('difícil: Math.max(3, Math.ceil(pairs * 0.75))', () => {
+    expect(getRecommendedLives(2, 'hard')).toBe(3); // max(3, 1.5)=3
+    expect(getRecommendedLives(3, 'hard')).toBe(3); // max(3, 2.25)=3
+    expect(getRecommendedLives(4, 'hard')).toBe(3); // max(3, 3)=3
+    expect(getRecommendedLives(5, 'hard')).toBe(4); // max(3, 3.75)=4
+    expect(getRecommendedLives(6, 'hard')).toBe(5); // max(3, 4.5)=5
+  });
+
+  it('custom usa la fórmula recomendada media por defecto (>=3)', () => {
+    expect(getRecommendedLives(2, 'custom')).toBe(3);
+    expect(getRecommendedLives(4, 'custom')).toBe(4);
+  });
+});
+
+describe('resolveMemoryConfig — cascada completa', () => {
+  it('override de kiosco gana en pairs, lives y difficulty', () => {
+    const result = resolveMemoryConfig({
+      kioskOverride: { pairs: 5, lives: 7, difficulty: 'easy' },
+      experienceConfig: { pairs: 3, lives: 4, difficulty: 'medium' },
+      gameConfig: { pairs: 4, lives: 4, difficulty: 'medium' },
+    });
+    expect(result.pairs).toBe(5);
+    expect(result.lives).toBe(7);
+    expect(result.difficulty).toBe('easy');
+    expect(result.source).toBe('kiosk');
+  });
+
+  it('kiosk override parcial (solo pairs) autocalcula vidas con preset', () => {
+    const result = resolveMemoryConfig({
+      kioskOverride: { pairs: 6 },
+      experienceConfig: { difficulty: 'hard' },
+    });
+    expect(result.pairs).toBe(6);
+    expect(result.difficulty).toBe('hard');
+    expect(result.lives).toBe(5); // getRecommendedLives(6, 'hard') = 5
+    expect(result.source).toBe('kiosk');
+  });
+
+  it('experience config gana cuando kioskOverride es null', () => {
+    const result = resolveMemoryConfig({
+      kioskOverride: null,
+      experienceConfig: { pairs: 3, lives: 5, difficulty: 'easy' },
+      gameConfig: { pairs: 4, lives: 4, difficulty: 'medium' },
+    });
+    expect(result.pairs).toBe(3);
+    expect(result.lives).toBe(5);
+    expect(result.difficulty).toBe('easy');
+    expect(result.source).toBe('experience');
+  });
+
+  it('game config gana cuando experiencia no tiene config', () => {
+    const result = resolveMemoryConfig({
+      kioskOverride: null,
+      experienceConfig: undefined,
+      gameConfig: { pairs: 4, lives: 4, difficulty: 'medium' },
+    });
+    expect(result.pairs).toBe(4);
+    expect(result.lives).toBe(4);
+    expect(result.difficulty).toBe('medium');
+    expect(result.source).toBe('game');
+  });
+
+  it('default total cuando todas las fuentes están vacías', () => {
+    const result = resolveMemoryConfig({});
+    expect(result.pairs).toBe(MEMORY_PAIRS_DEFAULT);
+    expect(result.difficulty).toBe(MEMORY_DIFFICULTY_DEFAULT);
+    expect(result.lives).toBe(4);
+    expect(result.source).toBe('default');
+  });
+});
+

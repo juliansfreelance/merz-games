@@ -22,7 +22,7 @@ import { KioskSettings } from '../../core/settings/kiosk-settings';
 import { MediaPlayer } from '../../core/media/media-player';
 import { MemoryEngine, MISMATCH_DELAY_MS } from '../../core/games/memory/memory-engine';
 import { MemoryCard as MemoryCardModel } from '../../core/games/memory/memory.model';
-import { resolveMemoryPairs } from '../../core/games/memory/memory-config';
+import { resolveMemoryConfig, resolveMemoryPairs } from '../../core/games/memory/memory-config';
 import {
   computeCardLayout,
   calculateMinimumBoardHeight,
@@ -170,14 +170,22 @@ export class MemoryPlay implements OnInit {
   protected readonly engine = this._engine.asReadonly();
   protected readonly cards  = this._cards.asReadonly();
 
-  protected readonly resolvedPairs = computed(() => {
-    const result = resolveMemoryPairs({
-      kioskOverride:    this.settings.memoryPairs(),
+  protected readonly resolvedMemoryConfig = computed(() => {
+    const expId = this.experienceId();
+    const kioskOverride = this.settings.getExperienceMemoryConfig
+      ? this.settings.getExperienceMemoryConfig(expId)
+      : (this.settings.memoryPairs() !== null ? { pairs: this.settings.memoryPairs()! } : null);
+    const result = resolveMemoryConfig({
+      kioskOverride,
       experienceConfig: this.config(),
       gameConfig:       this.gameConfig(),
     });
-    console.info(`MemoryPlay: pairs = ${result.pairs} (fuente: ${result.source})`);
-    return result.pairs;
+    console.info(`MemoryPlay: pairs = ${result.pairs}, lives = ${result.lives}, diff = ${result.difficulty} (fuente: ${result.source})`);
+    return result;
+  });
+
+  protected readonly resolvedPairs = computed(() => {
+    return this.resolvedMemoryConfig().pairs;
   });
 
   /** URL del dorso: experiencia → carpeta de marca correspondiente → fallback global. */

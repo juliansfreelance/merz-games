@@ -23,8 +23,11 @@ const VARIANT_CLASSES: Record<KioskButtonVariant, string> = {
   host: { class: 'block w-full' },
   template: `
     <button
+      type="button"
       [class]="buttonClasses()"
+      [disabled]="disabled()"
       [attr.aria-label]="ariaLabel() || null"
+      [attr.aria-disabled]="disabled() ? 'true' : null"
       style="touch-action: manipulation;"
       (click)="onPress()"
     >
@@ -35,6 +38,7 @@ const VARIANT_CLASSES: Record<KioskButtonVariant, string> = {
 export class KioskButton {
   readonly variant = input<KioskButtonVariant>('primary');
   readonly ariaLabel = input<string>('');
+  readonly disabled = input<boolean>(false);
   /** Fuerza el SFX; por defecto ghost = back, el resto = click. */
   readonly sfx = input<UiSfxKind | 'auto'>('auto');
 
@@ -47,12 +51,15 @@ export class KioskButton {
   });
 
   protected onPress(): void {
+    if (this.disabled()) return;
     playUiSfx(this.media, this.sfxKind());
   }
 
   protected buttonClasses(): string {
     const base =
       'w-full min-h-12 sm:min-h-14 lg:min-h-16 kiosk:min-h-20 px-8 sm:px-10 lg:px-12 kiosk:px-16 py-3.5 sm:py-4 lg:py-5 kiosk:py-6 rounded-full transition-all duration-150 text-xs sm:text-sm lg:text-base kiosk:text-lg leading-tight cursor-pointer select-none flex items-center justify-center gap-2';
-    return `${base} ${VARIANT_CLASSES[this.variant()]}`;
+    const disabled =
+      'disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none disabled:active:scale-100';
+    return `${base} ${disabled} ${VARIANT_CLASSES[this.variant()]}`;
   }
 }

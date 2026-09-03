@@ -38,6 +38,8 @@ function buildPlayer(soundEnabled = true) {
 
   const mockSettings = {
     soundEnabled: vi.fn().mockReturnValue(soundEnabled),
+    bgmVolume: vi.fn().mockReturnValue(0.4),
+    sfxVolume: vi.fn().mockReturnValue(0.8),
     screensaverMode: vi.fn().mockReturnValue('classic'),
     memoryPairs: vi.fn().mockReturnValue(null),
   };

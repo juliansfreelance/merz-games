@@ -211,4 +211,66 @@ describe('KioskSettings', () => {
     expect(s2.triquiDifficulty()).toBe('easy');
     expect(s2.triquiFirstPlayer()).toBe('random');
   });
+
+  it('permite overrides por experiencia específicos', () => {
+    const { settings } = buildSettings();
+    expect(settings.getExperienceMemoryPairs('radiesse-memory')).toBeNull();
+
+    settings.setExperienceMemoryPairs('radiesse-memory', 5);
+    expect(settings.getExperienceMemoryPairs('radiesse-memory')).toBe(5);
+    // Otras experiencias siguen en null (o default)
+    expect(settings.getExperienceMemoryPairs('ultherapy-memory')).toBeNull();
+
+    settings.setExperienceTriquiDifficulty('radiesse-triqui', 'hard');
+    expect(settings.getExperienceTriquiDifficulty('radiesse-triqui')).toBe('hard');
+    expect(settings.getExperienceTriquiDifficulty('ultherapy-triqui')).toBeNull();
+
+    settings.setExperienceTriquiFirstPlayer('radiesse-triqui', 'alternate');
+    expect(settings.getExperienceTriquiFirstPlayer('radiesse-triqui')).toBe('alternate');
+    expect(settings.getExperienceTriquiFirstPlayer('ultherapy-triqui')).toBeNull();
+
+    // Memory config completo (pairs + lives + difficulty)
+    expect(settings.getExperienceMemoryConfig('radiesse-memory')).toEqual({ pairs: 5 });
+    settings.setExperienceMemoryConfig('ultherapy-memory', {
+      pairs: 6,
+      lives: 8,
+      difficulty: 'easy',
+    });
+    expect(settings.getExperienceMemoryConfig('ultherapy-memory')).toEqual({
+      pairs: 6,
+      lives: 8,
+      difficulty: 'easy',
+    });
+    // Limpiar override de memoria
+    settings.setExperienceMemoryConfig('ultherapy-memory', null);
+    expect(settings.getExperienceMemoryConfig('ultherapy-memory')).toBeNull();
+  });
+
+  it('resetToDefault restablece todos los ajustes y borra overrides por experiencia', () => {
+    const { settings, store } = buildSettings();
+
+    // Modificar configuraciones
+    settings.setMemoryPairs(5);
+    settings.setTriquiDifficulty('hard');
+    settings.setTriquiFirstPlayer('alternate');
+    settings.setSoundEnabled(false);
+    settings.setScreensaverMode('video');
+    settings.setExperienceMemoryPairs('radiesse-memory', 4);
+
+    expect(settings.memoryPairs()).toBe(5);
+    expect(settings.triquiDifficulty()).toBe('hard');
+    expect(settings.soundEnabled()).toBe(false);
+    expect(settings.screensaverMode()).toBe('video');
+    expect(settings.getExperienceMemoryPairs('radiesse-memory')).toBe(4);
+
+    // Restaurar por defecto
+    settings.resetToDefault();
+
+    expect(settings.memoryPairs()).toBeNull();
+    expect(settings.triquiDifficulty()).toBeNull();
+    expect(settings.triquiFirstPlayer()).toBeNull();
+    expect(settings.soundEnabled()).toBe(true);
+    expect(settings.screensaverMode()).toBe('classic');
+    expect(settings.getExperienceMemoryPairs('radiesse-memory')).toBeNull();
+  });
 });

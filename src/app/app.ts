@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject } from '@angular/core';
+import { Component, computed, DestroyRef, effect, inject } from '@angular/core';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map, startWith } from 'rxjs/operators';
@@ -11,6 +11,9 @@ import { UI_SFX } from './features/shared/ui-sfx';
 
 /** Volumen de BGM por defecto si el manifest no especifica uno. */
 const DEFAULT_BGM_VOLUME = 0.35;
+
+/** Gesto oculto: mantener pulsado el badge de versión. */
+const ADMIN_LONG_PRESS_MS = 2000;
 
 @Component({
   imports: [RouterOutlet, FloatingGradient],
@@ -28,6 +31,8 @@ export class App {
   private readonly catalog = inject(CatalogService);
   private readonly mediaPlayer = inject(MediaPlayer);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
+  private versionPressTimer: ReturnType<typeof setTimeout> | null = null;
 
   protected readonly appVersion = this.platformService.appVersion;
 
@@ -46,6 +51,11 @@ export class App {
    */
   protected readonly currentAtmosphere = computed<Atmosphere>(() => {
     const url = this.currentUrl();
+
+    // 0. Panel y login de administración: atmósfera técnica con manchas propias
+    if (url.startsWith('/admin')) {
+      return this.catalog.adminAtmosphere();
+    }
 
     // 1. Selector de juegos de una marca: /brands/:brandId/games
     const brandGamesMatch = url.match(/^\/brands\/([^/]+)\/games/);
@@ -97,6 +107,8 @@ export class App {
   });
 
   constructor() {
+    this.destroyRef.onDestroy(() => this.clearVersionPress());
+
     this.mediaPlayer.preload(UI_SFX.click);
     this.mediaPlayer.preload(UI_SFX.back);
     this.mediaPlayer.preload(UI_SFX.select);
@@ -122,5 +134,26 @@ export class App {
    */
   protected onFirstGesture(): void {
     this.mediaPlayer.unlockBgm();
+  }
+
+  protected onVersionPressStart(event: PointerEvent): void {
+    event.preventDefault();
+    this.clearVersionPress();
+    this.versionPressTimer = setTimeout(() => {
+      this.versionPressTimer = null;
+      const url = this.router.url.split('?')[0];
+      if (url.startsWith('/admin')) return;
+      void this.router.navigateByUrl('/admin/login');
+    }, ADMIN_LONG_PRESS_MS);
+  }
+
+  protected onVersionPressEnd(): void {
+    this.clearVersionPress();
+  }
+
+  private clearVersionPress(): void {
+    if (this.versionPressTimer === null) return;
+    clearTimeout(this.versionPressTimer);
+    this.versionPressTimer = null;
   }
 }

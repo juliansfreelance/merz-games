@@ -205,6 +205,14 @@ describe('CatalogService — Atmósfera y Cards', () => {
     expect(fallback).toEqual(catalog.defaultAtmosphere());
   });
 
+  it('adminAtmosphere() resuelve la atmósfera técnica del panel administrativo', () => {
+    const { catalog } = buildCatalog();
+    const adminAtmo = catalog.adminAtmosphere();
+    expect(adminAtmo.baseColor).toBe('#050814');
+    expect(adminAtmo.blurTint).toBe('#3b82f6');
+    expect(adminAtmo.blobs.length).toBe(5);
+  });
+
   it('atmosphereForExperience() resuelve atmósfera de la marca correspondiente', () => {
     const { catalog } = buildCatalog();
     const radiesseMemoryAtmosphere = catalog.atmosphereForExperience('radiesse-memory');
@@ -593,6 +601,25 @@ describe('CatalogService — persistencia', () => {
     expect(result).toBe(true);
     expect(catalog.brands().map((b) => b.id)).toContain('nueva');
   });
+
+  it('manifest persistido con versión distinta a la semilla no se hidrata desde seed', () => {
+    const seed = manifestSeed as ContentManifest;
+    const remoteCopy: ContentManifest = {
+      ...seed,
+      version: '9.9.9',
+      brands: seed.brands.map((brand) =>
+        brand.id === 'radiesse' ? { ...brand, description: 'COPY REMOTA' } : brand,
+      ),
+    };
+
+    const { catalog } = buildCatalog('0.1.0', {
+      [MANIFEST_KEY]: JSON.stringify(remoteCopy),
+    });
+
+    const radiesse = catalog.brands().find((brand) => brand.id === 'radiesse');
+    expect(catalog.rawManifest().version).toBe('9.9.9');
+    expect(radiesse?.description).toBe('COPY REMOTA');
+  });
 });
 
 // ─── Modelo update ────────────────────────────────────────────────────────────
@@ -626,5 +653,81 @@ describe('UpdateModel', () => {
       errorMessage: 'Algo salió mal',
     };
     expect(snapshot.errorMessage).toBe('Algo salió mal');
+  });
+
+  it('setExperienceEnabled actualiza el estado enabled de la experiencia y el signal experiences', () => {
+    const { catalog } = buildCatalog();
+    expect(catalog.experiences().some((e) => e.id === 'radiesse-memory')).toBe(true);
+
+    catalog.setExperienceEnabled('radiesse-memory', false);
+    expect(catalog.experiences().some((e) => e.id === 'radiesse-memory')).toBe(false);
+    expect(catalog.rawManifest().experiences.find((e) => e.id === 'radiesse-memory')?.enabled).toBe(false);
+
+    catalog.setExperienceEnabled('radiesse-memory', true);
+    expect(catalog.experiences().some((e) => e.id === 'radiesse-memory')).toBe(true);
+    expect(catalog.rawManifest().experiences.find((e) => e.id === 'radiesse-memory')?.enabled).toBe(true);
+  });
+
+  it('setBrandEnabled actualiza el estado enabled de la marca y el signal brands', () => {
+    const { catalog } = buildCatalog();
+    expect(catalog.brands().some((b) => b.id === 'radiesse')).toBe(true);
+
+    catalog.setBrandEnabled('radiesse', false);
+    expect(catalog.brands().some((b) => b.id === 'radiesse')).toBe(false);
+    expect(catalog.rawManifest().brands.find((b) => b.id === 'radiesse')?.enabled).toBe(false);
+
+    catalog.setBrandEnabled('radiesse', true);
+    expect(catalog.brands().some((b) => b.id === 'radiesse')).toBe(true);
+    expect(catalog.rawManifest().brands.find((b) => b.id === 'radiesse')?.enabled).toBe(true);
+  });
+
+  it('detecta marcas, motores y experiencias en desarrollo correctamente', () => {
+    const { catalog } = buildCatalog();
+
+    // Triqui está configurado con develop: true en el motor
+    expect(catalog.isGameDevelop('triqui')).toBe(true);
+    expect(catalog.isGameDevelop('memory')).toBe(false);
+
+    // Merz está configurada con develop: true en la marca
+    expect(catalog.isBrandDevelop('merz')).toBe(true);
+    expect(catalog.isBrandDevelop('radiesse')).toBe(false);
+
+    // radiesse-triqui está en desarrollo porque el motor triqui es develop
+    expect(catalog.isExperienceDevelop('radiesse-triqui')).toBe(true);
+
+    // merz-memory está en desarrollo porque la marca merz es develop
+    expect(catalog.isExperienceDevelop('merz-memory')).toBe(true);
+
+    // radiesse-memory NO está en desarrollo
+    expect(catalog.isExperienceDevelop('radiesse-memory')).toBe(false);
+
+    // Las cards reflejan la propiedad develop
+    const merzBrand = catalog.getBrandById('merz');
+    if (merzBrand) {
+      expect(catalog.cardForBrand(merzBrand).develop).toBe(true);
+    }
+    const radiesseTriqui = catalog.rawManifest().experiences.find((e) => e.id === 'radiesse-triqui');
+    if (radiesseTriqui) {
+      expect(catalog.cardForExperience(radiesseTriqui).develop).toBe(true);
+    }
+  });
+
+  it('resetToDefault restaura el catálogo completo al manifest original (content-manifest.json)', () => {
+    const { catalog, store } = buildCatalog();
+
+    // Deshabilitar marca y experiencia
+    catalog.setBrandEnabled('radiesse', false);
+    catalog.setExperienceEnabled('radiesse-memory', false);
+    expect(catalog.getBrandById('radiesse')?.enabled).toBe(false);
+    expect(catalog.rawManifest().experiences.find((e) => e.id === 'radiesse-memory')?.enabled).toBe(false);
+
+    // Restaurar por defecto
+    catalog.resetToDefault();
+
+    expect(catalog.getBrandById('radiesse')?.enabled).toBe(true);
+    expect(catalog.rawManifest().experiences.find((e) => e.id === 'radiesse-memory')?.enabled).toBe(true);
+    expect(store[MANIFEST_KEY]).toBeTruthy();
+    const stored = JSON.parse(store[MANIFEST_KEY]);
+    expect(stored.brands.find((b: any) => b.id === 'radiesse').enabled).toBe(true);
   });
 });

@@ -55,4 +55,6 @@ export interface GameExperience {
   assets?: ExperienceAssets;
   /** Configuración específica del motor para esta experiencia. Opcional. */
   config?: ExperienceConfig;
+  /** Indica si la experiencia concreta está en desarrollo o beta. Opcional. */
+  develop?: boolean;
 }

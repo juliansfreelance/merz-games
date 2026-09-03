@@ -38,5 +38,7 @@ export interface Game {
    * (p. ej. { pairs: 4 } para el motor de Memoria). Opcional.
    */
   config?: ExperienceConfig;
+  /** Indica si el motor de juego está en fase de desarrollo o beta. Opcional. */
+  develop?: boolean;
 }
 

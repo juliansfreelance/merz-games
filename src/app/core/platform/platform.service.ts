@@ -2,13 +2,30 @@ import { Injectable, signal, Signal } from '@angular/core';
 
 export type PlatformKind = 'browser' | 'tauri';
 
+/** Resultado de un comando nativo de kiosco. */
+export interface KioskCommandResult {
+  readonly ok: boolean;
+  readonly message?: string;
+}
+
+interface TauriGlobals {
+  __TAURI_INTERNALS__?: unknown;
+  __TAURI__?: unknown;
+}
+
+const BROWSER_ONLY_MESSAGE = 'Solo en la app de escritorio';
+
+function detectNative(): boolean {
+  if (typeof window === 'undefined') return false;
+  const globals = window as Window & TauriGlobals;
+  return !!globals.__TAURI_INTERNALS__ || !!globals.__TAURI__;
+}
+
 @Injectable({
   providedIn: 'root',
 })
 export class PlatformService {
-  private readonly _isNative =
-    typeof window !== 'undefined' &&
-    (!!(window as any).__TAURI__ || !!(window as any).__TAURI_INTERNALS__);
+  private readonly _isNative = detectNative();
   private readonly _platformKind: PlatformKind = this._isNative ? 'tauri' : 'browser';
   private readonly _appVersion = signal<string>('0.1.0');
 
@@ -32,12 +49,9 @@ export class PlatformService {
    * Lee un valor del almacén persistente local.
    *
    * Implementación actual: `localStorage` del WebView.
-   * En Tauri el WebView comparte el mismo `localStorage`, por lo que no se
-   * requiere ningún plugin adicional en Fases 3–5.
-   *
-   * PUNTO DE EXTENSIÓN (Fase 7): reemplazar el cuerpo de este método para
-   * delegar al plugin `@tauri-apps/plugin-fs` y escribir en AppData cuando
-   * se requiera acceso nativo al sistema de archivos.
+   * En Tauri el WebView comparte el mismo `localStorage`.
+   * La escritura de assets de contenido en AppData queda para cuando
+   * exista un pack publicado (`plugin-fs`).
    */
   storageGet(key: string): string | null {
     try {
@@ -52,7 +66,6 @@ export class PlatformService {
   /**
    * Escribe un valor en el almacén persistente local.
    *
-   * Misma nota de extensión que `storageGet`.
    * La escritura es atómica a nivel de `localStorage.setItem`:
    * si falla (cuota excedida, modo privado), se captura y se ignora
    * para no interrumpir el flujo de juego.
@@ -64,6 +77,35 @@ export class PlatformService {
       }
     } catch {
       // Cuota excedida o storage deshabilitado: continuar sin persistir.
+    }
+  }
+
+  /** Reinicia la aplicación. En navegador no aplica. */
+  async restart(): Promise<KioskCommandResult> {
+    return this.invokeKioskCommand('restart_app');
+  }
+
+  /** Cierra la aplicación. En navegador no aplica. */
+  async exit(): Promise<KioskCommandResult> {
+    return this.invokeKioskCommand('exit_app');
+  }
+
+  /** Quita fullscreen y restaura decoraciones de ventana. En navegador no aplica. */
+  async leaveKiosk(): Promise<KioskCommandResult> {
+    return this.invokeKioskCommand('leave_kiosk');
+  }
+
+  private async invokeKioskCommand(command: string): Promise<KioskCommandResult> {
+    if (!this._isNative) {
+      return { ok: false, message: BROWSER_ONLY_MESSAGE };
+    }
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke(command);
+      return { ok: true };
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      return { ok: false, message: detail || 'No se pudo ejecutar el comando nativo.' };
     }
   }
 
@@ -79,4 +121,3 @@ export class PlatformService {
     }
   }
 }
-

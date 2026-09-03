@@ -1,0 +1,78 @@
+import { inject, Injectable } from '@angular/core';
+import { PlatformService } from '../platform/platform.service';
+import { APP_UPDATE_PLACEHOLDER_MESSAGE } from './update.constants';
+
+export interface AppUpdateCheck {
+  readonly available: boolean;
+  readonly version?: string;
+  readonly skipped?: boolean;
+  readonly errorMessage?: string;
+}
+
+export interface AppUpdateInstallResult {
+  readonly ok: boolean;
+  readonly installed: boolean;
+  readonly errorMessage?: string;
+}
+
+/**
+ * Canal de actualización del ejecutable (Tauri Updater).
+ * En navegador no consulta GitHub; si pubkey/endpoint son placeholder, el check
+ * falla con un mensaje honesto.
+ */
+@Injectable({ providedIn: 'root' })
+export class AppUpdate {
+  private readonly platform = inject(PlatformService);
+
+  async check(): Promise<AppUpdateCheck> {
+    if (!this.platform.isNative) {
+      return {
+        available: false,
+        skipped: true,
+        errorMessage:
+          'La actualización del ejecutable solo está disponible en la app de escritorio.',
+      };
+    }
+
+    try {
+      const { check } = await import('@tauri-apps/plugin-updater');
+      const update = await check();
+      if (!update) {
+        return { available: false };
+      }
+      return { available: true, version: update.version };
+    } catch {
+      return {
+        available: false,
+        errorMessage: APP_UPDATE_PLACEHOLDER_MESSAGE,
+      };
+    }
+  }
+
+  async downloadAndInstall(): Promise<AppUpdateInstallResult> {
+    if (!this.platform.isNative) {
+      return {
+        ok: true,
+        installed: false,
+        errorMessage:
+          'La actualización del ejecutable solo está disponible en la app de escritorio.',
+      };
+    }
+
+    try {
+      const { check } = await import('@tauri-apps/plugin-updater');
+      const update = await check();
+      if (!update) {
+        return { ok: true, installed: false };
+      }
+      await update.downloadAndInstall();
+      return { ok: true, installed: true };
+    } catch {
+      return {
+        ok: false,
+        installed: false,
+        errorMessage: APP_UPDATE_PLACEHOLDER_MESSAGE,
+      };
+    }
+  }
+}

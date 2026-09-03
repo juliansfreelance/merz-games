@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { KioskDisclaimer } from './kiosk-disclaimer';
 import { HeroIcon } from './hero-icon';
 import { UiSfx } from './ui-sfx';
+import { LivesIndicator } from './lives-indicator';
 
 /**
  * GameChrome — Cromado adaptativo de experiencia de juego con:
@@ -13,7 +14,7 @@ import { UiSfx } from './ui-sfx';
  */
 @Component({
   selector: 'app-game-chrome',
-  imports: [CommonModule, KioskDisclaimer, HeroIcon, UiSfx],
+  imports: [CommonModule, KioskDisclaimer, HeroIcon, UiSfx, LivesIndicator],
   host: {
     class: 'flex flex-col flex-1 w-full min-h-full',
   },
@@ -70,26 +71,14 @@ import { UiSfx } from './ui-sfx';
 
             <!-- Derecha: Intentos / Vidas + ayuda al lado, fuera del contenedor -->
             <div class="flex items-center gap-3 ml-auto">
-              <div class="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-2 backdrop-blur-md">
+              <div class="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-4 sm:px-5 py-2 backdrop-blur-md">
                 <span class="text-xs uppercase tracking-widest text-neutral-300 font-bold">
                   Intentos restantes
                 </span>
-                <div class="flex items-center gap-2" role="status" [attr.aria-label]="remainingLives() + ' vidas restantes'">
-                  @for (heart of heartsArray(); track heart.index) {
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                      class="w-6 h-6 transition-all duration-300"
-                      [class.text-rose-500]="heart.active"
-                      [class.drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]]="heart.active"
-                      [class.text-white/20]="!heart.active"
-                      [class.scale-90]="!heart.active"
-                    >
-                      <path d="m11.645 20.91-.007-.003-.022-.012a15.247 15.247 0 0 1-.383-.218 25.18 25.18 0 0 1-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3.5 7.02 3.5c1.82 0 3.393 1.056 4.23 2.593.837-1.537 2.41-2.593 4.23-2.593 2.306 0 4.77 1.822 4.77 4.75 0 3.924-2.438 7.11-4.739 9.266a25.175 25.175 0 0 1-4.244 3.17 15.247 15.247 0 0 1-.383.219l-.022.012-.007.004-.003.001a.752.752 0 0 1-.704 0l-.003-.001Z" />
-                    </svg>
-                  }
-                </div>
+                <app-lives-indicator
+                  [remainingLives]="remainingLives()"
+                  [maxLives]="maxLives()"
+                />
                 <ng-content select="[lives-action]" />
               </div>
               @if (roundNumber(); as n) {
@@ -165,14 +154,5 @@ export class GameChrome {
 
   protected readonly cleanBrandName = computed(() => {
     return (this.brandName() || '').replace(/<[^>]*>/g, '').trim();
-  });
-
-  protected readonly heartsArray = computed(() => {
-    const total = this.maxLives();
-    const activeCount = this.remainingLives();
-    return Array.from({ length: total }, (_, i) => ({
-      index: i,
-      active: i < activeCount,
-    }));
   });
 }

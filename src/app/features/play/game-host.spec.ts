@@ -39,6 +39,7 @@ describe('GameHost', () => {
     };
 
     const mockSession = {
+      maxLives: signal(3),
       remainingLives: signal(3),
       tutorialRequested: signal(0),
       requestTutorial: vi.fn(),
@@ -118,12 +119,12 @@ describe('GameHost', () => {
   it('should call session.start() when experience is resolved', () => {
     const { mockSession } = setup('radiesse-memory');
     expect(mockSession.start).toHaveBeenCalledTimes(1);
-    expect(mockSession.start).toHaveBeenCalledWith('radiesse-memory');
+    expect(mockSession.start).toHaveBeenCalledWith('radiesse-memory', 4);
   });
 
   it('reinicia la sesión al reentrar al mismo juego aunque ya estuviera activo', () => {
     const { mockSession } = setup('radiesse-memory', 'radiesse-memory');
-    expect(mockSession.start).toHaveBeenCalledWith('radiesse-memory');
+    expect(mockSession.start).toHaveBeenCalledWith('radiesse-memory', 4);
   });
 
   it('debe superponer el overlay de resultado sobre el juego sin quitar el tablero', () => {

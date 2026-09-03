@@ -12,8 +12,16 @@
       <router-outlet />
     </div>
 
-    <!-- Badge de versión discreto (solo referencia de desarrollo) -->
-    <span class="absolute bottom-1 right-3 text-[10px] text-neutral-600 font-mono pointer-events-none z-50 select-none">
+    <!-- Badge de versión: long-press (~2 s) abre el login de administración -->
+    <span
+      class="absolute bottom-1 right-3 text-[10px] text-neutral-600 font-mono z-50 select-none cursor-default"
+      style="touch-action: manipulation; -webkit-touch-callout: none;"
+      (pointerdown)="onVersionPressStart($event)"
+      (pointerup)="onVersionPressEnd()"
+      (pointercancel)="onVersionPressEnd()"
+      (pointerleave)="onVersionPressEnd()"
+      (contextmenu)="$event.preventDefault()"
+    >
       v{{ appVersion() }}
     </span>
 
