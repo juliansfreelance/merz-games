@@ -1,88 +1,133 @@
 # Merz Games
 
-Aplicación de kiosco interactivo táctil para consultorios, desarrollada en **Angular 22** y empaquetada con **Tauri 2**.
+Kiosco interactivo táctil para consultorios. La misma aplicación corre en todas las pantallas; el contenido (marcas, juegos y experiencias) vive en un catálogo versionado, no en ramas hardcodeadas del frontend.
+
+- **App** `0.1.0` — Angular 22 + Tauri 2 (Windows)
+- **Catálogo** `0.6.0` — marcas Radiesse y Ultherapy; motores Memoria (`0.5.0`) y Triqui (`0.6.0`)
+- **Estado** — navegable de punta a punta, ambos juegos reales. Pendiente: panel administrativo, flujo de actualizaciones y kiosco de producción (fullscreen, protector a los 3 min)
 
 ---
 
-## Requisitos Previos
+## Qué es
 
-Para ejecutar la aplicación de escritorio y compilar con Tauri, debes tener configurado el toolchain de Rust en tu sistema:
-1. **Rust**: Instalar mediante [rustup.rs](https://rustup.rs/).
-2. **C++ Build Tools**: Requerido por el compilador de Rust en Windows (se instala a través del instalador de Visual Studio con la carga de trabajo "Desarrollo para el escritorio con C++").
-3. **WebView2**: Runtime instalado por defecto en Windows 10/11. En versiones anteriores, se puede descargar del sitio oficial de Microsoft.
+Pantallas de **55"** en orientación vertical (**9:16**, diseño base **1080×1920px**). Offline-first: jugar y operar el kiosco no dependen de red. Internet solo entra cuando un administrador busca actualizaciones.
+
+Tres conceptos del catálogo:
+
+| Concepto | Qué es | Semilla actual |
+| --- | --- | --- |
+| **Marca** | Identidad, atmósfera, disclaimer | Radiesse, Ultherapy |
+| **Motor** | Reglas reutilizables | Memoria (parejas), Triqui (humano vs IA) |
+| **Experiencia** | Combinación versionada marca + motor | Cartas / marcas X-O por marca |
+
+`GameHost` resuelve `experienceId` → `gameId` → componente. Los motores en `src/app/core/games/<id>/` son TypeScript puro: no conocen Angular, rutas ni Tauri.
 
 ---
 
-## Comandos de Desarrollo
+## Stack
 
-El proyecto cuenta con scripts npm unificados en [package.json](file:///e:/Ula/merz-games/package.json) para el flujo de trabajo:
+- Angular 22 (standalone, signals, lazy routes)
+- TypeScript `~6.0.2`
+- Tailwind CSS v4 (variantes `kiosk` / `kiosk-tall`)
+- Tauri 2 (`@tauri-apps/api` / CLI `^2.0.0`)
+- Vitest (`npm test`)
+- Tipografía Montserrat local; iconos **Heroicons** outline vía `HeroIcon` (sin CDN)
 
-### Desarrollo Frontend (Navegador)
-Inicia un servidor de desarrollo Angular local en `http://localhost:4200/`:
+---
+
+## Requisitos previos
+
+Toolchain de Rust para el escritorio Tauri:
+
+1. **Rust** — [rustup.rs](https://rustup.rs/)
+2. **C++ Build Tools** — Visual Studio, carga «Desarrollo para el escritorio con C++»
+3. **WebView2** — incluido en Windows 10/11
+
+Node: el repo declara `packageManager: npm@12.0.2`.
+
+---
+
+## Comandos
+
 ```bash
-npm start
-```
-
-### Pruebas Unitarias (Vitest)
-Ejecuta la suite de pruebas unitarias implementadas con Vitest:
-```bash
-npm test
-```
-
-### Compilación Frontend
-Compila el frontend de Angular para producción en la ruta `dist/merz-games/browser`:
-```bash
-npm run build
-```
-
-### Ejecución de Escritorio en Desarrollo (Tauri)
-Inicia la aplicación de escritorio nativa en modo desarrollo (abre la ventana de Tauri vinculada a `ng serve`):
-```bash
-npm run tauri:dev
-```
-
-### Compilación de Escritorio (Tauri)
-Genera el empaquetado final (`.msi`, `.exe`) para producción en Windows:
-```bash
+npm start          # frontend en http://localhost:4200/
+npm test           # Vitest
+npm run build      # dist/merz-games/browser
+npm run tauri:dev  # ventana Tauri 1080×1920 + ng serve
 npm run tauri:build
 ```
 
----
-
-## Especificaciones del Layout
-
-* **Orientación y Proporción**: Optimizado para pantallas de **55"** montadas en vertical con una relación de aspecto **9:16** y diseño base de **1080×1920px**.
-* **Responsividad Adaptable**: El diseño es responsivo y fluido. No se utilizan dimensiones fijas absolutas en el layout principal. 
-* **Safe Areas / Letterboxing**: Si el viewport difiere de la relación de aspecto 9:16 (ej. en desarrollo en navegadores horizontales o durante pruebas en ventanas Tauri con formato horizontal 4:3), el contenedor de la aplicación se centrará automáticamente preservando la proporción 9:16 mediante franjas oscuras neutras en los bordes.
-* **Interacción Táctil**: Control estricto de overflow y comportamiento de toques mediante `touch-action` y `PointerEvents` para evitar comportamientos de zoom/pan no deseados en la pantalla física del kiosco.
+`tauri:build` genera instaladores Windows (`.msi` / NSIS). El empaquetado de kiosco en fullscreen aún no está activo (`fullscreen: false` en Tauri).
 
 ---
 
-## Arquitectura de Actualizaciones
-
-El proyecto maneja dos canales de actualización completamente independientes que operan **sin usar comandos `git pull` en runtime ni tokens con permisos de escritura**:
+## Navegación
 
 ```text
-Actualización de aplicación   →  Tauri Updater (GitHub Releases)
-Actualización de contenido    →  Content Update Manager (Manifest de catálogo + Assets descargables)
+/                              Splash (precarga + atmósfera)
+/welcome                       Bienvenida
+/brands                        Selector de marcas
+/brands/:brandId/games         Experiencias de la marca
+/play/:experienceId            GameHost + cromado + motor real
+                               + overlay de tutorial y de resultado
+/result/:experienceId/:result  redirect → /play/:experienceId
+/**                            UnavailableScreen
 ```
 
-1. **Actualización del Ejecutable (App)**: Utiliza el plugin oficial Tauri Updater. Cuando se libera una versión de la app, Tauri descarga el binario desde GitHub Releases y actualiza la aplicación local.
-2. **Actualización de Contenido**: El frontend de la aplicación descarga y parsea el manifiesto del catálogo de contenidos `content-manifest.json` y descarga únicamente los assets (imágenes, sonidos y motores) nuevos o modificados de las experiencias de marca.
+Flujo: splash → bienvenida → marcas → experiencias → partida. El resultado es overlay glass sobre `/play` (victoria con confetti; en Triqui también empate). Tres vidas por sesión; en Triqui «Siguiente ronda» conserva las vidas.
 
-### Ubicación del Contenido en Windows (Runtime)
-Para cumplir con las políticas de permisos de Windows (evitando la necesidad de privilegios de Administrador para actualizaciones de catálogo), todo el contenido descargado dinámicamente a través del Content Update Manager se almacenará en la carpeta local de datos de la aplicación:
+Aún no hay: panel de administración, flujo real de actualización ni protector de inactividad (3 min). Ajustes como `soundEnabled`, `memoryPairs`, `triquiDifficulty` y `triquiFirstPlayer` existen como API; no tienen UI todavía.
+
+---
+
+## Layout
+
+- Optimizado para kiosco vertical 9:16 (1080×1920). En landscape 16:9 el cromado de juego usa dos columnas.
+- Layout fluido; variantes Tailwind `kiosk` (`min-height: 1100px`) y `kiosk-tall` (`min-height: 1500px`).
+- Si el viewport no es 9:16, el contenedor se centra con letterboxing.
+- Interacción táctil: Pointer Events, sin hover crítico, `touch-action` para evitar zoom/pan en la pantalla física.
+
+---
+
+## Actualizaciones (arquitectura objetivo)
+
+Dos canales independientes. **No** hay `git pull` en runtime ni tokens de escritura:
+
+```text
+Aplicación   →  Tauri Updater (GitHub Releases)
+Contenido    →  Content Update Manager (manifest + assets)
+```
+
+Hoy el plugin updater está en `src-tauri/tauri.conf.json` con placeholders; no hay UI ni endpoints reales. El catálogo arranca desde la semilla local [`content/manifests/content-manifest.json`](content/manifests/content-manifest.json) y se persiste en `localStorage` (`merz-games.catalog-manifest`).
+
+Cuando el Content Update Manager exista, el contenido dinámico irá a:
 
 ```text
 %LOCALAPPDATA%/merz-games/content/
-(Ruta habitual: C:\Users\<Usuario>\AppData\Local\merz-games\content)
 ```
 
 ---
 
-## Estructura del Repositorio (Fase 1)
+## Estructura del repositorio
 
-* `src/app/core/platform/`: Servicio `PlatformService` que abstrae el runtime (Navegador vs Escritorio Tauri).
-* `src/app/core/catalog/`: Modelos TypeScript del contrato del manifiesto de contenidos.
-* `content/manifests/content-manifest.json`: Semilla del manifiesto con la definición inicial de marcas (`radiesse`, `ultherapy`), motores de juego (`memory`, `triqui`) y sus experiencias vinculadas.
-* `src-tauri/`: Código nativo de Tauri 2 para Windows.
+```text
+src/app/core/
+  platform/     frontera Angular / Tauri
+  catalog/      modelos + CatalogService (semilla + persistencia)
+  games/        memory/ y triqui/ — motores puros
+  session/      vidas, overlay de resultado, nextRound
+  settings/     kiosk settings (API)
+  media/        BGM + SFX de juego y de UI
+  lifecycle/    splash obligatorio
+  logging/      AppLogger + AppErrorHandler
+
+src/app/features/
+  splash/, welcome/, brands/, experiences/
+  play/         GameHost, MemoryPlay, TriquiPlay, tutoriales
+  result/       overlay de resultado
+  shared/       cromado, cards, botones, HeroIcon, UiSfx
+
+content/manifests/content-manifest.json
+public/content/   imágenes, BGM y SFX de la semilla
+src-tauri/        Tauri 2 (Windows)
+```
