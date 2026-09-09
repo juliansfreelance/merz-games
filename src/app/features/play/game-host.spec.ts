@@ -138,7 +138,7 @@ describe('GameHost', () => {
     expect(el.querySelector('[role="dialog"]')).toBeTruthy();
   });
 
-  it('renderiza el indicador de turno en board-header-left cuando session.triquiTurn está activo', () => {
+  it('renderiza el indicador de turno en board-slot-top cuando session.triquiTurn está activo', () => {
     const { fixture, mockSession } = setup('radiesse-triqui');
     mockSession.triquiTurn.set({
       state: 'player',
@@ -148,9 +148,10 @@ describe('GameHost', () => {
     fixture.detectChanges();
 
     const el = fixture.nativeElement as HTMLElement;
-    const headerLeft = el.querySelector('[board-header-left]');
-    expect(headerLeft).toBeTruthy();
-    expect(headerLeft?.textContent).toContain('Tu turno');
+    const slotTop = el.querySelector('[board-slot-top]');
+    expect(slotTop).toBeTruthy();
+    expect(slotTop?.textContent).toContain('Tu turno');
+    expect(el.querySelector('.board-slot [board-slot-top]')).toBeTruthy();
   });
 
   it('al pulsar volver durante la partida muestra el diálogo de confirmación de salida sin salir de inmediato', () => {

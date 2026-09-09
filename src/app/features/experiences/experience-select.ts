@@ -5,6 +5,7 @@ import { GameExperience } from '../../core/catalog/game-experience.model';
 import { KioskButton } from '../shared/kiosk-button';
 import { KioskCard } from '../shared/kiosk-card';
 import { CatalogCard } from '../shared/catalog-card';
+import { CoverFlow } from '../shared/cover-flow';
 import { KioskDisclaimer } from '../shared/kiosk-disclaimer';
 import { HeroIcon } from '../shared/hero-icon';
 import { SuperadminPinDialog } from '../shared/superadmin-pin-dialog';
@@ -13,16 +14,24 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs/operators';
 
 /**
- * Selector de experiencias con scroll nativo completo y botón inferior siempre visible.
+ * Selector de experiencias con Cover Flow 3D horizontal (sin scroll vertical de cards).
  */
 @Component({
   selector: 'app-experience-select',
-  imports: [KioskButton, KioskCard, CatalogCard, KioskDisclaimer, HeroIcon, SuperadminPinDialog],
+  imports: [
+    KioskButton,
+    KioskCard,
+    CatalogCard,
+    CoverFlow,
+    KioskDisclaimer,
+    HeroIcon,
+    SuperadminPinDialog,
+  ],
   host: {
-    class: 'block w-full h-full min-h-0 overflow-y-auto overscroll-contain',
+    class: 'flex flex-col flex-1 w-full h-full min-h-0 overflow-hidden',
   },
   template: `
-    <div class="flex flex-col min-h-full w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 kiosk:py-10 text-white justify-between select-none gap-4">
+    <div class="flex flex-col h-full min-h-0 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 kiosk:py-10 text-white select-none gap-4">
 
       <!-- Encabezado con marca activa -->
       <header class="text-center space-y-2 sm:space-y-3 kiosk:space-y-6 shrink-0 pt-1">
@@ -39,10 +48,10 @@ import { map } from 'rxjs/operators';
         </p>
       </header>
 
-      <!-- Zona de experiencias -->
-      <div class="flex-1 w-full my-2 sm:my-4 kiosk:my-8 px-4 sm:px-6">
-        <div class="w-full max-w-6xl mx-auto min-h-full flex flex-row flex-wrap justify-center content-center items-stretch gap-4 sm:gap-6 lg:gap-8 py-4">
-          @if (experiences().length === 0) {
+      <!-- Zona Cover Flow -->
+      <div class="flex-1 min-h-[55vh] w-full my-1 sm:my-2 kiosk:my-4">
+        @if (experiences().length === 0) {
+          <div class="w-full h-full flex items-center justify-center px-4">
             <app-kiosk-card class="w-full max-w-md">
               <div class="text-center py-6 space-y-2">
                 <p class="text-neutral-200 font-semibold text-lg kiosk:text-2xl">Sin juegos disponibles</p>
@@ -51,28 +60,45 @@ import { map } from 'rxjs/operators';
                 </p>
               </div>
             </app-kiosk-card>
-          }
-
-          @for (exp of experiences(); track exp.id) {
-            @let card = catalog.cardForExperience(exp);
-            <div class="w-full max-w-[340px] sm:w-[380px] md:w-[440px] lg:w-[460px] kiosk:w-[470px] kiosk-tall:w-[480px] flex shrink-0">
-              <app-catalog-card
-                [title]="card.title"
-                [description]="card.description"
-                [image]="card.image"
-                badge="Juego"
-                actionLabel="Jugar"
-                [ariaLabel]="card.ariaLabel"
-                [develop]="card.develop ?? false"
-                (selected)="onExperienceClick(exp, card.develop ?? false)"
-              />
-            </div>
-          }
-        </div>
+          </div>
+        } @else {
+          <app-cover-flow
+            [items]="experiences()"
+            [itemTemplate]="gameCardTemplate"
+            [initialIndex]="catalog.coverConfig().initialIndex"
+            [stackSpacing]="catalog.coverConfig().stackSpacing"
+            [centerGap]="catalog.coverConfig().centerGap"
+            [rotation]="catalog.coverConfig().rotation"
+            [enableReflection]="catalog.coverConfig().enableReflection"
+            [enableClickToSnap]="catalog.coverConfig().enableClickToSnap"
+            [enableScroll]="catalog.coverConfig().enableScroll"
+            [enableAudio]="catalog.coverConfig().enableAudio"
+            [reduceMotion]="catalog.coverConfig().reduceMotion"
+            [scrollThreshold]="catalog.coverConfig().scrollThreshold"
+            ariaLabel="Selector de juegos"
+          />
+        }
       </div>
+
+      <ng-template #gameCardTemplate let-exp let-active="active">
+        @let card = catalog.cardForExperience(exp);
+        <app-catalog-card
+          [title]="card.title"
+          [description]="card.description"
+          [image]="card.image"
+          badge="Juego"
+          actionLabel="Jugar"
+          [ariaLabel]="card.ariaLabel"
+          [develop]="card.develop ?? false"
+          [selectable]="active"
+          [fillContainer]="true"
+          (selected)="onExperienceClick(exp, card.develop ?? false)"
+        />
+      </ng-template>
 
       <!-- Sticky Footer unificado con logo, botón volver y disclaimers -->
       <app-kiosk-disclaimer
+        class="shrink-0"
         [logo]="brandLogo()"
         [logoAlt]="brandName()"
         [brandDisclaimer]="brandDisclaimer()"

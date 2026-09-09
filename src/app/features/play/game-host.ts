@@ -66,11 +66,15 @@ const GAME_COMPONENT_BY_ID: Readonly<Record<string, Type<unknown>>> = {
         (back)="onRequestBack()"
         (help)="session.requestTutorial()"
       >
-        <!-- Indicador de turno alineado a la izquierda fuera del slot del juego -->
+        <!-- Indicador de turno: pestaña superior centrada dentro del board-slot -->
         @if (session.triquiTurn(); as turn) {
-          <div board-header-left class="flex items-center">
+          <div board-slot-top class="flex items-center justify-center">
             @if (turn.state === 'ai') {
-              <div class="flex items-center gap-2 sm:gap-2.5 bg-white/5 border border-white/10 rounded-2xl px-4 sm:px-5 py-2 backdrop-blur-md shadow-md text-xs sm:text-sm">
+              <div
+                class="flex items-center gap-2 sm:gap-2.5 bg-white/10 border border-t-0 border-white/15 rounded-none rounded-b-2xl px-4 sm:px-5 py-2 backdrop-blur-md shadow-md text-xs sm:text-sm"
+                role="status"
+                aria-live="polite"
+              >
                 <div class="relative w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center shrink-0">
                   @if (turn.markOUrl) {
                     <img [src]="turn.markOUrl" alt="O" class="w-4 h-4 sm:w-5 sm:h-5 object-contain drop-shadow animate-pulse" />
@@ -78,11 +82,15 @@ const GAME_COMPONENT_BY_ID: Readonly<Record<string, Type<unknown>>> = {
                     <span class="text-sm sm:text-base font-bold text-amber-300 animate-pulse">○</span>
                   }
                 </div>
+                <span class="text-white font-bold tracking-wide">IA Analizando jugada</span>
                 <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-                <span class="text-amber-200 font-medium">Analizando jugada…</span>
               </div>
             } @else if (turn.state === 'player') {
-              <div class="flex items-center gap-2 sm:gap-2.5 bg-white/5 border border-white/10 rounded-2xl px-4 sm:px-5 py-2 backdrop-blur-md shadow-md text-xs sm:text-sm">
+              <div
+                class="flex items-center gap-2 sm:gap-2.5 bg-white/10 border border-t-0 border-white/15 rounded-none rounded-b-2xl px-4 sm:px-5 py-2 backdrop-blur-md shadow-md text-xs sm:text-sm"
+                role="status"
+                aria-live="polite"
+              >
                 <div class="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center shrink-0">
                   @if (turn.markXUrl) {
                     <img [src]="turn.markXUrl" alt="X" class="w-4 h-4 sm:w-5 sm:h-5 object-contain drop-shadow" />

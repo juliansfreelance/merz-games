@@ -145,8 +145,8 @@ export class App {
     // La reproducción NO arranca aquí: espera el primer gesto (onFirstGesture).
     effect(() => {
       const manifest = this.catalog.rawManifest();
-      const bgm = manifest?.app?.audio?.backgroundMusic ?? manifest?.audio?.backgroundMusic;
-      const volume = manifest?.app?.audio?.bgmVolume ?? manifest?.audio?.volume ?? DEFAULT_BGM_VOLUME;
+      const bgm = manifest?.app?.audio?.backgroundMusic;
+      const volume = manifest?.app?.audio?.bgmVolume ?? DEFAULT_BGM_VOLUME;
       if (bgm) {
         this.mediaPlayer.setBgm(bgm, volume);
       }

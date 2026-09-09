@@ -68,8 +68,8 @@ npm run tauri:build
 ```text
 /                              Splash (precarga + atmósfera)
 /welcome                       Bienvenida
-/brands                        Selector de marcas
-/brands/:brandId/games         Experiencias de la marca
+/brands                        Selector de marcas (Cover Flow 3D)
+/brands/:brandId/games         Experiencias de la marca (Cover Flow 3D)
 /play/:experienceId            GameHost + cromado + motor real
                                + overlay de tutorial y de resultado
 /result/:experienceId/:result  redirect → /play/:experienceId
@@ -81,6 +81,54 @@ npm run tauri:build
 Flujo de paciente: splash → bienvenida → marcas → experiencias → partida. El resultado es overlay glass sobre `/play` (victoria con confetti; en Triqui también empate).
 
 **Vidas:** mínimo 3 por partida. En Memoria la cascada o el panel pueden subirlas (semilla `lives: 4`; presets fácil / medio / difícil o `custom`). En Triqui son 3 fijas; «Siguiente ronda» conserva las vidas. El HUD muestra corazones individuales si quedan 3 o menos, o `❤️ × N` si hay más.
+
+---
+
+## Cover Flow
+
+`/brands` y `/brands/:brandId/games` comparten el componente reutilizable `CoverFlow` (`src/app/features/shared/cover-flow.ts`). No hay lista vertical con scroll: los cards se presentan en un carrusel horizontal 3D (perspectiva, `rotateY`, profundidad Z, brillo interpolado).
+
+Comportamiento:
+
+- Drag / swipe horizontal (Pointer Events: mouse y touch) con snap spring al soltar; la velocidad influye en el índice destino.
+- Tap en un card lateral → lo centra (`enableClickToSnap`); tap en el card activo → acción original del `CatalogCard` (Seleccionar / Jugar).
+- Teclado `ArrowLeft` / `ArrowRight`; rueda horizontal del trackpad si `enableScroll`.
+- Contenedor con **mínimo `50vh`**; tamaño mínimo de card **460×520px** (no se escala por debajo; puede crecer si hay espacio).
+- Sin React ni dependencias de animación externas: CSS transforms + `requestAnimationFrame`.
+
+La configuración se lee de `app.cover` en [`content/manifests/content-manifest.json`](content/manifests/content-manifest.json) vía `CatalogService.coverConfig()` (defaults si faltan campos):
+
+| Clave | Tipo | Default | Qué controla |
+| --- | --- | --- | --- |
+| `enableReflection` | boolean | `true` | Reflejo bajo el card (desactivado en puntero grueso / viewport estrecho) |
+| `enableClickToSnap` | boolean | `true` | Tap en lateral centra ese card |
+| `enableScroll` | boolean | `true` | Navegación con rueda / trackpad horizontal |
+| `enableAudio` | boolean | `true` | Tick sintético al cambiar de card (respeta `soundEnabled` del kiosco) |
+| `reduceMotion` | boolean | `false` | Sin spring / sin `rotateY` (también respeta `prefers-reduced-motion`) |
+| `stackSpacing` | number | `100` | Separación entre cards apilados laterales (px base) |
+| `centerGap` | number | `250` | Separación del card activo a su vecino (px base) |
+| `rotation` | number | `50` | Ángulo Y de laterales (grados) |
+| `initialIndex` | number | `0` | Índice inicial al abrir |
+| `scrollThreshold` | number | `100` | Umbral de delta acumulado para saltar con la rueda |
+
+Ejemplo en el manifest:
+
+```json
+"app": {
+  "cover": {
+    "enableReflection": false,
+    "enableClickToSnap": true,
+    "enableScroll": true,
+    "enableAudio": true,
+    "reduceMotion": false,
+    "stackSpacing": 200,
+    "centerGap": 400,
+    "rotation": 50,
+    "initialIndex": 0,
+    "scrollThreshold": 100
+  }
+}
+```
 
 ---
 
@@ -119,6 +167,7 @@ Ajustes locales (ese PC). El override vale en la **siguiente** partida, no a mit
 - Layout fluido; variantes Tailwind `kiosk` (`min-height: 1100px`) y `kiosk-tall` (`min-height: 1500px`).
 - Si el viewport no es 9:16, el contenedor se centra con letterboxing.
 - Interacción táctil: Pointer Events, sin hover crítico, `touch-action` para evitar zoom/pan en la pantalla física.
+- Selectores de catálogo (Cover Flow): zona de cards con `min-h-[50vh]`; cards mínimo 460×520px.
 - `/admin*` usa atmósfera técnica propia.
 
 ---
@@ -182,8 +231,8 @@ src/app/features/
   play/         GameHost, MemoryPlay, TriquiPlay, tutoriales
   admin/        login PIN, panel, guard, superadmin
   result/       overlay de resultado
-  shared/       cromado, cards, botones, HeroIcon, UiSfx,
-                LivesIndicator, SuperadminPinDialog, AdminConfirm
+  shared/       cromado, CatalogCard, CoverFlow, botones, HeroIcon,
+                UiSfx, LivesIndicator, SuperadminPinDialog, AdminConfirm
 
 content/manifests/content-manifest.json
 public/content/   imágenes, BGM y SFX de la semilla

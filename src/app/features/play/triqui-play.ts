@@ -81,10 +81,23 @@ const SFX = {
   selector: 'app-triqui-play',
   imports: [TriquiCell, TriquiTutorial, HeroIcon],
   host: {
-    class: 'flex flex-col items-center justify-center h-full w-full relative select-none',
+    class: 'triqui-play-host absolute inset-0 flex items-center justify-center select-none',
     style: 'touch-action: manipulation;',
   },
   styles: [`
+    :host {
+      container-type: size;
+      container-name: triqui-slot;
+    }
+
+    /* Cuadrado inscrito en el board-slot, con margen para no saturar el área. */
+    .triqui-board {
+      width: 82cqmin;
+      height: 82cqmin;
+      max-width: 100%;
+      max-height: 100%;
+    }
+
     .turn-notice-enter {
       animation: turnNoticeFadeIn 0.35s ease-out both;
     }
@@ -185,7 +198,7 @@ const SFX = {
     <!-- Tablero de Triqui Activo -->
     @if (!loading()) {
       <div
-        class="relative w-full h-full flex flex-col items-center justify-center max-w-[min(100%,480px)] max-h-[min(100%,480px)] aspect-square m-auto p-2 sm:p-4"
+        class="triqui-board relative flex flex-col items-center justify-center p-2 sm:p-4"
         role="grid"
         aria-label="Tablero de Triqui 3 por 3"
       >

@@ -8,7 +8,11 @@ import {
 } from '@angular/core';
 import { PlatformService } from '../platform/platform.service';
 import { AppLogger } from '../logging/app-error';
-import { Atmosphere, ContentManifest } from './content-manifest.model';
+import {
+  Atmosphere,
+  ContentManifest,
+  resolveAppCoverConfig,
+} from './content-manifest.model';
 import { Brand } from './brand.model';
 import { Game } from './game.model';
 import { GameExperience } from './game-experience.model';
@@ -175,7 +179,7 @@ export function collectContentAssetUrls(manifest: ContentManifest): string[] {
     pushAssetRecord(urls, exp.assets);
   }
 
-  pushAssetUrl(urls, manifest.app?.audio?.backgroundMusic ?? manifest.audio?.backgroundMusic);
+  pushAssetUrl(urls, manifest.app?.audio?.backgroundMusic);
   return [...urls];
 }
 
@@ -215,13 +219,14 @@ function hydrateManifestFromSeed(candidate: ContentManifest): void {
         ...seed.app?.security,
         ...candidate.app?.security,
       },
+      cover: {
+        ...seed.app?.cover,
+        ...candidate.app?.cover,
+      },
     };
   }
   if (seed.atmosphere) {
     candidate.atmosphere = seed.atmosphere;
-  }
-  if (seed.audio) {
-    candidate.audio = seed.audio;
   }
 
   for (const brand of candidate.brands ?? []) {
@@ -289,8 +294,13 @@ export class CatalogService {
   /** Manifest activo en memoria. Arranca con la semilla. */
   private readonly manifest = signal<ContentManifest>(seed);
 
-  /** Exposición del manifest completo (solo lectura). Necesario para leer campos raíz como `audio`. */
+  /** Exposición del manifest completo (solo lectura). */
   readonly rawManifest = this.manifest.asReadonly();
+
+  /** Configuración resuelta del Cover Flow (`app.cover` + defaults). */
+  readonly coverConfig = computed(() =>
+    resolveAppCoverConfig(this.manifest().app?.cover),
+  );
 
   // ─── Signals públicos de catálogo ───────────────────────────────────────────
 

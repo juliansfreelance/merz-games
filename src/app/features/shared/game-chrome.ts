@@ -82,15 +82,10 @@ import { LivesIndicator } from './lives-indicator';
         <!-- COLUMNA 2: ÁREA DE JUEGO (INTENTOS EN HORIZONTAL + TABLERO) -->
         <main class="flex-1 min-w-0 flex flex-col justify-between items-center relative w-full gap-3">
 
-          <!-- Barra superior del área de juego: Indicador de turno a la izquierda (fuera del slot) + Intentos a la derecha -->
-          <div class="flex w-full items-center justify-between shrink-0 gap-3 min-h-11">
-            <!-- Izquierda: slot para indicador de turno fuera del slot del juego -->
-            <div class="flex items-center min-w-0">
-              <ng-content select="[board-header-left]" />
-            </div>
-
-            <!-- Derecha: Intentos / Vidas + ayuda al lado, fuera del contenedor -->
-            <div class="flex items-center gap-3 ml-auto">
+          <!-- Barra superior del área de juego: Intentos / Ronda / Ayuda -->
+          <div class="flex w-full items-center justify-end shrink-0 gap-3 min-h-11">
+            <!-- Intentos / Vidas + ayuda, fuera del contenedor del tablero -->
+            <div class="flex items-center gap-3">
               <div class="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-4 sm:px-5 py-2 backdrop-blur-md">
                 <span class="text-xs uppercase tracking-widest text-neutral-300 font-bold">
                   Intentos
@@ -141,6 +136,10 @@ import { LivesIndicator } from './lives-indicator';
             @if (isMemoryGame()) {
               <div class="absolute inset-0 rounded-3xl pointer-events-none backdrop-blur-xl -z-10"></div>
             }
+            <!-- Indicador de turno (u otro badge) anclado al borde superior del slot -->
+            <div class="absolute top-0 left-1/2 -translate-x-1/2 z-20 pointer-events-none *:pointer-events-auto">
+              <ng-content select="[board-slot-top]" />
+            </div>
             <ng-content />
           </div>
 
