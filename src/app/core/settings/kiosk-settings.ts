@@ -549,6 +549,34 @@ export class KioskSettings {
   }
 
   /**
+   * Elimina los overrides de partida de todas las experiencias asociadas a un motor de juego.
+   * Usado al pasar de modo individual a global (se pierde la config por marca).
+   */
+  clearExperienceOverridesForGame(gameId: string): void {
+    const experienceIds = new Set(
+      this.catalog
+        .rawManifest()
+        .experiences.filter((exp) => exp.gameId === gameId)
+        .map((exp) => exp.id),
+    );
+    if (experienceIds.size === 0) return;
+
+    const current = this._data();
+    const prev = current.experienceOverrides ?? {};
+    const updated: Record<string, ExperienceSettingsOverride> = {};
+    for (const [id, override] of Object.entries(prev)) {
+      if (!experienceIds.has(id)) {
+        updated[id] = override;
+      }
+    }
+    this._patch({ experienceOverrides: updated });
+    this.logger.info(
+      'KioskSettings',
+      `Overrides de experiencias del juego "${gameId}" eliminados (${experienceIds.size}).`,
+    );
+  }
+
+  /**
    * Restablece todos los ajustes operativos locales a sus valores por defecto definidos en el manifest.
    * Elimina todos los overrides de juegos y experiencias para que vuelvan a seguir el catálogo.
    */

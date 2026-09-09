@@ -6,6 +6,15 @@ import {
   signal,
 } from '@angular/core';
 import { Router } from '@angular/router';
+import {
+  CdkDrag,
+  CdkDragDrop,
+  CdkDragHandle,
+  CdkDragPlaceholder,
+  CdkDragPreview,
+  CdkDropList,
+  moveItemInArray,
+} from '@angular/cdk/drag-drop';
 import { CatalogService, Brand, GameExperience } from '../../core/catalog/catalog';
 import { AttractionVideo } from '../../core/catalog/content-manifest.model';
 import { CatalogDiffItem } from '../../core/catalog/compare-catalogs';
@@ -41,7 +50,7 @@ export type AdminSection =
   | 'updates'
   | 'pin';
 
-export type SettingsView = 'menu' | 'general' | 'brands-global' | 'brands' | 'experience';
+export type SettingsView = 'menu' | 'general' | 'brands-global' | 'games' | 'brands' | 'experience';
 
 type PinField = 'current' | 'next' | 'confirm';
 
@@ -98,6 +107,8 @@ type ConfirmKind =
   | 'resetGeneral'
   | 'resetBrands'
   | 'resetExperience'
+  | 'switchToGlobal'
+  | 'resetGlobalGame'
   | null;
 
 const MEMORY_PAIR_OPTIONS = [
@@ -158,7 +169,17 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
  */
 @Component({
   selector: 'app-admin-panel',
-  imports: [KioskButton, HeroIcon, AdminConfirm, UiSfx],
+  imports: [
+    KioskButton,
+    HeroIcon,
+    AdminConfirm,
+    UiSfx,
+    CdkDropList,
+    CdkDrag,
+    CdkDragHandle,
+    CdkDragPlaceholder,
+    CdkDragPreview,
+  ],
   host: {
     class: 'flex flex-col w-full h-full min-h-0 overflow-hidden select-none',
     '[style.--panel-primary-color]': 'catalog.panelPrimaryColor()',
@@ -274,6 +295,37 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
 
     .animate-toast-out {
       animation: toast-slide-out 300ms cubic-bezier(0.7, 0, 0.84, 0) forwards;
+    }
+
+    .brand-drag-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.875rem;
+      min-height: 0.5rem;
+    }
+
+    .brand-drag-preview {
+      box-sizing: border-box;
+      border-radius: 1rem;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(250, 204, 21, 0.35);
+    }
+
+    .brand-drag-placeholder {
+      min-height: 4.5rem;
+      border-radius: 1rem;
+      border: 1px dashed rgba(250, 204, 21, 0.35);
+      background: rgba(250, 204, 21, 0.08);
+      transition: transform 200ms ease;
+    }
+
+    .cdk-drag-animating {
+      transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+    }
+
+    .brand-drag-list.cdk-drop-list-dragging .brand-drag-row:not(.cdk-drag-placeholder) {
+      transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
     }
   `],
   template: `
@@ -478,7 +530,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 </div>
               </button>
 
-              <!-- Botón Marcas del Kiosco -->
+              <!-- Botón Marcas y Experiencias -->
               <button
                 type="button"
                 uiSfx="select"
@@ -492,10 +544,10 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                   </div>
                   <div class="min-w-0">
                     <h3 class="text-base sm:text-lg kiosk:text-xl font-extrabold font-['Montserrat'] uppercase tracking-wide text-white group-hover:text-yellow-400 transition-colors truncate">
-                      Marcas del Kiosco
+                      Marcas y Experiencias
                     </h3>
                     <p class="text-xs sm:text-sm text-neutral-400 truncate">
-                      Activar o desactivar marcas completas en la consola
+                      Activar, ordenar y gestionar marcas y juegos del kiosco
                     </p>
                   </div>
                 </div>
@@ -504,50 +556,24 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 </div>
               </button>
 
-              <!-- Botón Memoria -->
+              <!-- Botón Juegos -->
               <button
                 type="button"
                 uiSfx="select"
                 class="min-h-18 sm:min-h-20 kiosk:min-h-24 w-full rounded-2xl bg-white/6 hover:bg-white/12 active:bg-white/18 border border-white/15 hover:border-yellow-400/40 backdrop-blur-md px-5 sm:px-6 py-4 flex items-center justify-between gap-4 transition-all text-left group active:scale-[0.99] cursor-pointer shadow-lg"
                 style="touch-action: manipulation;"
-                (click)="openSettingsGame('memory')"
+                (click)="openSettingsGames()"
               >
                 <div class="flex items-center gap-4 min-w-0">
                   <div class="size-12 sm:size-14 rounded-xl bg-yellow-400/10 border border-yellow-400/25 flex items-center justify-center text-yellow-400 group-hover:bg-yellow-400/20 shrink-0">
-                    <app-hero-icon name="square-2-stack" class="text-xl sm:text-2xl text-yellow-400" />
+                    <app-hero-icon name="rocket-launch" class="text-xl sm:text-2xl text-yellow-400" />
                   </div>
                   <div class="min-w-0">
                     <h3 class="text-base sm:text-lg kiosk:text-xl font-extrabold font-['Montserrat'] uppercase tracking-wide text-white group-hover:text-yellow-400 transition-colors truncate">
-                      Encuentra la Pareja (Memoria)
+                      Juegos
                     </h3>
                     <p class="text-xs sm:text-sm text-neutral-400 truncate">
-                      Reglas, parejas y activación por marca
-                    </p>
-                  </div>
-                </div>
-                <div class="size-8 rounded-full bg-white/5 group-hover:bg-yellow-400/20 flex items-center justify-center text-neutral-400 group-hover:text-yellow-400 shrink-0">
-                  <app-hero-icon name="chevron-right" />
-                </div>
-              </button>
-
-              <!-- Botón Triqui -->
-              <button
-                type="button"
-                uiSfx="select"
-                class="min-h-18 sm:min-h-20 kiosk:min-h-24 w-full rounded-2xl bg-white/6 hover:bg-white/12 active:bg-white/18 border border-white/15 hover:border-yellow-400/40 backdrop-blur-md px-5 sm:px-6 py-4 flex items-center justify-between gap-4 transition-all text-left group active:scale-[0.99] cursor-pointer shadow-lg"
-                style="touch-action: manipulation;"
-                (click)="openSettingsGame('triqui')"
-              >
-                <div class="flex items-center gap-4 min-w-0">
-                  <div class="size-12 sm:size-14 rounded-xl bg-yellow-400/10 border border-yellow-400/25 flex items-center justify-center text-yellow-400 group-hover:bg-yellow-400/20 shrink-0">
-                    <app-hero-icon name="squares-2x2" class="text-xl sm:text-2xl text-yellow-400" />
-                  </div>
-                  <div class="min-w-0">
-                    <h3 class="text-base sm:text-lg kiosk:text-xl font-extrabold font-['Montserrat'] uppercase tracking-wide text-white group-hover:text-yellow-400 transition-colors truncate">
-                      Triqui (Tres en Raya)
-                    </h3>
-                    <p class="text-xs sm:text-sm text-neutral-400 truncate">
-                      Dificultad, primer jugador y activación por marca
+                      Reglas y configuración de partida por motor
                     </p>
                   </div>
                 </div>
@@ -586,6 +612,72 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
             </div>
           }
 
+          <!-- Nivel 2.0b: Submenú de Juegos (Memoria, Triqui) -->
+          @if (settingsView() === 'games') {
+            <div class="space-y-2 text-center pt-2">
+              <h2 class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400">
+                Juegos
+              </h2>
+              <p class="text-neutral-300 text-sm sm:text-base">
+                Reglas y configuración de partida por motor
+              </p>
+            </div>
+
+            <div class="flex flex-col gap-3.5 pt-2">
+              <!-- Botón Memoria -->
+              <button
+                type="button"
+                uiSfx="select"
+                class="min-h-18 sm:min-h-20 kiosk:min-h-24 w-full rounded-2xl bg-white/6 hover:bg-white/12 active:bg-white/18 border border-white/15 hover:border-yellow-400/40 backdrop-blur-md px-5 sm:px-6 py-4 flex items-center justify-between gap-4 transition-all text-left group active:scale-[0.99] cursor-pointer shadow-lg"
+                style="touch-action: manipulation;"
+                (click)="openSettingsGame('memory')"
+              >
+                <div class="flex items-center gap-4 min-w-0">
+                  <div class="size-12 sm:size-14 rounded-xl bg-yellow-400/10 border border-yellow-400/25 flex items-center justify-center text-yellow-400 group-hover:bg-yellow-400/20 shrink-0">
+                    <app-hero-icon name="square-2-stack" class="text-xl sm:text-2xl text-yellow-400" />
+                  </div>
+                  <div class="min-w-0">
+                    <h3 class="text-base sm:text-lg kiosk:text-xl font-extrabold font-['Montserrat'] uppercase tracking-wide text-white group-hover:text-yellow-400 transition-colors truncate">
+                      Encuentra la Pareja (Memoria)
+                    </h3>
+                    <p class="text-xs sm:text-sm text-neutral-400 truncate">
+                      Parejas, dificultad y vidas
+                    </p>
+                  </div>
+                </div>
+                <div class="size-8 rounded-full bg-white/5 group-hover:bg-yellow-400/20 flex items-center justify-center text-neutral-400 group-hover:text-yellow-400 shrink-0">
+                  <app-hero-icon name="chevron-right" />
+                </div>
+              </button>
+
+              <!-- Botón Triqui -->
+              <button
+                type="button"
+                uiSfx="select"
+                class="min-h-18 sm:min-h-20 kiosk:min-h-24 w-full rounded-2xl bg-white/6 hover:bg-white/12 active:bg-white/18 border border-white/15 hover:border-yellow-400/40 backdrop-blur-md px-5 sm:px-6 py-4 flex items-center justify-between gap-4 transition-all text-left group active:scale-[0.99] cursor-pointer shadow-lg"
+                style="touch-action: manipulation;"
+                (click)="openSettingsGame('triqui')"
+              >
+                <div class="flex items-center gap-4 min-w-0">
+                  <div class="size-12 sm:size-14 rounded-xl bg-yellow-400/10 border border-yellow-400/25 flex items-center justify-center text-yellow-400 group-hover:bg-yellow-400/20 shrink-0">
+                    <app-hero-icon name="squares-2x2" class="text-xl sm:text-2xl text-yellow-400" />
+                  </div>
+                  <div class="min-w-0">
+                    <h3 class="text-base sm:text-lg kiosk:text-xl font-extrabold font-['Montserrat'] uppercase tracking-wide text-white group-hover:text-yellow-400 transition-colors truncate">
+                      Triqui (Tres en Raya)
+                    </h3>
+                    <p class="text-xs sm:text-sm text-neutral-400 truncate">
+                      Dificultad, primer jugador y figura
+                    </p>
+                  </div>
+                </div>
+                <div class="size-8 rounded-full bg-white/5 group-hover:bg-yellow-400/20 flex items-center justify-center text-neutral-400 group-hover:text-yellow-400 shrink-0">
+                  <app-hero-icon name="chevron-right" />
+                </div>
+              </button>
+            </div>
+          }
+
           <!-- Nivel 2.1: Ajustes Generales (Audio y Protector) -->
           @if (settingsView() === 'general') {
             <div class="space-y-6">
@@ -594,7 +686,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                   Ajustes Generales
                 </h2>
                 <p class="text-neutral-400 text-sm sm:text-base">
-                  Control de ecualización de audio y comportamiento del protector.
+                  Audio (BGM y SFX) y protector de pantalla
                 </p>
               </div>
 
@@ -984,69 +1076,329 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
             </div>
           }
 
-          <!-- Nivel 2.1b: Gestión Global de Marcas del Kiosco -->
+          <!-- Nivel 2.1b: Gestion Global de Marcas del Kiosco (arbol marca -> experiencias) -->
           @if (settingsView() === 'brands-global') {
             <div class="space-y-6">
               <div class="space-y-1">
                 <h2 class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400 flex items-center gap-2.5">
                   <app-hero-icon name="swatch" class="text-2xl text-yellow-400" />
-                  <span>Marcas del Kiosco</span>
+                  <span>Marcas y Experiencias</span>
                 </h2>
                 <p class="text-neutral-400 text-sm sm:text-base">
-                  Activa o desactiva las marcas disponibles en la pantalla inicial del paciente.
+                  Activar, ordenar y gestionar marcas y juegos del kiosco
                 </p>
               </div>
 
-              <div class="flex flex-col gap-3.5 pt-1">
-                @for (brand of catalog.rawManifest().brands; track brand.id) {
-                  <div
-                    class="min-h-18 sm:min-h-20 w-full rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md px-5 sm:px-6 py-4 flex items-center justify-between gap-4 shadow-xl"
-                  >
-                    <div class="flex items-center gap-3.5 min-w-0">
-                      <div class="size-11 sm:size-12 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-yellow-400 font-extrabold text-sm sm:text-base shrink-0">
-                        <app-hero-icon name="tag" class="text-lg text-yellow-400" />
-                      </div>
-                      <div class="min-w-0">
-                        <div class="flex items-center gap-2">
-                          <h3 class="text-sm sm:text-base font-bold text-white truncate">
-                            {{ cleanText(brand.name) }}
-                          </h3>
-                          @if (brand.develop) {
-                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-300">
-                              Beta
-                            </span>
-                          }
-                          <span
-                            class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border"
-                            [class]="brand.enabled ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300' : 'bg-rose-500/20 border-rose-400/40 text-rose-300'"
-                          >
-                            {{ brand.enabled ? 'Activa' : 'Desactivada' }}
-                          </span>
-                        </div>
-                        <p class="text-xs text-neutral-400 truncate mt-0.5">
-                          {{ brand.enabled ? 'Visible en el selector de marcas del kiosco' : 'Marca oculta en toda la aplicación' }}
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      uiSfx="select"
-                      class="relative inline-flex h-8 w-14 shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none"
-                      [class]="brand.enabled ? 'bg-emerald-500 border-emerald-400' : 'bg-white/15 border-white/30'"
-                      (click)="toggleBrand(brand)"
-                      [attr.aria-label]="brand.enabled ? 'Desactivar marca ' + cleanText(brand.name) : 'Activar marca ' + cleanText(brand.name)"
+              @for (section of kioskBrandSections(); track section.id) {
+                <section class="space-y-3">
+                  <div class="flex items-center justify-between gap-3">
+                    <h3
+                      class="text-xs sm:text-sm font-extrabold uppercase tracking-wider flex items-center gap-2"
+                      [class]="section.titleClass"
                     >
-                      <span
-                        class="pointer-events-none inline-flex items-center justify-center size-6 rounded-full bg-white shadow-md transform transition duration-200 ease-in-out mt-0.5"
-                        [class]="brand.enabled ? 'translate-x-6' : 'translate-x-0.5'"
-                      >
-                        <app-hero-icon [name]="brand.enabled ? 'check' : 'x-mark'" class="text-xs" [class]="brand.enabled ? 'text-emerald-600' : 'text-neutral-400'" />
-                      </span>
-                    </button>
+                      <span class="size-2 rounded-full" [class]="section.dotClass"></span>
+                      {{ section.title }}
+                      <span class="text-neutral-500 font-bold normal-case tracking-normal">({{ section.brands.length }})</span>
+                    </h3>
+                    @if (section.reorderable && section.brands.length > 1) {
+                      <span class="text-[10px] sm:text-xs text-neutral-500 uppercase tracking-wider font-bold">Arrastra para ordenar</span>
+                    }
                   </div>
-                }
-              <!-- Zona Restaurar Marcas por Defecto -->
+
+                  @if (section.brands.length === 0) {
+                    <p class="text-sm text-neutral-500 px-1">{{ section.emptyLabel }}</p>
+                  } @else if (section.reorderable) {
+                    <div
+                      class="brand-drag-list"
+                      cdkDropList
+                      [cdkDropListData]="section.brands"
+                      (cdkDropListDropped)="onKioskBrandDrop($event, section.id === 'beta' ? 'beta' : 'active')"
+                    >
+                      @for (brand of section.brands; track brand.id) {
+                        <div
+                          class="brand-drag-row w-full rounded-2xl bg-white/5 border backdrop-blur-md shadow-xl overflow-hidden"
+                          [class]="section.id === 'beta' ? 'border-amber-400/20' : 'border-white/10'"
+                          cdkDrag
+                          [cdkDragDisabled]="section.brands.length < 2"
+                          [cdkDragData]="brand"
+                        >
+                          <div class="brand-drag-placeholder" *cdkDragPlaceholder></div>
+                          <div class="brand-drag-preview" *cdkDragPreview>
+                            <div class="min-h-14 px-5 py-3 flex items-center gap-3 text-white">
+                              <app-hero-icon name="bars-3" class="text-yellow-400" />
+                              <span class="font-bold">{{ cleanText(brand.name) }}</span>
+                            </div>
+                          </div>
+
+                          <div class="px-4 sm:px-5 py-4 flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3 min-w-0 flex-1">
+                              @if (section.brands.length > 1) {
+                                <button
+                                  type="button"
+                                  cdkDragHandle
+                                  class="size-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-neutral-400 hover:text-yellow-300 cursor-grab active:cursor-grabbing shrink-0"
+                                  aria-label="Arrastrar marca para reordenar"
+                                  style="touch-action: none;"
+                                >
+                                  <app-hero-icon name="bars-3" class="text-lg" />
+                                </button>
+                              }
+                              <div class="size-11 sm:size-12 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-yellow-400 shrink-0">
+                                <app-hero-icon name="tag" class="text-lg text-yellow-400" />
+                              </div>
+                              <div class="min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                  <h4 class="text-sm sm:text-base font-bold text-white truncate">{{ cleanText(brand.name) }}</h4>
+                                  @if (brand.develop) {
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-300">Beta</span>
+                                  }
+                                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-emerald-500/20 border-emerald-400/40 text-emerald-300">Activa</span>
+                                </div>
+                                <p class="text-xs text-neutral-400 truncate mt-0.5">
+                                  {{ brand.develop ? 'Visible tras las marcas activas (PIN superadmin)' : 'Visible en el selector de marcas del kiosco' }}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              uiSfx="select"
+                              class="relative inline-flex h-8 w-14 shrink-0 cursor-pointer rounded-full border-2 bg-emerald-500 border-emerald-400"
+                              (click)="toggleBrand(brand)"
+                              [attr.aria-label]="'Desactivar marca ' + cleanText(brand.name)"
+                            >
+                              <span class="pointer-events-none inline-flex items-center justify-center size-6 rounded-full bg-white shadow-md translate-x-6 mt-0.5">
+                                <app-hero-icon name="check" class="text-xs text-emerald-600" />
+                              </span>
+                            </button>
+                          </div>
+
+                          <div class="px-4 sm:px-5 pb-4 space-y-3 border-t border-white/8 pt-3 ml-2 sm:ml-4">
+                            <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-neutral-500">Experiencias / juegos</p>
+                            @for (expSection of experienceSectionsForBrand(brand.id); track expSection.id) {
+                              <div class="space-y-2">
+                                <div class="flex items-center justify-between gap-2">
+                                  <span class="text-[10px] font-extrabold uppercase tracking-wider" [class]="expSection.titleClass">
+                                    {{ expSection.title }} ({{ expSection.items.length }})
+                                  </span>
+                                  @if (expSection.reorderable && expSection.items.length > 1) {
+                                    <span class="text-[9px] text-neutral-500 uppercase tracking-wider font-bold">Arrastra</span>
+                                  }
+                                </div>
+                                @if (expSection.items.length === 0) {
+                                  <p class="text-xs text-neutral-600 px-1">Ninguna</p>
+                                } @else if (expSection.reorderable) {
+                                  <div
+                                    class="brand-drag-list"
+                                    style="gap: 0.5rem;"
+                                    cdkDropList
+                                    [cdkDropListData]="expSection.items"
+                                    (cdkDropListDropped)="onKioskExperienceDrop($event, brand.id, expSection.id)"
+                                  >
+                                    @for (exp of expSection.items; track exp.id) {
+                                      <div
+                                        class="rounded-xl bg-black/20 border border-white/10 px-3 py-2.5 flex items-center justify-between gap-2"
+                                        cdkDrag
+                                        [cdkDragDisabled]="expSection.items.length < 2"
+                                        [cdkDragData]="exp"
+                                      >
+                                        <div class="brand-drag-placeholder !min-h-12" *cdkDragPlaceholder></div>
+                                        <div class="brand-drag-preview" *cdkDragPreview>
+                                          <div class="px-3 py-2 text-white text-sm font-bold">{{ experienceLabel(exp) }}</div>
+                                        </div>
+                                        <div class="flex items-center gap-2 min-w-0 flex-1">
+                                          @if (expSection.items.length > 1) {
+                                            <button
+                                              type="button"
+                                              cdkDragHandle
+                                              class="size-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-neutral-400 cursor-grab active:cursor-grabbing shrink-0"
+                                              aria-label="Arrastrar experiencia"
+                                              style="touch-action: none;"
+                                            >
+                                              <app-hero-icon name="bars-3" class="text-sm" />
+                                            </button>
+                                          }
+                                          <app-hero-icon
+                                            [name]="exp.gameId === 'memory' ? 'square-2-stack' : 'squares-2x2'"
+                                            class="text-yellow-400 shrink-0"
+                                          />
+                                          <div class="min-w-0">
+                                            <div class="flex items-center gap-1.5 flex-wrap">
+                                              <span class="text-xs sm:text-sm font-bold text-white truncate">{{ experienceLabel(exp) }}</span>
+                                              @if (exp.develop) {
+                                                <span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-amber-500/20 border border-amber-400/40 text-amber-300">Beta</span>
+                                              }
+                                            </div>
+                                            <p class="text-[10px] text-neutral-500 truncate">{{ exp.id }}</p>
+                                          </div>
+                                        </div>
+                                        <div class="flex items-center gap-1.5 shrink-0">
+                                          <button
+                                            type="button"
+                                            uiSfx="select"
+                                            class="relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 transition-colors"
+                                            [class]="exp.enabled ? 'bg-emerald-500 border-emerald-400' : 'bg-white/15 border-white/30'"
+                                            (click)="toggleExperience(exp, brand.name)"
+                                            [attr.aria-label]="(exp.enabled ? 'Desactivar ' : 'Activar ') + experienceLabel(exp)"
+                                          >
+                                            <span
+                                              class="pointer-events-none inline-flex items-center justify-center size-5 rounded-full bg-white shadow-md mt-0.5 transition-transform"
+                                              [class]="exp.enabled ? 'translate-x-5' : 'translate-x-0.5'"
+                                            >
+                                              <app-hero-icon [name]="exp.enabled ? 'check' : 'x-mark'" class="text-[10px]" [class]="exp.enabled ? 'text-emerald-600' : 'text-neutral-400'" />
+                                            </span>
+                                          </button>
+                                        </div>
+                                      </div>
+                                    }
+                                  </div>
+                                } @else {
+                                  <div class="flex flex-col gap-2">
+                                    @for (exp of expSection.items; track exp.id) {
+                                      <div class="rounded-xl bg-black/20 border border-white/10 px-3 py-2.5 flex items-center justify-between gap-2 opacity-90">
+                                        <div class="flex items-center gap-2 min-w-0 flex-1">
+                                          <app-hero-icon
+                                            [name]="exp.gameId === 'memory' ? 'square-2-stack' : 'squares-2x2'"
+                                            class="text-neutral-400 shrink-0"
+                                          />
+                                          <div class="min-w-0">
+                                            <div class="flex items-center gap-1.5 flex-wrap">
+                                              <span class="text-xs sm:text-sm font-bold text-neutral-200 truncate">{{ experienceLabel(exp) }}</span>
+                                              @if (exp.develop) {
+                                                <span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-amber-500/15 border border-amber-400/30 text-amber-300/80">Beta</span>
+                                              }
+                                            </div>
+                                            <p class="text-[10px] text-neutral-500 truncate">{{ exp.id }}</p>
+                                          </div>
+                                        </div>
+                                        <div class="flex items-center gap-1.5 shrink-0">
+                                          <button
+                                            type="button"
+                                            uiSfx="select"
+                                            class="relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 bg-white/15 border-white/30"
+                                            (click)="toggleExperience(exp, brand.name)"
+                                            [attr.aria-label]="'Activar ' + experienceLabel(exp)"
+                                          >
+                                            <span class="pointer-events-none inline-flex items-center justify-center size-5 rounded-full bg-white shadow-md translate-x-0.5 mt-0.5">
+                                              <app-hero-icon name="x-mark" class="text-[10px] text-neutral-400" />
+                                            </span>
+                                          </button>
+                                        </div>
+                                      </div>
+                                    }
+                                  </div>
+                                }
+                              </div>
+                            }
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  } @else {
+                    <div class="flex flex-col gap-3.5">
+                      @for (brand of section.brands; track brand.id) {
+                        <div class="w-full rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-md shadow-xl overflow-hidden opacity-95">
+                          <div class="px-4 sm:px-5 py-4 flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3.5 min-w-0">
+                              <div class="size-11 sm:size-12 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-neutral-400 shrink-0">
+                                <app-hero-icon name="tag" class="text-lg" />
+                              </div>
+                              <div class="min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                  <h4 class="text-sm sm:text-base font-bold text-neutral-200 truncate">{{ cleanText(brand.name) }}</h4>
+                                  @if (brand.develop) {
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/15 border border-amber-400/30 text-amber-300/80">Beta</span>
+                                  }
+                                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-rose-500/20 border-rose-400/40 text-rose-300">Desactivada</span>
+                                </div>
+                                <p class="text-xs text-neutral-500 truncate mt-0.5">Marca oculta en toda la aplicación</p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              uiSfx="select"
+                              class="relative inline-flex h-8 w-14 shrink-0 cursor-pointer rounded-full border-2 bg-white/15 border-white/30"
+                              (click)="toggleBrand(brand)"
+                              [attr.aria-label]="'Activar marca ' + cleanText(brand.name)"
+                            >
+                              <span class="pointer-events-none inline-flex items-center justify-center size-6 rounded-full bg-white shadow-md translate-x-0.5 mt-0.5">
+                                <app-hero-icon name="x-mark" class="text-xs text-neutral-400" />
+                              </span>
+                            </button>
+                          </div>
+                          <div class="px-4 sm:px-5 pb-4 space-y-3 border-t border-white/8 pt-3 ml-2 sm:ml-4">
+                            <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-neutral-500">Experiencias / juegos</p>
+                            @for (expSection of experienceSectionsForBrand(brand.id); track expSection.id) {
+                              <div class="space-y-2">
+                                <span class="text-[10px] font-extrabold uppercase tracking-wider" [class]="expSection.titleClass">
+                                  {{ expSection.title }} ({{ expSection.items.length }})
+                                </span>
+                                @if (expSection.items.length === 0) {
+                                  <p class="text-xs text-neutral-600 px-1">Ninguna</p>
+                                } @else if (expSection.reorderable) {
+                                  <div
+                                    class="brand-drag-list"
+                                    style="gap: 0.5rem;"
+                                    cdkDropList
+                                    [cdkDropListData]="expSection.items"
+                                    (cdkDropListDropped)="onKioskExperienceDrop($event, brand.id, expSection.id)"
+                                  >
+                                    @for (exp of expSection.items; track exp.id) {
+                                      <div
+                                        class="rounded-xl bg-black/20 border border-white/10 px-3 py-2.5 flex items-center justify-between gap-2"
+                                        cdkDrag
+                                        [cdkDragDisabled]="expSection.items.length < 2"
+                                      >
+                                        <div class="brand-drag-placeholder !min-h-12" *cdkDragPlaceholder></div>
+                                        <div class="flex items-center gap-2 min-w-0 flex-1">
+                                          @if (expSection.items.length > 1) {
+                                            <button type="button" cdkDragHandle class="size-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-neutral-400 cursor-grab shrink-0" style="touch-action: none;" aria-label="Arrastrar experiencia">
+                                              <app-hero-icon name="bars-3" class="text-sm" />
+                                            </button>
+                                          }
+                                          <span class="text-xs font-bold text-white truncate">{{ experienceLabel(exp) }}</span>
+                                          @if (exp.develop) {
+                                            <span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-amber-500/20 border border-amber-400/40 text-amber-300">Beta</span>
+                                          }
+                                        </div>
+                                        <div class="flex items-center gap-1.5">
+                                          <button type="button" uiSfx="select" class="relative inline-flex h-7 w-12 cursor-pointer rounded-full border-2" [class]="exp.enabled ? 'bg-emerald-500 border-emerald-400' : 'bg-white/15 border-white/30'" (click)="toggleExperience(exp, brand.name)">
+                                            <span class="pointer-events-none inline-flex items-center justify-center size-5 rounded-full bg-white shadow-md mt-0.5" [class]="exp.enabled ? 'translate-x-5' : 'translate-x-0.5'">
+                                              <app-hero-icon [name]="exp.enabled ? 'check' : 'x-mark'" class="text-[10px]" [class]="exp.enabled ? 'text-emerald-600' : 'text-neutral-400'" />
+                                            </span>
+                                          </button>
+                                        </div>
+                                      </div>
+                                    }
+                                  </div>
+                                } @else {
+                                  <div class="flex flex-col gap-2">
+                                    @for (exp of expSection.items; track exp.id) {
+                                      <div class="rounded-xl bg-black/20 border border-white/10 px-3 py-2.5 flex items-center justify-between gap-2">
+                                        <div class="flex items-center gap-1.5 min-w-0">
+                                          <span class="text-xs font-bold text-neutral-200 truncate">{{ experienceLabel(exp) }}</span>
+                                          @if (exp.develop) {
+                                            <span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-amber-500/15 border border-amber-400/30 text-amber-300/80">Beta</span>
+                                          }
+                                        </div>
+                                        <button type="button" uiSfx="select" class="relative inline-flex h-7 w-12 cursor-pointer rounded-full border-2 bg-white/15 border-white/30" (click)="toggleExperience(exp, brand.name)">
+                                          <span class="pointer-events-none inline-flex items-center justify-center size-5 rounded-full bg-white shadow-md translate-x-0.5 mt-0.5">
+                                            <app-hero-icon name="x-mark" class="text-[10px] text-neutral-400" />
+                                          </span>
+                                        </button>
+                                      </div>
+                                    }
+                                  </div>
+                                }
+                              </div>
+                            }
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  }
+                </section>
+              }
+
               <button
                 type="button"
                 uiSfx="select"
@@ -1058,71 +1410,394 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 <span>Restablecer valores de marcas por defecto</span>
               </button>
             </div>
-          </div>
-        }
+          }
 
-          <!-- Nivel 2.2: Selección de Marca para el juego seleccionado -->
+          <!-- Nivel 2.2: Selección de Marca / Ajustes globales del juego -->
           @if (settingsView() === 'brands' && selectedGame(); as gameId) {
             <div class="space-y-6">
               <div class="space-y-1">
                 <h2 class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400 flex items-center gap-2.5">
                   <app-hero-icon [name]="gameId === 'memory' ? 'square-2-stack' : 'squares-2x2'" class="text-2xl text-yellow-400" />
-                  <span>{{ gameId === 'memory' ? 'Memoria' : 'Triqui' }} · Seleccionar Marca</span>
+                  <span>
+                    {{ selectedGameSettingsTitle() }}
+                  </span>
                 </h2>
                 <p class="text-neutral-400 text-sm sm:text-base">
-                  Elige la marca para configurar sus reglas y activación individual.
+                  {{ selectedGameSettingsDescription() }}
                 </p>
               </div>
 
-              <div class="flex flex-col gap-3 pt-1">
-                @for (brand of catalog.rawManifest().brands; track brand.id) {
-                  @let exp = getExperienceForBrandGame(brand.id, gameId);
+              <!-- Switch Global / Individual -->
+              <div class="p-4 sm:p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2">
+                    <app-hero-icon name="adjustments-horizontal" class="text-base text-yellow-400" />
+                    <span class="font-extrabold uppercase tracking-wider text-sm kiosk:text-base text-white">
+                      Modo de ajustes
+                    </span>
+                  </div>
+                  <p class="text-xs sm:text-sm text-neutral-400 mt-1">
+                    @if (catalog.experiencesMode() === 'global') {
+                      Configuración compartida para todas las marcas de este juego.
+                    } @else {
+                      Cada marca mantiene sus propias reglas de partida.
+                    }
+                  </p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 shrink-0 w-full sm:w-auto sm:min-w-64">
                   <button
                     type="button"
                     uiSfx="select"
-                    class="min-h-16 sm:min-h-18 w-full rounded-2xl bg-white/6 hover:bg-white/12 active:bg-white/18 border border-white/15 hover:border-yellow-400/40 backdrop-blur-md px-5 py-3.5 flex items-center justify-between gap-4 transition-all text-left group active:scale-[0.99] cursor-pointer"
+                    [class]="chipClass(catalog.experiencesMode() === 'individual')"
                     style="touch-action: manipulation;"
-                    (click)="openSettingsExperience(brand)"
+                    (click)="requestExperiencesMode('individual')"
+                    aria-label="Modo de ajustes individual por marca"
                   >
-                    <div class="flex items-center gap-3.5 min-w-0">
-                      <div class="size-10 sm:size-12 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-yellow-400 font-extrabold text-sm sm:text-base shrink-0">
-                        <app-hero-icon [name]="gameId === 'memory' ? 'square-2-stack' : 'squares-2x2'" class="text-lg text-yellow-400" />
+                    <span class="text-xs sm:text-sm font-extrabold uppercase">Individual</span>
+                  </button>
+                  <button
+                    type="button"
+                    uiSfx="select"
+                    [class]="chipClass(catalog.experiencesMode() === 'global')"
+                    style="touch-action: manipulation;"
+                    (click)="requestExperiencesMode('global')"
+                    aria-label="Modo de ajustes globales para todas las marcas"
+                  >
+                    <span class="text-xs sm:text-sm font-extrabold uppercase">Global</span>
+                  </button>
+                </div>
+              </div>
+
+              @if (catalog.experiencesMode() === 'individual') {
+                <div class="flex flex-col gap-3 pt-1">
+                  @for (brand of brandsWithExperienceForGame(gameId); track brand.id) {
+                    @let exp = getExperienceForBrandGame(brand.id, gameId);
+                    <button
+                      type="button"
+                      uiSfx="select"
+                      class="min-h-16 sm:min-h-18 w-full rounded-2xl bg-white/6 hover:bg-white/12 active:bg-white/18 border border-white/15 hover:border-yellow-400/40 backdrop-blur-md px-5 py-3.5 flex items-center justify-between gap-4 transition-all text-left group active:scale-[0.99] cursor-pointer"
+                      style="touch-action: manipulation;"
+                      (click)="openSettingsExperience(brand)"
+                    >
+                      <div class="flex items-center gap-3.5 min-w-0">
+                        <div class="size-10 sm:size-12 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-yellow-400 font-extrabold text-sm sm:text-base shrink-0">
+                          <app-hero-icon [name]="gameId === 'memory' ? 'square-2-stack' : 'squares-2x2'" class="text-lg text-yellow-400" />
+                        </div>
+                        <div class="min-w-0">
+                          <h3 class="text-sm sm:text-base font-bold text-white group-hover:text-yellow-400 transition-colors truncate">
+                            {{ cleanText(brand.name) }}
+                          </h3>
+                          <p class="text-xs text-neutral-400 line-clamp-2">
+                            {{ brandGameConfigSummary(brand.id, gameId) }}
+                          </p>
+                        </div>
                       </div>
-                      <div class="min-w-0">
-                        <h3 class="text-sm sm:text-base font-bold text-white group-hover:text-yellow-400 transition-colors truncate">
-                          {{ cleanText(brand.name) }}
+
+                      <div class="flex items-center gap-2.5 shrink-0">
+                        @if (brand.develop) {
+                          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-300">
+                            Beta
+                          </span>
+                        }
+                        <span
+                          class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border hidden sm:inline-block"
+                          [class]="brand.enabled ? 'bg-white/10 border-white/20 text-neutral-300' : 'bg-rose-500/15 border-rose-400/30 text-rose-300'"
+                        >
+                          {{ brand.enabled ? 'Marca activa' : 'Marca inactiva' }}
+                        </span>
+                        <span
+                          class="px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border"
+                          [class]="exp?.enabled ? 'bg-emerald-500/15 border-emerald-400/30 text-emerald-300' : 'bg-rose-500/15 border-rose-400/30 text-rose-300'"
+                        >
+                          {{ exp?.enabled ? 'Juego activo' : 'Juego off' }}
+                        </span>
+                        <div class="size-7 rounded-full bg-white/5 group-hover:bg-yellow-400/20 flex items-center justify-center text-neutral-400 group-hover:text-yellow-400">
+                          <app-hero-icon name="chevron-right" />
+                        </div>
+                      </div>
+                    </button>
+                  }
+                </div>
+              } @else {
+                <!-- Modo global: configuración de partida compartida -->
+                @if (gameId === 'memory') {
+                  @let memConfig = getGlobalMemoryConfig();
+                  <div class="space-y-4 p-5 sm:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl">
+                    <div class="flex items-center justify-between gap-3">
+                      <div class="flex items-center gap-2">
+                        <app-hero-icon name="square-2-stack" class="text-lg text-yellow-400" />
+                        <h3 class="font-extrabold uppercase tracking-wide text-sm kiosk:text-base text-white">
+                          Configuración de partida
                         </h3>
-                        <p class="text-xs text-neutral-400 truncate">
-                          ID: {{ exp?.id ?? (brand.id + '-' + gameId) }}
-                        </p>
+                      </div>
+                      @if (memConfig.isCustomOverride) {
+                        <button
+                          type="button"
+                          uiSfx="select"
+                          class="text-xs font-bold text-neutral-400 hover:text-yellow-400 underline transition-colors cursor-pointer"
+                          (click)="resetGlobalMemoryToDefault()"
+                        >
+                          Restaurar catálogo
+                        </button>
+                      }
+                    </div>
+                    <p class="text-xs text-neutral-400 -mt-2">
+                      Los cambios se aplican a todas las marcas de Memoria.
+                    </p>
+
+                    <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
+                      <div class="flex items-center justify-between">
+                        <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">Cantidad de parejas</span>
+                        <span class="text-xs text-neutral-400">({{ memConfig.pairs * 2 }} cartas en tablero)</span>
+                      </div>
+                      <div class="flex items-center justify-between gap-3 pt-1">
+                        <button
+                          type="button"
+                          uiSfx="select"
+                          [disabled]="memConfig.pairs <= 2"
+                          class="size-11 sm:size-12 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 disabled:opacity-30 disabled:pointer-events-none border border-white/15 flex items-center justify-center text-white text-xl font-bold cursor-pointer transition-all"
+                          (click)="changeGlobalMemoryPairsStep(-1)"
+                          aria-label="Disminuir parejas"
+                        >
+                          <app-hero-icon name="minus" class="text-lg" />
+                        </button>
+                        <div class="flex-1 text-center py-2 px-4 rounded-xl bg-white/5 border border-white/10">
+                          <span class="text-xl sm:text-2xl font-black text-yellow-400 tabular-nums">{{ memConfig.pairs }}</span>
+                          <span class="text-xs sm:text-sm uppercase font-bold text-neutral-300 ml-2">
+                            {{ memConfig.pairs === 1 ? 'pareja' : 'parejas' }}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          uiSfx="select"
+                          [disabled]="memConfig.pairs >= 6"
+                          class="size-11 sm:size-12 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 disabled:opacity-30 disabled:pointer-events-none border border-white/15 flex items-center justify-center text-white text-xl font-bold cursor-pointer transition-all"
+                          (click)="changeGlobalMemoryPairsStep(1)"
+                          aria-label="Aumentar parejas"
+                        >
+                          <app-hero-icon name="plus" class="text-lg" />
+                        </button>
                       </div>
                     </div>
 
-                    <div class="flex items-center gap-2.5 shrink-0">
-                      @if (brand.develop) {
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-300">
-                          Beta
-                        </span>
-                      }
-                      <span
-                        class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border hidden sm:inline-block"
-                        [class]="brand.enabled ? 'bg-white/10 border-white/20 text-neutral-300' : 'bg-rose-500/15 border-rose-400/30 text-rose-300'"
-                      >
-                        {{ brand.enabled ? 'Marca activa' : 'Marca inactiva' }}
-                      </span>
-                      <span
-                        class="px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border"
-                        [class]="exp?.enabled ? 'bg-emerald-500/15 border-emerald-400/30 text-emerald-300' : 'bg-rose-500/15 border-rose-400/30 text-rose-300'"
-                      >
-                        {{ exp?.enabled ? 'Juego activo' : 'Juego off' }}
-                      </span>
-                      <div class="size-7 rounded-full bg-white/5 group-hover:bg-yellow-400/20 flex items-center justify-center text-neutral-400 group-hover:text-yellow-400">
-                        <app-hero-icon name="chevron-right" />
+                    <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
+                      <div class="flex items-center justify-between">
+                        <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">Dificultad</span>
+                        @if (memConfig.difficulty === 'custom') {
+                          <span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40">Personalizada</span>
+                        }
+                      </div>
+                      <div class="grid grid-cols-3 gap-2.5 pt-1">
+                        <button type="button" uiSfx="select" [class]="chipClass(memConfig.difficulty === 'easy')" style="touch-action: manipulation;" (click)="selectGlobalMemoryDifficulty('easy')">
+                          <span class="text-xs sm:text-sm font-extrabold uppercase">Fácil</span>
+                        </button>
+                        <button type="button" uiSfx="select" [class]="chipClass(memConfig.difficulty === 'medium')" style="touch-action: manipulation;" (click)="selectGlobalMemoryDifficulty('medium')">
+                          <div class="flex flex-col items-center justify-center py-0.5">
+                            <span class="text-xs sm:text-sm font-extrabold uppercase">Medio</span>
+                            <span class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold">Recomendado</span>
+                          </div>
+                        </button>
+                        <button type="button" uiSfx="select" [class]="chipClass(memConfig.difficulty === 'hard')" style="touch-action: manipulation;" (click)="selectGlobalMemoryDifficulty('hard')">
+                          <span class="text-xs sm:text-sm font-extrabold uppercase">Difícil</span>
+                        </button>
                       </div>
                     </div>
-                  </button>
+
+                    <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
+                      <div class="flex items-center justify-between">
+                        <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">Vidas / errores permitidos</span>
+                        <span class="text-xs text-neutral-400">Mínimo 3 vidas</span>
+                      </div>
+                      <div class="flex items-center justify-between gap-3 pt-1">
+                        <button
+                          type="button"
+                          uiSfx="select"
+                          [disabled]="memConfig.lives <= 3"
+                          class="size-11 sm:size-12 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 disabled:opacity-30 disabled:pointer-events-none border border-white/15 flex items-center justify-center text-white text-xl font-bold cursor-pointer transition-all"
+                          (click)="changeGlobalMemoryLivesStep(-1)"
+                          aria-label="Disminuir vidas"
+                        >
+                          <app-hero-icon name="minus" class="text-lg" />
+                        </button>
+                        <div class="flex-1 text-center py-2 px-4 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-rose-500 drop-shadow-[0_0_6px_rgba(244,63,94,0.6)]">
+                            <path d="m11.645 20.91-.007-.003-.022-.012a15.247 15.247 0 0 1-.383-.218 25.18 25.18 0 0 1-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3.5 7.02 3.5c1.82 0 3.393 1.056 4.23 2.593.837-1.537 2.41-2.593 4.23-2.593 2.306 0 4.77 1.822 4.77 4.75 0 3.924-2.438 7.11-4.739 9.266a25.175 25.175 0 0 1-4.244 3.17 15.247 15.247 0 0 1-.383.219l-.022.012-.007.004-.003.001a.752.752 0 0 1-.704 0l-.003-.001Z" />
+                          </svg>
+                          <span class="text-xl sm:text-2xl font-black text-white tabular-nums">{{ memConfig.lives }}</span>
+                          <span class="text-xs sm:text-sm uppercase font-bold text-neutral-300">{{ memConfig.lives === 1 ? 'vida' : 'vidas' }}</span>
+                        </div>
+                        <button
+                          type="button"
+                          uiSfx="select"
+                          class="size-11 sm:size-12 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 border border-white/15 flex items-center justify-center text-white text-xl font-bold cursor-pointer transition-all"
+                          (click)="changeGlobalMemoryLivesStep(1)"
+                          aria-label="Aumentar vidas"
+                        >
+                          <app-hero-icon name="plus" class="text-lg" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="p-3.5 rounded-xl bg-white/4 border border-white/10 text-xs text-neutral-300 flex items-start gap-2.5">
+                      <app-hero-icon name="information-circle" class="text-yellow-400 shrink-0 mt-0.5 text-base" />
+                      <span>{{ memoryConfigExplanation(memConfig, memConfig.isCustomOverride) }}</span>
+                    </div>
+                  </div>
                 }
-              </div>
+
+                @if (gameId === 'triqui') {
+                  @let repExp = getGlobalRepresentativeExperience();
+                  @if (repExp) {
+                    @let defaultDiff = getDefaultTriquiDifficulty(repExp);
+                    @let currentDiff = getGlobalTriquiDifficulty();
+                    @let defaultFirst = getDefaultTriquiFirstPlayer(repExp);
+                    @let currentFirst = getGlobalTriquiFirstPlayer();
+                    @let defaultSymbol = getDefaultTriquiPlayerSymbol(repExp);
+                    @let currentSymbol = getGlobalTriquiPlayerSymbol();
+                    @let isTriquiCustom = currentDiff !== null || currentFirst !== null || currentSymbol !== null;
+
+                    <div class="space-y-4 p-5 sm:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl">
+                      <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-2">
+                          <app-hero-icon name="squares-2x2" class="text-lg text-yellow-400" />
+                          <h3 class="font-extrabold uppercase tracking-wide text-sm kiosk:text-base text-white">
+                            Configuración de partida
+                          </h3>
+                        </div>
+                        @if (isTriquiCustom) {
+                          <button
+                            type="button"
+                            uiSfx="select"
+                            class="text-xs font-bold text-neutral-400 hover:text-yellow-400 underline transition-colors cursor-pointer"
+                            (click)="resetGlobalTriquiToDefault()"
+                          >
+                            Restaurar catálogo
+                          </button>
+                        }
+                      </div>
+                      <p class="text-xs text-neutral-400 -mt-2">
+                        Los cambios se aplican a todas las marcas de Triqui.
+                      </p>
+
+                      <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
+                        <div class="flex items-center justify-between">
+                          <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">Dificultad</span>
+                          @if (currentDiff !== null) {
+                            <span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40">Ajuste Kiosco</span>
+                          }
+                        </div>
+                        <div class="grid grid-cols-3 gap-2.5 pt-1">
+                          @for (opt of triquiDifficultyOptions; track opt.value) {
+                            @let isDefaultVal = opt.value === defaultDiff;
+                            @let isActive = (currentDiff ?? defaultDiff) === opt.value;
+                            <button
+                              type="button"
+                              uiSfx="select"
+                              [class]="chipClass(isActive)"
+                              style="touch-action: manipulation;"
+                              (click)="changeGlobalTriquiDifficulty(opt.value === defaultDiff ? null : opt.value, defaultDiff)"
+                            >
+                              <div class="flex flex-col items-center justify-center py-0.5">
+                                <span class="text-xs sm:text-sm font-extrabold uppercase">{{ opt.label }}</span>
+                                @if (isDefaultVal) {
+                                  <span class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold">Catálogo</span>
+                                }
+                              </div>
+                            </button>
+                          }
+                        </div>
+                      </div>
+
+                      <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
+                        <div class="flex items-center justify-between">
+                          <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">Quién empieza</span>
+                          @if (currentFirst !== null) {
+                            <span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40">Ajuste Kiosco</span>
+                          }
+                        </div>
+                        <div class="grid grid-cols-3 gap-2.5 pt-1">
+                          @for (opt of triquiFirstOptions; track opt.value) {
+                            @let isDefaultVal = opt.value === defaultFirst;
+                            @let isActive = (currentFirst ?? defaultFirst) === opt.value;
+                            <button
+                              type="button"
+                              uiSfx="select"
+                              [class]="chipClass(isActive)"
+                              style="touch-action: manipulation;"
+                              (click)="changeGlobalTriquiFirstPlayer(opt.value === defaultFirst ? null : opt.value, defaultFirst)"
+                            >
+                              <div class="flex flex-col items-center justify-center py-0.5">
+                                <span class="text-xs sm:text-sm font-extrabold uppercase">{{ opt.label }}</span>
+                                @if (isDefaultVal) {
+                                  <span class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold">Catálogo</span>
+                                }
+                              </div>
+                            </button>
+                          }
+                        </div>
+                      </div>
+
+                      <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
+                        <div class="flex items-center justify-between">
+                          <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">Figura del Jugador</span>
+                          @if (currentSymbol !== null) {
+                            <span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40">Ajuste Kiosco</span>
+                          }
+                        </div>
+                        <div class="grid grid-cols-3 gap-2.5 pt-1">
+                          @for (opt of triquiSymbolOptions; track opt.value) {
+                            @let isDefaultVal = opt.value === defaultSymbol;
+                            @let isActive = (currentSymbol ?? defaultSymbol) === opt.value;
+                            @let markAsset = getExperienceMarkAsset(repExp, opt.value);
+                            <button
+                              type="button"
+                              uiSfx="select"
+                              [class]="chipClass(isActive)"
+                              style="touch-action: manipulation;"
+                              (click)="changeGlobalTriquiPlayerSymbol(opt.value === defaultSymbol ? null : opt.value, defaultSymbol)"
+                            >
+                              <div class="flex flex-col items-center justify-center py-0.5 gap-0.5">
+                                @if (opt.value === 'random') {
+                                  <span class="text-[10px] font-bold uppercase tracking-wider text-neutral-200">Aleatorio</span>
+                                } @else if (markAsset) {
+                                  <img [src]="markAsset" [alt]="opt.value" class="size-6 sm:size-7 object-contain drop-shadow" />
+                                  <span class="text-[10px] font-bold uppercase tracking-wider text-neutral-200">{{ opt.value === 'X' ? 'Cruz' : 'Círculo' }}</span>
+                                } @else {
+                                  <span class="text-base sm:text-lg font-black" [class]="opt.value === 'X' ? 'text-cyan-400' : 'text-amber-200'">{{ opt.value }}</span>
+                                  <span class="text-[10px] font-bold uppercase tracking-wider text-neutral-200">{{ opt.value === 'X' ? 'Cruz' : 'Círculo' }}</span>
+                                }
+                                @if (isDefaultVal) {
+                                  <span class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold">Catálogo</span>
+                                }
+                              </div>
+                            </button>
+                          }
+                        </div>
+                      </div>
+
+                      <div class="p-3.5 rounded-xl bg-white/4 border border-white/10 text-xs text-neutral-300 flex items-start gap-2.5">
+                        <app-hero-icon name="information-circle" class="text-yellow-400 shrink-0 mt-0.5 text-base" />
+                        <div class="space-y-1">
+                          <p><strong>Dificultad:</strong> {{ triquiDifficultyExplanation(currentDiff, defaultDiff) }}</p>
+                          <p><strong>Primer Turno:</strong> {{ triquiFirstPlayerExplanation(currentFirst, defaultFirst) }}</p>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                }
+
+                <button
+                  type="button"
+                  uiSfx="select"
+                  class="w-full py-3.5 px-4 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 active:bg-rose-500/25 border border-rose-400/30 hover:border-rose-400/50 backdrop-blur-md text-rose-300 hover:text-rose-200 text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.99] shadow-md"
+                  style="touch-action: manipulation;"
+                  (click)="askConfirm('resetGlobalGame')"
+                >
+                  <app-hero-icon name="arrow-path" class="text-base text-rose-400" />
+                  <span>Restablecer valores de juego por defecto</span>
+                </button>
+              }
             </div>
           }
 
@@ -1136,7 +1811,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     <div class="flex flex-wrap items-center gap-3">
                       <h2 class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400 flex items-center gap-2.5">
                         <app-hero-icon [name]="gameId === 'memory' ? 'square-2-stack' : 'squares-2x2'" class="text-2xl text-yellow-400" />
-                        <span>{{ gameId === 'memory' ? 'Memoria' : 'Triqui' }} · {{ cleanText(brand.name) }}</span>
+                        <span>{{ selectedGameSettingsTitle() }} · {{ cleanText(brand.name) }}</span>
                       </h2>
                       @if (exp.develop || brand.develop || catalog.isGameDevelop(gameId)) {
                         <span class="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/25 border border-amber-400/50 text-amber-300 flex items-center gap-1.5">
@@ -1146,76 +1821,8 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       }
                     </div>
                     <p class="text-neutral-400 text-sm sm:text-base">
-                      Ajustes específicos para esta marca en la consola táctil.
+                      {{ selectedGameSettingsDescription() }} · ajustes de esta marca.
                     </p>
-                  </div>
-
-                  <!-- Estado Informativo Global de la Marca (Navega a Marcas del Kiosco) -->
-                  <button
-                    type="button"
-                    uiSfx="select"
-                    class="w-full text-left p-4 sm:p-5 rounded-2xl bg-white/4 hover:bg-white/8 active:bg-white/12 border border-white/10 hover:border-white/20 transition-all flex items-center justify-between gap-4 cursor-pointer select-none group"
-                    style="touch-action: manipulation;"
-                    (click)="openSettingsBrandsGlobal()"
-                    [attr.aria-label]="'Marca ' + cleanText(brand.name) + ' ' + (isBrandEnabled(brand.id) ? 'activa' : 'desactivada') + ' a nivel global. Tocar para ir a Marcas del Kiosco'"
-                  >
-                    <div class="min-w-0 flex-1">
-                      <div class="flex items-center gap-2">
-                        <app-hero-icon name="swatch" class="text-sm text-yellow-400" />
-                        <span class="font-extrabold uppercase tracking-wider text-xs sm:text-sm text-neutral-200 group-hover:text-white transition-colors">
-                          Marca en el Kiosco (Global)
-                        </span>
-                        <span
-                          class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border"
-                          [class]="isBrandEnabled(brand.id) ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300' : 'bg-rose-500/20 border-rose-400/40 text-rose-300'"
-                        >
-                          {{ isBrandEnabled(brand.id) ? 'Activa' : 'Desactivada' }}
-                        </span>
-                      </div>
-                      <p class="text-xs text-neutral-400 mt-1">
-                        {{ isBrandEnabled(brand.id) ? 'Visible en el selector inicial del paciente.' : 'Marca oculta en todo el kiosco.' }}
-                      </p>
-                    </div>
-
-                    <div class="size-8 rounded-full bg-white/5 group-hover:bg-yellow-400/20 border border-white/10 group-hover:border-yellow-400/30 flex items-center justify-center text-neutral-400 group-hover:text-yellow-300 transition-all shrink-0">
-                      <app-hero-icon name="chevron-right" class="text-sm" />
-                    </div>
-                  </button>
-                  <!-- Primera Opción: Switch de juego activo / desactivado para esa marca -->
-                  <div class="p-5 sm:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl flex items-center justify-between gap-4">
-                    <div class="min-w-0">
-                      <div class="flex items-center gap-2">
-                        <app-hero-icon [name]="gameId === 'memory' ? 'square-2-stack' : 'squares-2x2'" class="text-base text-yellow-400" />
-                        <span class="font-extrabold uppercase tracking-wider text-sm kiosk:text-base text-white">
-                          Juego en esta marca
-                        </span>
-                        <span
-                          class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border"
-                          [class]="exp.enabled ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300' : 'bg-rose-500/20 border-rose-400/40 text-rose-300'"
-                        >
-                          {{ exp.enabled ? 'Activo' : 'Desactivado' }}
-                        </span>
-                      </div>
-                      <p class="text-xs sm:text-sm text-neutral-400 mt-1">
-                        {{ exp.enabled ? 'El juego está visible y disponible en la pantalla del paciente.' : 'El juego está oculto en el catálogo para esta marca.' }}
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      uiSfx="select"
-                      class="relative inline-flex h-8 w-14 shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none"
-                      [class]="exp.enabled ? 'bg-emerald-500 border-emerald-400' : 'bg-white/15 border-white/30'"
-                      (click)="toggleExperience(exp, brand.name)"
-                      [attr.aria-label]="exp.enabled ? 'Desactivar juego para esta marca' : 'Activar juego para esta marca'"
-                    >
-                      <span
-                        class="pointer-events-none inline-flex items-center justify-center size-6 rounded-full bg-white shadow-md transform transition duration-200 ease-in-out mt-0.5"
-                        [class]="exp.enabled ? 'translate-x-6' : 'translate-x-0.5'"
-                      >
-                        <app-hero-icon [name]="exp.enabled ? 'check' : 'x-mark'" class="text-xs" [class]="exp.enabled ? 'text-emerald-600' : 'text-neutral-400'" />
-                      </span>
-                    </button>
                   </div>
 
                   <!-- Ajustes específicos de Memoria -->
@@ -1980,9 +2587,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
       <app-admin-confirm
         [title]="confirmTitle(kind)"
         [message]="confirmMessage(kind)"
-        [confirmLabel]="kind === 'applyUpdate' ? 'Instalar' : kind === 'changePin' ? 'Confirmar y cambiar' : (kind === 'resetDefaults' || kind === 'resetAudio' || kind === 'resetScreensaver' || kind === 'resetGeneral' || kind === 'resetBrands' || kind === 'resetExperience') ? 'Restaurar' : kind === 'restart' ? 'Reiniciar' : kind === 'exit' ? 'Cerrar' : kind === 'enterKiosk' ? 'Activar' : kind === 'leaveKiosk' ? 'Salir' : 'Confirmar'"
+        [confirmLabel]="kind === 'applyUpdate' ? 'Instalar' : kind === 'changePin' ? 'Confirmar y cambiar' : kind === 'switchToGlobal' ? 'Activar global' : (kind === 'resetDefaults' || kind === 'resetAudio' || kind === 'resetScreensaver' || kind === 'resetGeneral' || kind === 'resetBrands' || kind === 'resetExperience' || kind === 'resetGlobalGame') ? 'Restaurar' : kind === 'restart' ? 'Reiniciar' : kind === 'exit' ? 'Cerrar' : kind === 'enterKiosk' ? 'Activar' : kind === 'leaveKiosk' ? 'Salir' : 'Confirmar'"
         (confirmed)="onConfirm()"
-        (cancelled)="confirmKind.set(null)"
+        (cancelled)="onConfirmCancelled()"
       />
     }
 
@@ -2107,6 +2714,64 @@ export class AdminPanel {
   protected readonly triquiSymbolOptions = TRIQUI_SYMBOL_OPTIONS;
   protected readonly pinKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const;
 
+  /** Marcas habilitadas sin flag beta, ordenadas para el panel. */
+  protected readonly activeKioskBrands = computed(() =>
+    this.catalog
+      .rawManifest()
+      .brands.filter((b) => b.enabled && !b.develop)
+      .slice()
+      .sort((a, b) => a.order - b.order),
+  );
+
+  /** Marcas habilitadas en desarrollo/beta. */
+  protected readonly betaKioskBrands = computed(() =>
+    this.catalog
+      .rawManifest()
+      .brands.filter((b) => b.enabled && !!b.develop)
+      .slice()
+      .sort((a, b) => a.order - b.order),
+  );
+
+  /** Marcas deshabilitadas (activas o beta). */
+  protected readonly inactiveKioskBrands = computed(() =>
+    this.catalog
+      .rawManifest()
+      .brands.filter((b) => !b.enabled)
+      .slice()
+      .sort((a, b) => a.order - b.order),
+  );
+
+  /** Secciones Activas / Beta / Inactivas del árbol de marcas. */
+  protected readonly kioskBrandSections = computed(() => [
+    {
+      id: 'active' as const,
+      title: 'Activas',
+      titleClass: 'text-emerald-300',
+      dotClass: 'bg-emerald-400',
+      emptyLabel: 'No hay marcas activas.',
+      reorderable: true,
+      brands: this.activeKioskBrands(),
+    },
+    {
+      id: 'beta' as const,
+      title: 'Beta',
+      titleClass: 'text-amber-300',
+      dotClass: 'bg-amber-400',
+      emptyLabel: 'No hay marcas beta activas.',
+      reorderable: true,
+      brands: this.betaKioskBrands(),
+    },
+    {
+      id: 'inactive' as const,
+      title: 'Inactivas',
+      titleClass: 'text-rose-300',
+      dotClass: 'bg-rose-400',
+      emptyLabel: 'No hay marcas inactivas.',
+      reorderable: false,
+      brands: this.inactiveKioskBrands(),
+    },
+  ]);
+
   protected readonly snapshot = this.updates.snapshot;
   protected readonly confirmKind = signal<ConfirmKind>(null);
   protected readonly opMessage = signal('');
@@ -2214,6 +2879,12 @@ export class AdminPanel {
     this.settingsView.set('brands-global');
   }
 
+  protected openSettingsGames(): void {
+    this.selectedGame.set(null);
+    this.selectedBrand.set(null);
+    this.settingsView.set('games');
+  }
+
   protected openSettingsGame(game: 'memory' | 'triqui'): void {
     this.selectedGame.set(game);
     this.selectedBrand.set(null);
@@ -2234,6 +2905,88 @@ export class AdminPanel {
     this.catalog.setBrandEnabled(brand.id, nextState);
     const name = this.cleanText(brand.name);
     this.showToast('Marca ' + name, nextState ? 'Marca activada' : 'Marca desactivada');
+  }
+
+  protected onKioskBrandDrop(
+    event: CdkDragDrop<Brand[]>,
+    group: 'active' | 'beta',
+  ): void {
+    if (event.previousIndex === event.currentIndex) return;
+    const source =
+      group === 'active' ? this.activeKioskBrands() : this.betaKioskBrands();
+    if (source.length < 2) return;
+    const next = source.slice();
+    moveItemInArray(next, event.previousIndex, event.currentIndex);
+    this.catalog.reorderBrands(next.map((b) => b.id));
+    this.showToast(
+      group === 'active' ? 'Marcas activas' : 'Marcas beta',
+      'Orden actualizado en el selector del paciente',
+    );
+  }
+
+  protected experienceLabel(exp: GameExperience): string {
+    const name = exp.name || exp.title;
+    if (name) return this.cleanText(name);
+    if (exp.gameId === 'memory') return 'Memoria';
+    if (exp.gameId === 'triqui') return 'Triqui';
+    return exp.gameId;
+  }
+
+  /** Experiencias de una marca agrupadas en Activas / Beta / Inactivas. */
+  protected experienceSectionsForBrand(brandId: string): Array<{
+    id: 'active' | 'beta' | 'inactive';
+    title: string;
+    titleClass: string;
+    reorderable: boolean;
+    items: GameExperience[];
+  }> {
+    const all = this.catalog
+      .rawManifest()
+      .experiences.filter((e) => e.brandId === brandId)
+      .slice()
+      .sort((a, b) => a.order - b.order);
+
+    const active = all.filter((e) => e.enabled && !e.develop);
+    const beta = all.filter((e) => e.enabled && !!e.develop);
+    const inactive = all.filter((e) => !e.enabled);
+
+    return [
+      {
+        id: 'active',
+        title: 'Activas',
+        titleClass: 'text-emerald-300/90',
+        reorderable: true,
+        items: active,
+      },
+      {
+        id: 'beta',
+        title: 'Beta',
+        titleClass: 'text-amber-300/90',
+        reorderable: true,
+        items: beta,
+      },
+      {
+        id: 'inactive',
+        title: 'Inactivas',
+        titleClass: 'text-rose-300/80',
+        reorderable: false,
+        items: inactive,
+      },
+    ];
+  }
+
+  protected onKioskExperienceDrop(
+    event: CdkDragDrop<GameExperience[]>,
+    brandId: string,
+    sectionId: 'active' | 'beta' | 'inactive',
+  ): void {
+    if (event.previousIndex === event.currentIndex) return;
+    const section = this.experienceSectionsForBrand(brandId).find((s) => s.id === sectionId);
+    if (!section || section.items.length < 2 || !section.reorderable) return;
+    const next = section.items.slice();
+    moveItemInArray(next, event.previousIndex, event.currentIndex);
+    this.catalog.reorderExperiences(next.map((e) => e.id));
+    this.showToast('Experiencias', 'Orden actualizado en el selector de juegos');
   }
 
   protected toggleBrandById(brandId: string): void {
@@ -2347,6 +3100,11 @@ export class AdminPanel {
         return;
       }
       if (this.settingsView() === 'brands') {
+        this.settingsView.set('games');
+        this.selectedBrand.set(null);
+        return;
+      }
+      if (this.settingsView() === 'games') {
         this.settingsView.set('menu');
         this.selectedGame.set(null);
         return;
@@ -2376,19 +3134,31 @@ export class AdminPanel {
     if (sec === 'settings') {
       const view = this.settingsView();
       if (view === 'general') return 'Ajustes Generales';
-      if (view === 'brands-global') return 'Marcas del Kiosco';
+      if (view === 'brands-global') return 'Marcas y Experiencias';
+      if (view === 'games') return 'Juegos';
       if (view === 'brands') {
-        const g = this.selectedGame() === 'memory' ? 'Memoria' : 'Triqui';
-        return `${g} · Marcas`;
+        return this.selectedGameSettingsTitle();
       }
       if (view === 'experience') {
-        const g = this.selectedGame() === 'memory' ? 'Memoria' : 'Triqui';
+        const g = this.selectedGameSettingsTitle();
         const b = this.cleanText(this.selectedBrand()?.name ?? '');
-        return `${g} · ${b}`;
+        return b ? `${g} · ${b}` : g;
       }
       return 'Ajustes de Juego';
     }
     return sec ? this.sectionTitle(sec) : 'Administración';
+  }
+
+  protected selectedGameSettingsTitle(): string {
+    return this.selectedGame() === 'memory'
+      ? 'Encuentra la Pareja (Memoria)'
+      : 'Triqui (Tres en Raya)';
+  }
+
+  protected selectedGameSettingsDescription(): string {
+    return this.selectedGame() === 'memory'
+      ? 'Parejas, dificultad y vidas'
+      : 'Dificultad, primer jugador y figura';
   }
 
   protected currentHeaderIcon(): HeroIconName {
@@ -2397,6 +3167,7 @@ export class AdminPanel {
       const view = this.settingsView();
       if (view === 'general') return 'adjustments-horizontal';
       if (view === 'brands-global') return 'swatch';
+      if (view === 'games') return 'rocket-launch';
       if (view === 'brands' || view === 'experience') {
         return this.selectedGame() === 'memory' ? 'square-2-stack' : 'squares-2x2';
       }
@@ -2458,6 +3229,218 @@ export class AdminPanel {
     return this.catalog.rawManifest().experiences.find(
       (e) => e.brandId === brandId && e.gameId === gameId,
     );
+  }
+
+  /** Marcas que tienen experiencia del juego seleccionado (modo individual). */
+  protected brandsWithExperienceForGame(gameId: string): Brand[] {
+    const brandIds = new Set(
+      this.catalog.rawManifest().experiences.filter((e) => e.gameId === gameId).map((e) => e.brandId),
+    );
+    return this.catalog.rawManifest().brands.filter((brand) => brandIds.has(brand.id));
+  }
+
+  /** Resumen etiquetado de la config efectiva para el listado de marcas (modo individual). */
+  protected brandGameConfigSummary(brandId: string, gameId: string): string {
+    const exp = this.getExperienceForBrandGame(brandId, gameId);
+    if (!exp) {
+      return 'Sin experiencia en el catálogo';
+    }
+
+    if (gameId === 'memory') {
+      const config = this.getEffectiveMemoryConfig(exp);
+      return `Parejas: ${config.pairs} · Dificultad: ${this.memoryDifficultyLabel(config.difficulty)} · Vidas: ${config.lives}`;
+    }
+
+    const diff =
+      this.settings.getExperienceTriquiDifficulty(exp.id) ?? this.getDefaultTriquiDifficulty(exp);
+    const first =
+      this.settings.getExperienceTriquiFirstPlayer(exp.id) ?? this.getDefaultTriquiFirstPlayer(exp);
+    const symbol =
+      this.settings.getExperienceTriquiPlayerSymbol(exp.id) ?? this.getDefaultTriquiPlayerSymbol(exp);
+    return `Dificultad: ${this.difficultyLabel(diff)} · Inicia: ${this.firstPlayerLabel(first)} · Figura: ${this.playerSymbolLabel(symbol)}`;
+  }
+
+  protected getExperiencesForSelectedGame(): GameExperience[] {
+    const gameId = this.selectedGame();
+    if (!gameId) return [];
+    return this.catalog.rawManifest().experiences.filter((e) => e.gameId === gameId);
+  }
+
+  protected getGlobalRepresentativeExperience(): GameExperience | undefined {
+    return this.getExperiencesForSelectedGame()[0];
+  }
+
+  protected requestExperiencesMode(mode: 'global' | 'individual'): void {
+    const current = this.catalog.experiencesMode();
+    if (mode === current) return;
+    if (mode === 'global') {
+      this.askConfirm('switchToGlobal');
+      return;
+    }
+    this.catalog.setExperiencesMode('individual');
+    this.showToast('Modo individual', 'Cada marca vuelve a configurar sus reglas por separado.');
+  }
+
+  protected applySwitchToGlobalMode(): void {
+    const gameId = this.selectedGame();
+    if (!gameId) return;
+    this.settings.clearExperienceOverridesForGame(gameId);
+    this.catalog.resetGameExperiencesToDefault(gameId);
+    this.catalog.setExperiencesMode('global');
+    const gameTitle = gameId === 'memory' ? 'Memoria' : 'Triqui';
+    this.showToast(
+      `${gameTitle} · Modo global`,
+      'Configuración por marca restablecida al catálogo. Los ajustes de partida serán compartidos.',
+    );
+  }
+
+  protected getGlobalMemoryConfig(): MemoryConfig & { isCustomOverride: boolean } {
+    const exps = this.getExperiencesForSelectedGame();
+    const first = exps[0];
+    if (!first) {
+      return { pairs: 3, lives: 3, difficulty: 'medium', isCustomOverride: false };
+    }
+    const resolved = this.getEffectiveMemoryConfig(first);
+    const isCustomOverride = exps.some((exp) => this.settings.getExperienceMemoryConfig(exp.id) !== null);
+    return { ...resolved, isCustomOverride };
+  }
+
+  protected applyGlobalMemoryConfig(config: {
+    pairs: number;
+    lives: number;
+    difficulty: MemoryDifficulty;
+  }): void {
+    for (const exp of this.getExperiencesForSelectedGame()) {
+      this.settings.setExperienceMemoryConfig(exp.id, config);
+    }
+  }
+
+  protected changeGlobalMemoryPairsStep(delta: number): void {
+    const current = this.getGlobalMemoryConfig();
+    const nextPairs = Math.max(MEMORY_PAIRS_MIN, Math.min(MEMORY_PAIRS_MAX, current.pairs + delta));
+    if (nextPairs === current.pairs) return;
+    let nextLives = current.lives;
+    if (current.difficulty !== 'custom') {
+      nextLives = getRecommendedLives(nextPairs, current.difficulty);
+    }
+    this.applyGlobalMemoryConfig({
+      pairs: nextPairs,
+      lives: nextLives,
+      difficulty: current.difficulty,
+    });
+    this.showToast('Memoria · Global', `${nextPairs} parejas (${nextLives} vidas)`);
+  }
+
+  protected changeGlobalMemoryLivesStep(delta: number): void {
+    const current = this.getGlobalMemoryConfig();
+    const nextLives = Math.max(MEMORY_LIVES_MIN, current.lives + delta);
+    if (nextLives === current.lives) return;
+    this.applyGlobalMemoryConfig({
+      pairs: current.pairs,
+      lives: nextLives,
+      difficulty: 'custom',
+    });
+    this.showToast('Memoria · Global', `${nextLives} vidas (Personalizada)`);
+  }
+
+  protected selectGlobalMemoryDifficulty(difficulty: MemoryDifficulty): void {
+    const current = this.getGlobalMemoryConfig();
+    const recommendedLives = getRecommendedLives(current.pairs, difficulty);
+    this.applyGlobalMemoryConfig({
+      pairs: current.pairs,
+      lives: recommendedLives,
+      difficulty,
+    });
+    this.showToast(
+      'Memoria · Global',
+      `Dificultad ${this.memoryDifficultyLabel(difficulty)} (${recommendedLives} vidas)`,
+    );
+  }
+
+  protected resetGlobalMemoryToDefault(): void {
+    for (const exp of this.getExperiencesForSelectedGame()) {
+      this.settings.setExperienceMemoryConfig(exp.id, null);
+    }
+    this.showToast('Memoria · Global', 'Restaurado a la configuración del catálogo');
+  }
+
+  protected getGlobalTriquiDifficulty(): Difficulty | null {
+    const first = this.getGlobalRepresentativeExperience();
+    return first ? this.settings.getExperienceTriquiDifficulty(first.id) : null;
+  }
+
+  protected getGlobalTriquiFirstPlayer(): FirstPlayer | null {
+    const first = this.getGlobalRepresentativeExperience();
+    return first ? this.settings.getExperienceTriquiFirstPlayer(first.id) : null;
+  }
+
+  protected getGlobalTriquiPlayerSymbol(): PlayerSymbolChoice | null {
+    const first = this.getGlobalRepresentativeExperience();
+    return first ? this.settings.getExperienceTriquiPlayerSymbol(first.id) : null;
+  }
+
+  protected changeGlobalTriquiDifficulty(diff: Difficulty | null, defaultDiff: Difficulty): void {
+    for (const exp of this.getExperiencesForSelectedGame()) {
+      this.settings.setExperienceTriquiDifficulty(exp.id, diff);
+    }
+    if (diff === null) {
+      this.showToast('Triqui · Global', `Opción por defecto (${this.difficultyLabel(defaultDiff)})`);
+    } else {
+      this.showToast('Triqui · Global', `Dificultad: ${this.difficultyLabel(diff)}`);
+    }
+  }
+
+  protected changeGlobalTriquiFirstPlayer(player: FirstPlayer | null, defaultFirst: FirstPlayer): void {
+    for (const exp of this.getExperiencesForSelectedGame()) {
+      this.settings.setExperienceTriquiFirstPlayer(exp.id, player);
+    }
+    if (player === null) {
+      this.showToast('Triqui · Global', `Opción por defecto (${this.firstPlayerLabel(defaultFirst)})`);
+    } else {
+      this.showToast('Triqui · Global', `Primer jugador: ${this.firstPlayerLabel(player)}`);
+    }
+  }
+
+  protected changeGlobalTriquiPlayerSymbol(
+    symbol: PlayerSymbolChoice | null,
+    defaultSymbol: PlayerSymbolChoice,
+  ): void {
+    for (const exp of this.getExperiencesForSelectedGame()) {
+      this.settings.setExperienceTriquiPlayerSymbol(exp.id, symbol);
+    }
+    if (symbol === null) {
+      this.showToast('Triqui · Global', `Opción por defecto (${this.playerSymbolLabel(defaultSymbol)})`);
+    } else {
+      this.showToast('Triqui · Global', `Figura: ${this.playerSymbolLabel(symbol)}`);
+    }
+  }
+
+  protected resetGlobalTriquiToDefault(): void {
+    for (const exp of this.getExperiencesForSelectedGame()) {
+      this.settings.setExperienceTriquiDifficulty(exp.id, null);
+      this.settings.setExperienceTriquiFirstPlayer(exp.id, null);
+      this.settings.setExperienceTriquiPlayerSymbol(exp.id, null);
+    }
+    this.showToast('Triqui · Global', 'Restaurados valores por defecto del catálogo');
+  }
+
+  protected resetGlobalGameToDefault(): void {
+    const gameId = this.selectedGame();
+    if (!gameId) return;
+    this.catalog.resetGameExperiencesToDefault(gameId);
+    if (gameId === 'memory') {
+      for (const exp of this.getExperiencesForSelectedGame()) {
+        this.settings.setExperienceMemoryConfig(exp.id, null);
+      }
+    } else {
+      for (const exp of this.getExperiencesForSelectedGame()) {
+        this.settings.setExperienceTriquiDifficulty(exp.id, null);
+        this.settings.setExperienceTriquiFirstPlayer(exp.id, null);
+        this.settings.setExperienceTriquiPlayerSymbol(exp.id, null);
+      }
+    }
+    const gameTitle = gameId === 'memory' ? 'Memoria' : 'Triqui';
+    this.showToast(`${gameTitle} · Global`, 'Valores de juego restaurados por defecto');
   }
 
   protected toggleExperience(exp: GameExperience, brandName: string): void {
@@ -2740,7 +3723,7 @@ export class AdminPanel {
 
   protected resetBrandsSettings(): void {
     this.catalog.resetBrandsToDefault();
-    this.showToast('Marcas del Kiosco', 'Valores de marcas restaurados por defecto');
+    this.showToast('Marcas y Experiencias', 'Valores de marcas y juegos restaurados por defecto');
   }
 
   protected resetCurrentGameExperienceToDefault(exp: GameExperience, brandName: string): void {
@@ -2948,8 +3931,12 @@ export class AdminPanel {
       case 'resetGeneral':
         return '¿Restablecer ajustes generales?';
       case 'resetBrands':
-        return '¿Restablecer marcas del kiosco?';
+        return '¿Restablecer marcas y experiencias?';
       case 'resetExperience':
+        return '¿Restablecer valores del juego?';
+      case 'switchToGlobal':
+        return '¿Activar ajustes globales?';
+      case 'resetGlobalGame':
         return '¿Restablecer valores del juego?';
     }
   }
@@ -2983,7 +3970,7 @@ export class AdminPanel {
       case 'resetGeneral':
         return 'Se restablecerán todos los ajustes de audio, protector de pantalla y activación de clips a sus valores por defecto.';
       case 'resetBrands':
-        return 'Se restablecerá el estado de activación de todas las marcas del kiosco a los valores por defecto.';
+        return 'Se restablecerán marcas y experiencias (activación y orden) a los valores del catálogo.';
       case 'resetExperience': {
         const pending = this.pendingExperienceToReset();
         if (pending) {
@@ -2992,13 +3979,35 @@ export class AdminPanel {
         }
         return 'Se restablecerá la configuración de la partida de este juego a los valores por defecto.';
       }
+      case 'switchToGlobal': {
+        const gameTitle = this.selectedGame() === 'memory' ? 'Memoria' : 'Triqui';
+        return `Se perderá la configuración individual de ${gameTitle} por cada marca. Las reglas de partida y la activación de experiencias volverán a los valores del catálogo (content-manifest.json), y a partir de entonces los ajustes de partida se aplicarán a todas las marcas.`;
+      }
+      case 'resetGlobalGame': {
+        const gameTitle = this.selectedGame() === 'memory' ? 'Memoria' : 'Triqui';
+        return `Se restablecerá la configuración de partida de ${gameTitle} y la activación del juego en cada marca a los valores del catálogo.`;
+      }
     }
+  }
+
+  protected onConfirmCancelled(): void {
+    this.confirmKind.set(null);
   }
 
   protected async onConfirm(): Promise<void> {
     const kind = this.confirmKind();
     this.confirmKind.set(null);
     if (!kind) return;
+
+    if (kind === 'switchToGlobal') {
+      this.applySwitchToGlobalMode();
+      return;
+    }
+
+    if (kind === 'resetGlobalGame') {
+      this.resetGlobalGameToDefault();
+      return;
+    }
 
     if (kind === 'resetDefaults') {
       this.catalog.resetToDefault();

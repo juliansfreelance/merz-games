@@ -106,7 +106,8 @@
       "rotation": 45,
       "initialIndex": 0,
       "scrollThreshold": 100
-    }
+    },
+    "experiencesMode": "global"
   },
   "brands": [
     {
@@ -369,6 +370,69 @@
       }
     },
     {
+      "id": "radiesse-triqui",
+      "brandId": "radiesse",
+      "gameId": "triqui",
+      "version": "0.6.0",
+      "enabled": true,
+      "order": 2,
+      "config": {
+        "difficulty": "medium",
+        "firstPlayer": "patient",
+        "playerSymbol": "random"
+      },
+      "name": "Triqui interactivo",
+      "description": "Pon a prueba tu habilidad en nuestro reto de tres en línea y <strong>descubre más sobre la estética.</strong> Completa la secuencia, conquista el tablero y acércate a uno de nuestros premios.<br><strong>¡Cada movimiento cuenta!</strong>",
+      "image": "/content/images/experiences/radiesse-triqui.png",
+      "theme": {
+        "accentColor": "#00E5FF",
+        "primaryColor": "#0891b2"
+      },
+      "assets": {
+        "markX": "/content/images/games/triqui/radiesse/mark-x.png",
+        "markO": "/content/images/games/triqui/radiesse/mark-o.png"
+      },
+      "results": {
+        "win": {
+          "title": "¡GANASTE!",
+          "description": "Completaste el reto con éxito.<br>Gracias por ser parte de esta experiencia Merz Aesthetics.",
+          "note": "Conquistaste el tablero y descubriste más sobre la estética."
+        },
+        "lose": {
+          "title": "PERDISTE ESTA RONDA",
+          "description": "La máquina ganó esta jugada.<br>Te quedan {lives} oportunidades.<br>Concéntrate y sigue jugando.",
+          "note": "Aún puedes recuperarte en la siguiente ronda.<br>Ajusta tu estrategia y vuelve a intentarlo."
+        },
+        "draw": {
+          "title": "¡EMPATE!",
+          "description": "La ronda terminó en empate.<br>Te quedan {lives} oportunidades.<br>Pon atención y sigue jugando.",
+          "note": "Ninguno logró cerrar la jugada.<br>Prepárate para la siguiente ronda."
+        },
+        "out-of-lives": {
+          "title": "SIN MÁS INTENTOS",
+          "description": "Agotaste tus intentos en esta sesión.<br>Vuelve a intentarlo pronto y sigue descubriendo más del universo de la estética.",
+          "note": "Aún puedes volver a jugar o descubrir más experiencias Merz Aesthetics."
+        }
+      },
+      "turnNotice": {
+        "durationSeconds": 12,
+        "player": {
+          "title": "¡ES TU TURNO!",
+          "message": "Inicias tú con {asset}.<br>¡Elige bien tu jugada!"
+        },
+        "ai": {
+          "title": "INICIA TU RIVAL",
+          "message": "Inicia la IA con {asset}.<br>¡No la dejes ganar!"
+        }
+      },
+      "exitConfirm": {
+        "title": "¿ABANDONAR LA PARTIDA?",
+        "message": "Si regresas a la selección de juegos, perderás tu partida actual de Triqui.<br><strong>¿Deseas salir o continuar jugando?</strong>",
+        "confirmButtonText": "Sí, salir",
+        "cancelButtonText": "Continuar jugando"
+      }
+    },
+    {
       "id": "ultherapy-memory",
       "brandId": "ultherapy",
       "gameId": "memory",
@@ -432,75 +496,12 @@
       }
     },
     {
-      "id": "radiesse-triqui",
-      "brandId": "radiesse",
-      "gameId": "triqui",
-      "version": "0.6.0",
-      "enabled": true,
-      "order": 3,
-      "config": {
-        "difficulty": "medium",
-        "firstPlayer": "patient",
-        "playerSymbol": "random"
-      },
-      "name": "Triqui interactivo",
-      "description": "Pon a prueba tu habilidad en nuestro reto de tres en línea y <strong>descubre más sobre la estética.</strong> Completa la secuencia, conquista el tablero y acércate a uno de nuestros premios.<br><strong>¡Cada movimiento cuenta!</strong>",
-      "image": "/content/images/experiences/radiesse-triqui.png",
-      "theme": {
-        "accentColor": "#00E5FF",
-        "primaryColor": "#0891b2"
-      },
-      "assets": {
-        "markX": "/content/images/games/triqui/radiesse/mark-x.png",
-        "markO": "/content/images/games/triqui/radiesse/mark-o.png"
-      },
-      "results": {
-        "win": {
-          "title": "¡GANASTE!",
-          "description": "Completaste el reto con éxito.<br>Gracias por ser parte de esta experiencia Merz Aesthetics.",
-          "note": "Conquistaste el tablero y descubriste más sobre la estética."
-        },
-        "lose": {
-          "title": "PERDISTE ESTA RONDA",
-          "description": "La máquina ganó esta jugada.<br>Te quedan {lives} oportunidades.<br>Concéntrate y sigue jugando.",
-          "note": "Aún puedes recuperarte en la siguiente ronda.<br>Ajusta tu estrategia y vuelve a intentarlo."
-        },
-        "draw": {
-          "title": "¡EMPATE!",
-          "description": "La ronda terminó en empate.<br>Te quedan {lives} oportunidades.<br>Pon atención y sigue jugando.",
-          "note": "Ninguno logró cerrar la jugada.<br>Prepárate para la siguiente ronda."
-        },
-        "out-of-lives": {
-          "title": "SIN MÁS INTENTOS",
-          "description": "Agotaste tus intentos en esta sesión.<br>Vuelve a intentarlo pronto y sigue descubriendo más del universo de la estética.",
-          "note": "Aún puedes volver a jugar o descubrir más experiencias Merz Aesthetics."
-        }
-      },
-      "turnNotice": {
-        "durationSeconds": 12,
-        "player": {
-          "title": "¡ES TU TURNO!",
-          "message": "Inicias tú con {asset}.<br>¡Elige bien tu jugada!"
-        },
-        "ai": {
-          "title": "INICIA TU RIVAL",
-          "message": "Inicia la IA con {asset}.<br>¡No la dejes ganar!"
-        }
-      },
-      "exitConfirm": {
-        "title": "¿ABANDONAR LA PARTIDA?",
-        "message": "Si regresas a la selección de juegos, perderás tu partida actual de Triqui.<br><strong>¿Deseas salir o continuar jugando?</strong>",
-        "confirmButtonText": "Sí, salir",
-        "cancelButtonText": "Continuar jugando"
-      }
-    },
-    {
       "id": "ultherapy-triqui",
       "brandId": "ultherapy",
       "gameId": "triqui",
       "version": "0.6.0",
       "enabled": true,
-      "order": 4,
+      "order": 1,
       "config": {
         "difficulty": "medium",
         "firstPlayer": "patient",
@@ -563,6 +564,7 @@
       "gameId": "memory",
       "version": "0.5.0",
       "enabled": true,
+      "develop": true,
       "order": 1,
       "config": {
         "pairs": 3,

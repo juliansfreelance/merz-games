@@ -106,8 +106,9 @@ describe('AdminPanel', () => {
     fixture.detectChanges();
 
     expect(el.textContent).toContain('Ajustes Generales');
-    expect(el.textContent).toContain('Encuentra la Pareja (Memoria)');
-    expect(el.textContent).toContain('Triqui (Tres en Raya)');
+    expect(el.textContent).toContain('Marcas y Experiencias');
+    expect(el.textContent).toContain('Juegos');
+    expect(el.textContent).not.toContain('Encuentra la Pareja (Memoria)');
 
     // Abrir Ajustes Generales
     const generalButton = Array.from(el.querySelectorAll('main button')).find((b) =>
@@ -216,14 +217,38 @@ describe('AdminPanel', () => {
     settingsBtn.click();
     fixture.detectChanges();
 
-    // Seleccionar Triqui
+    // Seleccionar Juegos → Triqui
+    const gamesBtn = Array.from(el.querySelectorAll('main button')).find((b) =>
+      b.querySelector('h3')?.textContent?.trim() === 'Juegos',
+    ) as HTMLButtonElement;
+    gamesBtn.click();
+    fixture.detectChanges();
+
     const triquiBtn = Array.from(el.querySelectorAll('main button')).find((b) =>
       b.textContent?.includes('Triqui (Tres en Raya)'),
     ) as HTMLButtonElement;
     triquiBtn.click();
     fixture.detectChanges();
 
-    expect(el.textContent).toContain('Triqui · Seleccionar Marca');
+    expect(el.textContent).toContain('Triqui (Tres en Raya)');
+    expect(el.textContent).toContain('Dificultad, primer jugador y figura');
+
+    // Pasar a Individual para probar el flujo por marca
+    const catalog = TestBed.inject(CatalogService);
+    catalog.setExperiencesMode('individual');
+    fixture.detectChanges();
+
+    expect(el.textContent).toContain('Triqui (Tres en Raya)');
+    expect(el.textContent).toContain('Modo de ajustes');
+    expect(el.textContent).toContain('Individual');
+    expect(el.textContent).toContain('Dificultad: Medio · Inicia: Jugador · Figura: Aleatorio');
+    expect(el.textContent).not.toContain('ID:');
+    expect(el.textContent).not.toContain('Sin experiencia en el catálogo');
+    // Solo marcas con experiencia Triqui (radiesse, ultherapy); radiesse2 solo tiene Memoria
+    const brandConfigButtons = Array.from(el.querySelectorAll('main button')).filter((b) =>
+      b.textContent?.includes('Figura: Aleatorio'),
+    );
+    expect(brandConfigButtons).toHaveLength(2);
 
     // Seleccionar marca Radiesse
     const radiesseBtn = Array.from(el.querySelectorAll('main button')).find((b) =>
@@ -232,8 +257,8 @@ describe('AdminPanel', () => {
     radiesseBtn.click();
     fixture.detectChanges();
 
-    expect(el.textContent).toContain('Triqui · Radiesse');
-    expect(el.textContent).toContain('Juego en esta marca');
+    expect(el.textContent).toContain('Triqui (Tres en Raya) · Radiesse');
+    expect(el.textContent).toContain('Configuración de partida');
     expect(el.textContent).toContain('Catálogo');
 
     // La opción 'Medio' (por defecto en el catálogo) está habilitada y marcada con la etiqueta 'Catálogo'
@@ -242,16 +267,61 @@ describe('AdminPanel', () => {
     ) as HTMLButtonElement;
     expect(medioBtn).toBeTruthy();
     expect(medioBtn.disabled).toBe(false);
+  });
 
-    // Conmutar el switch de estado del juego
-    const catalog = TestBed.inject(CatalogService);
-    const setExpSpy = vi.spyOn(catalog, 'setExperienceEnabled');
-    const switchBtn = el.querySelector('button[aria-label*="juego para esta marca"]') as HTMLButtonElement;
-    expect(switchBtn).toBeTruthy();
-    switchBtn.click();
+  it('usa Global por defecto y pide confirmación al volver a global desde individual', async () => {
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+
+    const settingsBtn = Array.from(el.querySelectorAll('main button')).find((b) =>
+      b.textContent?.includes('Ajustes de juego'),
+    ) as HTMLButtonElement;
+    settingsBtn.click();
     fixture.detectChanges();
 
-    expect(setExpSpy).toHaveBeenCalledWith('radiesse-triqui', false);
+    const gamesBtn = Array.from(el.querySelectorAll('main button')).find((b) =>
+      b.querySelector('h3')?.textContent?.trim() === 'Juegos',
+    ) as HTMLButtonElement;
+    gamesBtn.click();
+    fixture.detectChanges();
+
+    const memoryBtn = Array.from(el.querySelectorAll('main button')).find((b) =>
+      b.textContent?.includes('Encuentra la Pareja'),
+    ) as HTMLButtonElement;
+    memoryBtn.click();
+    fixture.detectChanges();
+
+    const catalog = TestBed.inject(CatalogService);
+    expect(catalog.experiencesMode()).toBe('global');
+    expect(el.textContent).toContain('Modo de ajustes');
+    expect(el.textContent).toContain('Encuentra la Pareja (Memoria)');
+    expect(el.textContent).toContain('Parejas, dificultad y vidas');
+    expect(el.textContent).not.toContain('Marca en el kiosco');
+    expect(el.textContent).not.toContain('Juego en esta marca');
+    expect(el.textContent).toContain('Configuración de partida');
+
+    catalog.setExperiencesMode('individual');
+    fixture.detectChanges();
+    expect(el.textContent).toContain('Encuentra la Pareja (Memoria)');
+    expect(el.textContent).toContain('Individual');
+    expect(el.textContent).toContain('Parejas: 3 · Dificultad: Medio · Vidas: 3');
+    expect(el.textContent).not.toContain('ID:');
+    expect(el.textContent).not.toContain('Sin experiencia en el catálogo');
+
+    const globalBtn = Array.from(el.querySelectorAll('main button')).find(
+      (b) => b.getAttribute('aria-label') === 'Modo de ajustes globales para todas las marcas',
+    ) as HTMLButtonElement;
+    globalBtn.click();
+    fixture.detectChanges();
+
+    expect(component['confirmKind']()).toBe('switchToGlobal');
+    expect(el.querySelector('app-admin-confirm')).toBeTruthy();
+
+    component['onConfirm']();
+    fixture.detectChanges();
+
+    expect(catalog.experiencesMode()).toBe('global');
+    expect(el.textContent).toContain('Encuentra la Pareja (Memoria)');
   });
 
   it('el cambio de PIN solicita confirmación antes de guardar', async () => {
@@ -279,7 +349,7 @@ describe('AdminPanel', () => {
     expect(el.querySelector('app-admin-confirm')).toBeTruthy();
   });
 
-  it('permite acceder a Marcas del Kiosco y conmutar el estado de activación de una marca', async () => {
+  it('permite acceder a Marcas y Experiencias y conmutar el estado de activación de una marca', async () => {
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
 
@@ -290,16 +360,21 @@ describe('AdminPanel', () => {
     settingsBtn.click();
     fixture.detectChanges();
 
-    // Entrar a Marcas del Kiosco
+    // Entrar a Marcas y Experiencias
     const brandsGlobalBtn = Array.from(el.querySelectorAll('main button')).find((b) =>
-      b.textContent?.includes('Marcas del Kiosco'),
+      b.textContent?.includes('Marcas y Experiencias'),
     ) as HTMLButtonElement;
     expect(brandsGlobalBtn).toBeTruthy();
     brandsGlobalBtn.click();
     fixture.detectChanges();
 
-    expect(el.textContent).toContain('Marcas del Kiosco');
-    expect(el.textContent).toContain('Activa o desactiva las marcas disponibles');
+    expect(el.textContent).toContain('Marcas y Experiencias');
+    expect(el.textContent).toContain('Activas');
+    expect(el.textContent).toContain('Beta');
+    expect(el.textContent).toContain('Inactivas');
+    expect(el.textContent).toContain('Experiencias / juegos');
+    expect(el.textContent).toContain('Encuentra la Pareja');
+    expect(el.textContent).toContain('Triqui');
 
     // Conmutar marca Radiesse
     const catalog = TestBed.inject(CatalogService);
@@ -317,7 +392,7 @@ describe('AdminPanel', () => {
     fixture.detectChanges();
 
     expect(el.textContent).toContain('Ajustes Generales');
-    expect(el.textContent).toContain('Marcas del Kiosco');
+    expect(el.textContent).toContain('Marcas y Experiencias');
   });
 
   it('debe configurar los iconos exactos solicitados para el menú principal y la sección de operación', async () => {

@@ -11,6 +11,7 @@ import { AppLogger } from '../logging/app-error';
 import {
   Atmosphere,
   ContentManifest,
+  ExperiencesMode,
   resolveAppCoverConfig,
 } from './content-manifest.model';
 import { Brand } from './brand.model';
@@ -20,6 +21,7 @@ import { GameExperience } from './game-experience.model';
 export type { Brand } from './brand.model';
 export type { Game } from './game.model';
 export type { GameExperience } from './game-experience.model';
+export type { ExperiencesMode } from './content-manifest.model';
 import manifestSeed from '../../../../content/manifests/content-manifest.json';
 
 const seed = manifestSeed as unknown as ContentManifest;
@@ -223,6 +225,11 @@ function hydrateManifestFromSeed(candidate: ContentManifest): void {
         ...seed.app?.cover,
         ...candidate.app?.cover,
       },
+      experiencesMode:
+        candidate.app?.experiencesMode === 'global' ||
+        candidate.app?.experiencesMode === 'individual'
+          ? candidate.app.experiencesMode
+          : seed.app?.experiencesMode,
     };
   }
   if (seed.atmosphere) {
@@ -297,6 +304,14 @@ export class CatalogService {
   /** Exposición del manifest completo (solo lectura). */
   readonly rawManifest = this.manifest.asReadonly();
 
+  /**
+   * Modo de ajustes de experiencias (`app.experiencesMode`).
+   * Default: `global` si el manifest no lo define.
+   */
+  readonly experiencesMode = computed<ExperiencesMode>(() =>
+    this.manifest().app?.experiencesMode === 'individual' ? 'individual' : 'global',
+  );
+
   /** Configuración resuelta del Cover Flow (`app.cover` + defaults). */
   readonly coverConfig = computed(() =>
     resolveAppCoverConfig(this.manifest().app?.cover),
@@ -333,16 +348,19 @@ export class CatalogService {
     );
   });
 
-  /** Marcas habilitadas, ordenadas por `order`. */
+  /** Marcas habilitadas: primero activas (no beta), luego beta; dentro de cada grupo por `order`. */
   readonly brands = computed<Brand[]>(() =>
     this.manifest()
       .brands.filter((b) => b.enabled)
-      .sort((a, b) => a.order - b.order),
+      .sort((a, b) => {
+        const groupA = a.develop ? 1 : 0;
+        const groupB = b.develop ? 1 : 0;
+        if (groupA !== groupB) return groupA - groupB;
+        return a.order - b.order;
+      }),
   );
 
-  /**
-   * Experiencias habilitadas con relaciones válidas y `minAppVersion` compatible.
-   */
+  /** Experiencias habilitadas con relaciones válidas y `minAppVersion` compatible. */
   readonly experiences = computed<GameExperience[]>(() => {
     const manifest = this.manifest();
     const appVersion = this.platform.appVersion();
@@ -364,7 +382,12 @@ export class CatalogService {
         if (!semverGte(appVersion, game.minAppVersion)) return false;
         return true;
       })
-      .sort((a, b) => a.order - b.order);
+      .sort((a, b) => {
+        const groupA = a.develop ? 1 : 0;
+        const groupB = b.develop ? 1 : 0;
+        if (groupA !== groupB) return groupA - groupB;
+        return a.order - b.order;
+      });
   });
 
   /**
@@ -415,9 +438,16 @@ export class CatalogService {
 
   // ─── API de consulta ────────────────────────────────────────────────────────
 
-  /** Experiencias válidas filtradas por brandId. */
+  /** Experiencias válidas filtradas por brandId (activas primero, luego beta; por `order`). */
   experiencesForBrand(brandId: string): GameExperience[] {
-    return this.experiences().filter((exp) => exp.brandId === brandId);
+    return this.experiences()
+      .filter((exp) => exp.brandId === brandId)
+      .sort((a, b) => {
+        const groupA = a.develop ? 1 : 0;
+        const groupB = b.develop ? 1 : 0;
+        if (groupA !== groupB) return groupA - groupB;
+        return a.order - b.order;
+      });
   }
 
   getBrandById(id: string): Brand | undefined {
@@ -693,6 +723,43 @@ export class CatalogService {
   }
 
   /**
+   * Cambia el modo de ajustes de experiencias (`global` | `individual`) en el manifest activo.
+   */
+  setExperiencesMode(mode: ExperiencesMode): void {
+    const next: ExperiencesMode = mode === 'global' ? 'global' : 'individual';
+    const current = this.manifest();
+    this.manifest.set({
+      ...current,
+      app: {
+        ...current.app,
+        experiencesMode: next,
+      },
+    });
+    this.logger.info('CatalogService', `experiencesMode: ${next}`);
+  }
+
+  /**
+   * Restablece `enabled` de todas las experiencias de un juego a los valores del catálogo semilla.
+   */
+  resetGameExperiencesToDefault(gameId: string): void {
+    const current = this.manifest();
+    const seedExperiences = manifestSeed.experiences as GameExperience[];
+    const updated = {
+      ...current,
+      experiences: current.experiences.map((exp) => {
+        if (exp.gameId !== gameId) return exp;
+        const seedExp = seedExperiences.find((s) => s.id === exp.id);
+        return seedExp ? { ...exp, enabled: seedExp.enabled } : exp;
+      }),
+    };
+    this.manifest.set(updated);
+    this.logger.info(
+      'CatalogService',
+      `Experiencias del juego "${gameId}" restauradas a enabled del catálogo.`,
+    );
+  }
+
+  /**
    * Habilita o deshabilita una experiencia específica en el catálogo y persiste el cambio.
    */
   setExperienceEnabled(experienceId: string, enabled: boolean): void {
@@ -705,6 +772,25 @@ export class CatalogService {
     };
     this.manifest.set(updated);
     this.logger.info('CatalogService', `Experiencia "${experienceId}" enabled: ${enabled}`);
+  }
+
+  /**
+   * Reasigna `order` (1..n) a las experiencias indicadas según el orden del array.
+   */
+  reorderExperiences(orderedIds: readonly string[]): void {
+    if (orderedIds.length === 0) return;
+    const orderMap = new Map(orderedIds.map((id, index) => [id, index + 1]));
+    const current = this.manifest();
+    this.manifest.set({
+      ...current,
+      experiences: current.experiences.map((exp) =>
+        orderMap.has(exp.id) ? { ...exp, order: orderMap.get(exp.id)! } : exp,
+      ),
+    });
+    this.logger.info(
+      'CatalogService',
+      `Orden de experiencias actualizado: ${orderedIds.join(' → ')}`,
+    );
   }
 
   /**
@@ -723,16 +809,50 @@ export class CatalogService {
   }
 
   /**
-   * Restablece el estado de habilitación de todas las marcas a los valores por defecto de content-manifest.json.
+   * Reasigna `order` (1..n) a las marcas indicadas según el orden del array.
+   * Usado para arrastrar dentro de Activas o Beta en el panel.
+   */
+  reorderBrands(orderedIds: readonly string[]): void {
+    if (orderedIds.length === 0) return;
+    const orderMap = new Map(orderedIds.map((id, index) => [id, index + 1]));
+    const current = this.manifest();
+    this.manifest.set({
+      ...current,
+      brands: current.brands.map((b) =>
+        orderMap.has(b.id) ? { ...b, order: orderMap.get(b.id)! } : b,
+      ),
+    });
+    this.logger.info(
+      'CatalogService',
+      `Orden de marcas actualizado: ${orderedIds.join(' → ')}`,
+    );
+  }
+
+  /**
+   * Restablece marcas y experiencias (enabled, order, develop) a content-manifest.json.
    */
   resetBrandsToDefault(): void {
     const current = this.manifest();
     const seedBrands = manifestSeed.brands;
+    const seedExperiences = manifestSeed.experiences as GameExperience[];
     const updated = {
       ...current,
       brands: current.brands.map((b) => {
         const seedB = seedBrands.find((sb) => sb.id === b.id);
-        return seedB ? { ...b, enabled: seedB.enabled } : b;
+        return seedB
+          ? { ...b, enabled: seedB.enabled, order: seedB.order, develop: seedB.develop }
+          : b;
+      }),
+      experiences: current.experiences.map((exp) => {
+        const seedExp = seedExperiences.find((s) => s.id === exp.id);
+        return seedExp
+          ? {
+              ...exp,
+              enabled: seedExp.enabled,
+              order: seedExp.order,
+              develop: seedExp.develop,
+            }
+          : exp;
       }),
     };
     this.manifest.set(updated);
@@ -741,7 +861,10 @@ export class CatalogService {
     } catch {
       this.logger.warn('CatalogService', 'No se pudo persistir las marcas tras restaurar.');
     }
-    this.logger.info('CatalogService', 'Marcas del kiosco restauradas a los valores por defecto.');
+    this.logger.info(
+      'CatalogService',
+      'Marcas y experiencias restauradas a los valores por defecto.',
+    );
   }
 
   /**

@@ -246,6 +246,20 @@ describe('KioskSettings', () => {
     expect(settings.getExperienceMemoryConfig('ultherapy-memory')).toBeNull();
   });
 
+  it('clearExperienceOverridesForGame elimina solo overrides del motor indicado', () => {
+    const { settings } = buildSettings();
+
+    settings.setExperienceMemoryConfig('radiesse-memory', { pairs: 5, lives: 4, difficulty: 'easy' });
+    settings.setExperienceMemoryConfig('ultherapy-memory', { pairs: 6, lives: 5, difficulty: 'hard' });
+    settings.setExperienceTriquiDifficulty('radiesse-triqui', 'hard');
+
+    settings.clearExperienceOverridesForGame('memory');
+
+    expect(settings.getExperienceMemoryConfig('radiesse-memory')).toBeNull();
+    expect(settings.getExperienceMemoryConfig('ultherapy-memory')).toBeNull();
+    expect(settings.getExperienceTriquiDifficulty('radiesse-triqui')).toBe('hard');
+  });
+
   it('resetToDefault restablece todos los ajustes y borra overrides por experiencia', () => {
     const { settings, store } = buildSettings();
 

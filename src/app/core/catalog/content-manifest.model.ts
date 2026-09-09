@@ -106,6 +106,9 @@ export function resolveAppCoverConfig(
   return { ...DEFAULT_APP_COVER_CONFIG, ...partial };
 }
 
+/** Modo de configuración de experiencias en el panel de control. */
+export type ExperiencesMode = 'global' | 'individual';
+
 export interface AppConfig {
   theme?: AppThemeConfig;
   audio?: AppAudioConfig;
@@ -114,6 +117,12 @@ export interface AppConfig {
   security?: AppSecurityConfig;
   /** Parámetros visuales e interacción del Cover Flow. */
   cover?: AppCoverConfig;
+  /**
+   * Modo de ajustes de juegos por experiencia.
+   * - `global` (default): una sola configuración de partida compartida entre todas las marcas del juego.
+   * - `individual`: reglas y overrides por marca.
+   */
+  experiencesMode?: ExperiencesMode;
 }
 
 export interface ContentManifest {

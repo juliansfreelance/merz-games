@@ -369,14 +369,61 @@ describe('CatalogService — Atmósfera y Cards', () => {
 describe('CatalogService', () => {
   beforeEach(() => TestBed.resetTestingModule());
 
-  it('should expose enabled brands sorted by order', () => {
+  it('should expose enabled brands with activas before beta, then by order', () => {
     const { catalog } = buildCatalog();
     const brands = catalog.brands();
     expect(brands.length).toBeGreaterThan(0);
     brands.forEach((b) => expect(b.enabled).toBe(true));
-    for (let i = 1; i < brands.length; i++) {
-      expect(brands[i - 1].order).toBeLessThanOrEqual(brands[i].order);
+
+    let sawBeta = false;
+    for (const brand of brands) {
+      if (brand.develop) {
+        sawBeta = true;
+      } else {
+        expect(sawBeta).toBe(false);
+      }
     }
+
+    const actives = brands.filter((b) => !b.develop);
+    const betas = brands.filter((b) => !!b.develop);
+    for (let i = 1; i < actives.length; i++) {
+      expect(actives[i - 1].order).toBeLessThanOrEqual(actives[i].order);
+    }
+    for (let i = 1; i < betas.length; i++) {
+      expect(betas[i - 1].order).toBeLessThanOrEqual(betas[i].order);
+    }
+  });
+
+  it('reorderBrands actualiza el order relativo dentro del grupo', () => {
+    const { catalog } = buildCatalog();
+    const actives = catalog.brands().filter((b) => !b.develop);
+    expect(actives.length).toBeGreaterThanOrEqual(2);
+
+    const reversed = actives.map((b) => b.id).reverse();
+    catalog.reorderBrands(reversed);
+
+    const nextActives = catalog.brands().filter((b) => !b.develop);
+    expect(nextActives.map((b) => b.id)).toEqual(reversed);
+    expect(nextActives[0].order).toBe(1);
+    expect(nextActives[1].order).toBe(2);
+  });
+
+  it('reorderExperiences actualiza el order relativo de experiencias', () => {
+    const { catalog } = buildCatalog();
+    const radiesseExps = catalog
+      .rawManifest()
+      .experiences.filter((e) => e.brandId === 'radiesse' && e.enabled && !e.develop);
+    expect(radiesseExps.length).toBeGreaterThanOrEqual(2);
+
+    const sorted = radiesseExps.slice().sort((a, b) => a.order - b.order);
+    const reversed = sorted.map((e) => e.id).reverse();
+    catalog.reorderExperiences(reversed);
+
+    const next = catalog
+      .rawManifest()
+      .experiences.filter((e) => reversed.includes(e.id))
+      .sort((a, b) => a.order - b.order);
+    expect(next.map((e) => e.id)).toEqual(reversed);
   });
 
   it('should exclude disabled brands', () => {
@@ -725,6 +772,22 @@ describe('UpdateModel', () => {
     catalog.setBrandEnabled('radiesse', true);
     expect(catalog.brands().some((b) => b.id === 'radiesse')).toBe(true);
     expect(catalog.rawManifest().brands.find((b) => b.id === 'radiesse')?.enabled).toBe(true);
+  });
+
+  it('setExperiencesMode y resetGameExperiencesToDefault actualizan el manifest', () => {
+    const { catalog } = buildCatalog();
+    expect(catalog.experiencesMode()).toBe('global');
+
+    catalog.setExperienceEnabled('radiesse-memory', false);
+    catalog.setExperiencesMode('individual');
+    expect(catalog.experiencesMode()).toBe('individual');
+    expect(catalog.rawManifest().app?.experiencesMode).toBe('individual');
+
+    catalog.resetGameExperiencesToDefault('memory');
+    expect(catalog.rawManifest().experiences.find((e) => e.id === 'radiesse-memory')?.enabled).toBe(true);
+
+    catalog.setExperiencesMode('global');
+    expect(catalog.experiencesMode()).toBe('global');
   });
 
   it('detecta marcas, motores y experiencias en desarrollo correctamente', () => {
