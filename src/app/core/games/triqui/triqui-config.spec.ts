@@ -2,10 +2,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   TRIQUI_DIFFICULTY_DEFAULT,
   TRIQUI_FIRST_PLAYER_DEFAULT,
+  TRIQUI_PLAYER_SYMBOL_DEFAULT,
   validateDifficulty,
   validateFirstPlayer,
+  validatePlayerSymbol,
   resolveTriquiDifficulty,
   resolveTriquiFirstPlayer,
+  resolveTriquiPlayerSymbol,
 } from './triqui-config';
 
 describe('TriquiConfig validation', () => {
@@ -43,6 +46,19 @@ describe('TriquiConfig validation', () => {
     expect(validateFirstPlayer('cpu')).toBeNull();
     expect(validateFirstPlayer(42)).toBeNull();
     expect(validateFirstPlayer({})).toBeNull();
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  it('validatePlayerSymbol valida X, O y random correctamente', () => {
+    expect(validatePlayerSymbol('X')).toBe('X');
+    expect(validatePlayerSymbol('O')).toBe('O');
+    expect(validatePlayerSymbol('random')).toBe('random');
+  });
+
+  it('validatePlayerSymbol descarta valores inválidos con warning', () => {
+    expect(validatePlayerSymbol('triangle')).toBeNull();
+    expect(validatePlayerSymbol(1)).toBeNull();
+    expect(validatePlayerSymbol({})).toBeNull();
     expect(warnSpy).toHaveBeenCalled();
   });
 });
@@ -125,5 +141,47 @@ describe('TriquiConfig cascada de firstPlayer', () => {
       kioskOverride: null,
     });
     expect(res).toEqual({ firstPlayer: TRIQUI_FIRST_PLAYER_DEFAULT, source: 'default' });
+  });
+});
+
+describe('TriquiConfig cascada de playerSymbol', () => {
+  it('Nivel 1 (kioskOverride) tiene máxima precedencia (random, X, O)', () => {
+    const resRandom = resolveTriquiPlayerSymbol({
+      kioskOverride: 'random',
+      experienceConfig: { playerSymbol: 'X' },
+      gameConfig: { playerSymbol: 'O' },
+    });
+    expect(resRandom).toEqual({ playerSymbol: 'random', source: 'kiosk' });
+
+    const resO = resolveTriquiPlayerSymbol({
+      kioskOverride: 'O',
+      experienceConfig: { playerSymbol: 'random' },
+    });
+    expect(resO).toEqual({ playerSymbol: 'O', source: 'kiosk' });
+  });
+
+  it('Nivel 2 (experienceConfig) tiene precedencia sobre gameConfig', () => {
+    const res = resolveTriquiPlayerSymbol({
+      kioskOverride: null,
+      experienceConfig: { playerSymbol: 'random' },
+      gameConfig: { playerSymbol: 'O' },
+    });
+    expect(res).toEqual({ playerSymbol: 'random', source: 'experience' });
+  });
+
+  it('Nivel 3 (gameConfig) tiene precedencia sobre default', () => {
+    const res = resolveTriquiPlayerSymbol({
+      kioskOverride: null,
+      experienceConfig: {},
+      gameConfig: { playerSymbol: 'O' },
+    });
+    expect(res).toEqual({ playerSymbol: 'O', source: 'game' });
+  });
+
+  it('Cae a Nivel 4 (default = random) cuando no hay configuración', () => {
+    const res = resolveTriquiPlayerSymbol({
+      kioskOverride: null,
+    });
+    expect(res).toEqual({ playerSymbol: TRIQUI_PLAYER_SYMBOL_DEFAULT, source: 'default' });
   });
 });

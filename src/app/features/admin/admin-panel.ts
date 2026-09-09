@@ -7,12 +7,18 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { CatalogService, Brand, GameExperience } from '../../core/catalog/catalog';
+import { AttractionVideo } from '../../core/catalog/content-manifest.model';
 import { CatalogDiffItem } from '../../core/catalog/compare-catalogs';
 import { UpdateStatus } from '../../core/catalog/update.model';
 import { KioskSettings, ScreensaverMode, ScreensaverVideoOrder } from '../../core/settings/kiosk-settings';
 import { PlatformService } from '../../core/platform/platform.service';
 import { UpdateCoordinator } from '../../core/update/update-coordinator';
-import { Difficulty, FirstPlayer } from '../../core/games/triqui/triqui.model';
+import { Difficulty, FirstPlayer, Mark, PlayerSymbolChoice } from '../../core/games/triqui/triqui.model';
+import {
+  resolveTriquiDifficulty,
+  resolveTriquiFirstPlayer,
+  resolveTriquiPlayerSymbol,
+} from '../../core/games/triqui/triqui-config';
 import { MemoryConfig, MemoryDifficulty } from '../../core/games/memory/memory.model';
 import {
   getRecommendedLives,
@@ -79,7 +85,20 @@ export const MENU_OPTIONS: readonly MenuOption[] = [
   },
 ];
 
-type ConfirmKind = 'restart' | 'exit' | 'leaveKiosk' | 'applyUpdate' | 'changePin' | 'resetDefaults' | null;
+type ConfirmKind =
+  | 'restart'
+  | 'exit'
+  | 'leaveKiosk'
+  | 'enterKiosk'
+  | 'applyUpdate'
+  | 'changePin'
+  | 'resetDefaults'
+  | 'resetAudio'
+  | 'resetScreensaver'
+  | 'resetGeneral'
+  | 'resetBrands'
+  | 'resetExperience'
+  | null;
 
 const MEMORY_PAIR_OPTIONS = [
   { label: '2 parejas', value: 2 },
@@ -96,9 +115,15 @@ const TRIQUI_DIFFICULTY_OPTIONS: Array<{ label: string; value: Difficulty }> = [
 ];
 
 const TRIQUI_FIRST_OPTIONS: Array<{ label: string; value: FirstPlayer }> = [
-  { label: 'Paciente', value: 'patient' },
+  { label: 'Jugador', value: 'patient' },
   { label: 'Alternado', value: 'alternate' },
   { label: 'Azar', value: 'random' },
+];
+
+const TRIQUI_SYMBOL_OPTIONS: Array<{ label: string; value: PlayerSymbolChoice }> = [
+  { label: '✕', value: 'X' },
+  { label: '○', value: 'O' },
+  { label: 'Aleatorio', value: 'random' },
 ];
 
 const UPDATE_STATUS_COPY: Record<UpdateStatus, string> = {
@@ -136,27 +161,143 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
   imports: [KioskButton, HeroIcon, AdminConfirm, UiSfx],
   host: {
     class: 'flex flex-col w-full h-full min-h-0 overflow-hidden select-none',
+    '[style.--panel-primary-color]': 'catalog.panelPrimaryColor()',
+    '[style.--panel-secondary-color]': 'catalog.panelSecondaryColor()',
   },
+  styles: [`
+    :host {
+      --panel-primary: var(--panel-primary-color, #fdc700);
+      --panel-secondary: var(--panel-secondary-color, #ff637e);
+    }
+
+    .text-yellow-400,
+    .text-yellow-300 {
+      color: var(--panel-primary) !important;
+    }
+
+    .bg-yellow-400\\/10,
+    .bg-yellow-400\\/15,
+    .bg-yellow-400\\/20,
+    .bg-yellow-500\\/10 {
+      background-color: color-mix(in srgb, var(--panel-primary) 15%, transparent) !important;
+    }
+
+    .border-yellow-400\\/20,
+    .border-yellow-400\\/25,
+    .border-yellow-400\\/30,
+    .border-yellow-400\\/40,
+    .border-yellow-400\\/50 {
+      border-color: color-mix(in srgb, var(--panel-primary) 40%, transparent) !important;
+    }
+
+    .hover\\:border-yellow-400\\/40:hover,
+    .hover\\:border-yellow-400\\/50:hover {
+      border-color: color-mix(in srgb, var(--panel-primary) 60%, transparent) !important;
+    }
+
+    .hover\\:bg-yellow-400\\/20:hover,
+    .hover\\:bg-yellow-400\\/25:hover,
+    .hover\\:bg-yellow-400\\/35:hover {
+      background-color: color-mix(in srgb, var(--panel-primary) 25%, transparent) !important;
+    }
+
+    .active\\:bg-yellow-400\\/35:active {
+      background-color: color-mix(in srgb, var(--panel-primary) 35%, transparent) !important;
+    }
+
+    .hover\\:text-yellow-300:hover,
+    .hover\\:text-yellow-400:hover,
+    .group:hover .group-hover\\:text-yellow-400 {
+      color: var(--panel-primary) !important;
+    }
+
+    .group:hover .group-hover\\:bg-yellow-400\\/20 {
+      background-color: color-mix(in srgb, var(--panel-primary) 25%, transparent) !important;
+    }
+
+    .shadow-yellow-400\\/10 {
+      box-shadow: 0 1px 2px 0 color-mix(in srgb, var(--panel-primary) 10%, transparent) !important;
+    }
+
+    .text-rose-400,
+    .text-rose-300,
+    .text-rose-200 {
+      color: var(--panel-secondary) !important;
+    }
+
+    .bg-rose-500\\/10,
+    .bg-rose-500\\/20,
+    .bg-rose-500\\/25,
+    .bg-rose-500\\[0\\.08\\] {
+      background-color: color-mix(in srgb, var(--panel-secondary) 12%, transparent) !important;
+    }
+
+    .border-rose-400\\/30,
+    .border-rose-400\\/50 {
+      border-color: color-mix(in srgb, var(--panel-secondary) 40%, transparent) !important;
+    }
+
+    .hover\\:border-rose-400\\/50:hover {
+      border-color: color-mix(in srgb, var(--panel-secondary) 60%, transparent) !important;
+    }
+
+    .hover\\:text-rose-200:hover,
+    .group:hover .group-hover\\:text-rose-100 {
+      color: var(--panel-secondary) !important;
+    }
+
+    @keyframes toast-slide-in {
+      from {
+        opacity: 0;
+        transform: translateX(110%) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+      }
+    }
+
+    @keyframes toast-slide-out {
+      from {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+      }
+      to {
+        opacity: 0;
+        transform: translateX(110%) scale(0.95);
+      }
+    }
+
+    .animate-toast-in {
+      animation: toast-slide-in 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .animate-toast-out {
+      animation: toast-slide-out 300ms cubic-bezier(0.7, 0, 0.84, 0) forwards;
+    }
+  `],
   template: `
-    <!-- Toast de Ajustes Superior Izquierdo -->
+    <!-- Toast de Ajustes Superior Derecho (Animado Entrada y Salida con Blur Blanco del Header) -->
     @if (toast(); as t) {
       <div
-        class="fixed top-4 left-4 sm:top-6 sm:left-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl bg-black/80 border border-yellow-400/50 backdrop-blur-xl shadow-2xl shadow-black/80 text-white pointer-events-none max-w-sm transition-all"
+        class="fixed top-4 right-4 sm:top-6 sm:right-6 z-50 flex items-center gap-3.5 px-4.5 py-3.5 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl text-white pointer-events-none max-w-sm"
+        [class.animate-toast-in]="!t.exiting"
+        [class.animate-toast-out]="t.exiting"
         role="status"
         aria-live="polite"
       >
-        <div class="size-8 rounded-full bg-yellow-400/20 border border-yellow-400/40 flex items-center justify-center text-yellow-400 shrink-0">
-          <app-hero-icon name="check" class="text-base text-yellow-400" />
+        <div class="size-8.5 rounded-full bg-emerald-400/20 border border-emerald-400/40 flex items-center justify-center text-emerald-300 shrink-0">
+          <app-hero-icon name="check" class="text-base text-emerald-300" />
         </div>
         <div>
-          <p class="text-[11px] font-bold uppercase tracking-wider text-yellow-400">{{ t.title }}</p>
-          <p class="text-xs sm:text-sm text-neutral-100 font-medium">{{ t.message }}</p>
+          <p class="text-[11px] font-extrabold uppercase tracking-wider text-emerald-300 drop-shadow-sm">{{ t.title }}</p>
+          <p class="text-xs sm:text-sm text-white font-bold drop-shadow-sm">{{ t.message }}</p>
         </div>
       </div>
     }
 
     <!-- Header Fijo / Translúcido con Blur y Estilo Blanco (Versión destacada interactiva) -->
-    <header class="shrink-0 w-full z-20 bg-black/35 backdrop-blur-xl border-b border-white/10 px-4 sm:px-6 py-3.5 sm:py-4">
+    <header class="shrink-0 w-full z-20 bg-white/10 backdrop-blur-xl border-b border-white/20 px-4 sm:px-6 py-3.5 sm:py-4">
       <div class="max-w-xl kiosk:max-w-2xl mx-auto w-full flex items-center justify-between gap-3">
         <!-- Botón Volver en Header (icono + texto + SFX click-back) en color blanco -->
         <button
@@ -217,7 +358,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
               <button
                 type="button"
                 uiSfx="select"
-                class="min-h-18 sm:min-h-20 kiosk:min-h-24 w-full rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] active:bg-white/[0.18] border border-white/15 hover:border-yellow-400/40 backdrop-blur-md px-5 sm:px-6 py-4 flex items-center justify-between gap-4 transition-all text-left group active:scale-[0.99] cursor-pointer shadow-lg shadow-black/20"
+                class="min-h-18 sm:min-h-20 kiosk:min-h-24 w-full rounded-2xl bg-white/6 hover:bg-white/12 active:bg-white/18 border border-white/15 hover:border-yellow-400/40 backdrop-blur-md px-5 sm:px-6 py-4 flex items-center justify-between gap-4 transition-all text-left group active:scale-[0.99] cursor-pointer shadow-lg shadow-black/20"
                 style="touch-action: manipulation;"
                 (click)="openSection(opt.id)"
               >
@@ -258,44 +399,36 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 Operación del Kiosco
               </h2>
               <p class="text-neutral-400 text-sm sm:text-base">
-                Control nativo de la aplicación táctil de escritorio.
+                {{ isNative() ? 'Control de la aplicación táctil de escritorio.' : 'Control de ejecución del sistema y modo pantalla completa.' }}
               </p>
             </div>
 
             <div class="space-y-3.5 pt-2">
               <app-kiosk-button
                 variant="primary"
-                [disabled]="!isNative()"
                 (click)="askConfirm('restart')"
               >
                 <app-hero-icon name="arrow-path" class="text-yellow-400" />
                 Reiniciar aplicación
               </app-kiosk-button>
 
-              <app-kiosk-button
-                variant="secondary"
-                [disabled]="!isNative()"
-                (click)="askConfirm('exit')"
-              >
-                <app-hero-icon name="power" class="text-rose-400" />
-                Cerrar aplicación
-              </app-kiosk-button>
-
-              <app-kiosk-button
-                variant="secondary"
-                [disabled]="!isNative()"
-                (click)="askConfirm('leaveKiosk')"
-              >
-                <app-hero-icon name="arrows-pointing-in" class="text-neutral-300" />
-                Salir del modo kiosco
-              </app-kiosk-button>
-
-              @if (!isNative()) {
-                <div class="p-4 rounded-2xl bg-yellow-500/10 border border-yellow-400/25 text-yellow-200/90 text-sm kiosk:text-base flex items-center gap-3">
-                  <app-hero-icon name="exclamation-triangle" class="shrink-0 text-lg text-yellow-400" />
-                  <span>Estas operaciones requieren ejecución en la app nativa de escritorio (Tauri).</span>
-                </div>
+              @if (isNative()) {
+                <app-kiosk-button
+                  variant="secondary"
+                  (click)="askConfirm('exit')"
+                >
+                  <app-hero-icon name="power" class="text-rose-400" />
+                  Cerrar aplicación
+                </app-kiosk-button>
               }
+
+              <app-kiosk-button
+                variant="secondary"
+                (click)="askConfirm(isKiosk() ? 'leaveKiosk' : 'enterKiosk')"
+              >
+                <app-hero-icon [name]="isKiosk() ? 'arrows-pointing-in' : 'arrows-pointing-out'" class="text-neutral-300" />
+                {{ isKiosk() ? (isNative() ? 'Salir del modo kiosco' : 'Salir de pantalla completa') : (isNative() ? 'Entrar al modo kiosco' : 'Pantalla completa') }}
+              </app-kiosk-button>
 
               @if (opMessage()) {
                 <p class="text-yellow-300 text-sm kiosk:text-base text-center font-medium">{{ opMessage() }}</p>
@@ -323,7 +456,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
               <button
                 type="button"
                 uiSfx="select"
-                class="min-h-18 sm:min-h-20 kiosk:min-h-24 w-full rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] active:bg-white/[0.18] border border-white/15 hover:border-yellow-400/40 backdrop-blur-md px-5 sm:px-6 py-4 flex items-center justify-between gap-4 transition-all text-left group active:scale-[0.99] cursor-pointer shadow-lg"
+                class="min-h-18 sm:min-h-20 kiosk:min-h-24 w-full rounded-2xl bg-white/6 hover:bg-white/12 active:bg-white/18 border border-white/15 hover:border-yellow-400/40 backdrop-blur-md px-5 sm:px-6 py-4 flex items-center justify-between gap-4 transition-all text-left group active:scale-[0.99] cursor-pointer shadow-lg"
                 style="touch-action: manipulation;"
                 (click)="openSettingsGeneral()"
               >
@@ -349,7 +482,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
               <button
                 type="button"
                 uiSfx="select"
-                class="min-h-18 sm:min-h-20 kiosk:min-h-24 w-full rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] active:bg-white/[0.18] border border-white/15 hover:border-yellow-400/40 backdrop-blur-md px-5 sm:px-6 py-4 flex items-center justify-between gap-4 transition-all text-left group active:scale-[0.99] cursor-pointer shadow-lg"
+                class="min-h-18 sm:min-h-20 kiosk:min-h-24 w-full rounded-2xl bg-white/6 hover:bg-white/12 active:bg-white/18 border border-white/15 hover:border-yellow-400/40 backdrop-blur-md px-5 sm:px-6 py-4 flex items-center justify-between gap-4 transition-all text-left group active:scale-[0.99] cursor-pointer shadow-lg"
                 style="touch-action: manipulation;"
                 (click)="openSettingsBrandsGlobal()"
               >
@@ -375,7 +508,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
               <button
                 type="button"
                 uiSfx="select"
-                class="min-h-18 sm:min-h-20 kiosk:min-h-24 w-full rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] active:bg-white/[0.18] border border-white/15 hover:border-yellow-400/40 backdrop-blur-md px-5 sm:px-6 py-4 flex items-center justify-between gap-4 transition-all text-left group active:scale-[0.99] cursor-pointer shadow-lg"
+                class="min-h-18 sm:min-h-20 kiosk:min-h-24 w-full rounded-2xl bg-white/6 hover:bg-white/12 active:bg-white/18 border border-white/15 hover:border-yellow-400/40 backdrop-blur-md px-5 sm:px-6 py-4 flex items-center justify-between gap-4 transition-all text-left group active:scale-[0.99] cursor-pointer shadow-lg"
                 style="touch-action: manipulation;"
                 (click)="openSettingsGame('memory')"
               >
@@ -401,7 +534,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
               <button
                 type="button"
                 uiSfx="select"
-                class="min-h-18 sm:min-h-20 kiosk:min-h-24 w-full rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] active:bg-white/[0.18] border border-white/15 hover:border-yellow-400/40 backdrop-blur-md px-5 sm:px-6 py-4 flex items-center justify-between gap-4 transition-all text-left group active:scale-[0.99] cursor-pointer shadow-lg"
+                class="min-h-18 sm:min-h-20 kiosk:min-h-24 w-full rounded-2xl bg-white/6 hover:bg-white/12 active:bg-white/18 border border-white/15 hover:border-yellow-400/40 backdrop-blur-md px-5 sm:px-6 py-4 flex items-center justify-between gap-4 transition-all text-left group active:scale-[0.99] cursor-pointer shadow-lg"
                 style="touch-action: manipulation;"
                 (click)="openSettingsGame('triqui')"
               >
@@ -428,7 +561,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 <button
                   type="button"
                   uiSfx="select"
-                  class="min-h-16 sm:min-h-18 kiosk:min-h-20 w-full rounded-2xl bg-rose-500/[0.08] hover:bg-rose-500/20 active:bg-rose-500/25 border border-rose-400/30 hover:border-rose-400/50 backdrop-blur-md px-5 sm:px-6 py-3.5 flex items-center justify-between gap-4 transition-all text-left group active:scale-[0.99] cursor-pointer shadow-lg"
+                  class="min-h-16 sm:min-h-18 kiosk:min-h-20 w-full rounded-2xl bg-rose-500/8 hover:bg-rose-500/20 active:bg-rose-500/25 border border-rose-400/30 hover:border-rose-400/50 backdrop-blur-md px-5 sm:px-6 py-3.5 flex items-center justify-between gap-4 transition-all text-left group active:scale-[0.99] cursor-pointer shadow-lg"
                   style="touch-action: manipulation;"
                   (click)="askConfirm('resetDefaults')"
                 >
@@ -438,7 +571,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     </div>
                     <div class="min-w-0">
                       <h3 class="text-sm sm:text-base kiosk:text-lg font-extrabold font-['Montserrat'] uppercase tracking-wide text-rose-200 group-hover:text-rose-100 transition-colors truncate">
-                        Restaurar por defecto
+                        Restablecer todos los ajustes del juego
                       </h3>
                       <p class="text-xs sm:text-sm text-neutral-300/80 truncate">
                         Restablecer marcas, juegos y audio según el catálogo original
@@ -501,7 +634,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     max="100"
                     step="5"
                     [value]="settings.bgmVolume() * 100"
-                    class="w-full h-2.5 rounded-lg bg-white/[0.08] border border-white/15 backdrop-blur-md accent-white cursor-pointer"
+                    class="w-full h-2.5 rounded-lg bg-white/8 border border-white/15 backdrop-blur-md accent-white cursor-pointer"
                     (input)="onBgmVolumeInput($event)"
                     (change)="onBgmVolumeCommit($event)"
                   />
@@ -534,7 +667,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     max="100"
                     step="5"
                     [value]="settings.sfxVolume() * 100"
-                    class="w-full h-2.5 rounded-lg bg-white/[0.08] border border-white/15 backdrop-blur-md accent-white cursor-pointer"
+                    class="w-full h-2.5 rounded-lg bg-white/8 border border-white/15 backdrop-blur-md accent-white cursor-pointer"
                     (input)="onSfxVolumeInput($event)"
                     (change)="onSfxVolumeCommit($event)"
                     (pointerup)="testSfx()"
@@ -558,16 +691,28 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     max="100"
                     step="5"
                     [value]="settings.videoVolume() * 100"
-                    class="w-full h-2.5 rounded-lg bg-white/[0.08] border border-white/15 backdrop-blur-md accent-white cursor-pointer"
+                    class="w-full h-2.5 rounded-lg bg-white/8 border border-white/15 backdrop-blur-md accent-white cursor-pointer"
                     (input)="onVideoVolumeInput($event)"
                     (change)="onVideoVolumeCommit($event)"
                   />
                 </div>
 
-                <div class="p-3 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-neutral-300 flex items-start gap-2">
+                <div class="p-3 rounded-xl bg-white/4 border border-white/10 text-xs text-neutral-300 flex items-start gap-2">
                   <app-hero-icon name="information-circle" class="text-yellow-400 shrink-0 mt-0.5" />
                   <span>BGM controla la música ambiental continua. SFX controla toques táctiles y aciertos. Videos controla el volumen independiente de clips (en silencio si el audio general está desactivado).</span>
                 </div>
+
+                <!-- Botón restablecer valores por defecto de Audio -->
+                <button
+                  type="button"
+                  uiSfx="select"
+                  class="w-full py-3.5 px-4 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 active:bg-rose-500/25 border border-rose-400/30 hover:border-rose-400/50 backdrop-blur-md text-rose-300 hover:text-rose-200 text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.99] shadow-md"
+                  style="touch-action: manipulation;"
+                  (click)="askConfirm('resetAudio')"
+                >
+                  <app-hero-icon name="arrow-path" class="text-base text-rose-400" />
+                  <span>Restablecer valores</span>
+                </button>
               </div>
 
               <!-- Protector de Pantalla -->
@@ -600,7 +745,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       Video
                     </button>
                   </div>
-                  <div class="p-3 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-neutral-300 flex items-start gap-2">
+                  <div class="p-3 rounded-xl bg-white/4 border border-white/10 text-xs text-neutral-300 flex items-start gap-2">
                     <app-hero-icon name="information-circle" class="text-yellow-400 shrink-0 mt-0.5" />
                     <span>{{ screensaverExplanation(settings.screensaverMode()) }}</span>
                   </div>
@@ -669,22 +814,173 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       {{ videoOrderExplanation(settings.screensaverVideoOrder()) }}
                     </p>
                   </div>
-                }
-              </div>
 
-              <!-- Zona Restaurar por Defecto -->
-              <div class="pt-2">
+                  <!-- Lista de Videos de Atracción (Generales y por Marca) -->
+                  <div class="space-y-3 pt-3 border-t border-white/10">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-2">
+                        <app-hero-icon name="video-camera" class="text-base text-yellow-400" />
+                        <p class="text-xs font-bold uppercase tracking-wider text-neutral-300">Videos de atracción</p>
+                      </div>
+                      <span class="text-xs font-mono font-bold px-2.5 py-0.5 rounded-lg bg-yellow-400/10 border border-yellow-400/20 text-yellow-400">
+                        {{ activeVideosCount() }} de {{ totalVideosCount() }} activos
+                      </span>
+                    </div>
+
+                    <p class="text-[11px] text-neutral-400">
+                      Activa o desactiva los clips para el protector de pantalla. Solo los videos activos serán incluidos en la rotación.
+                    </p>
+
+                    <!-- Grupo: Videos Generales -->
+                    <div class="space-y-2 rounded-xl bg-black/30 p-3.5 border border-white/10">
+                      <div class="flex items-center justify-between pb-1.5 border-b border-white/10">
+                        <span class="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
+                          <app-hero-icon name="building-office-2" class="text-xs text-yellow-400" />
+                          <span>Videos Generales</span>
+                        </span>
+                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-neutral-300">
+                          Institucionales
+                        </span>
+                      </div>
+
+                      @if (generalVideos().length === 0) {
+                        <p class="text-xs text-neutral-500 italic py-1">No hay videos generales configurados.</p>
+                      }
+
+                      @for (video of generalVideos(); track video.source) {
+                        <div class="flex items-center justify-between gap-3 py-2 px-2.5 rounded-lg bg-white/4 hover:bg-white/[0.07] border border-white/5 transition-colors group/row">
+                          <button
+                            type="button"
+                            uiSfx="click"
+                            (click)="openVideoPreview(video)"
+                            class="flex items-center gap-2.5 min-w-0 flex-1 text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 rounded-lg p-1 -m-1 transition-all active:scale-[0.99]"
+                            title="Reproducir vista previa del video"
+                            [attr.aria-label]="'Reproducir vista previa de ' + (video.nombre || video.name || 'Video General')"
+                          >
+                            <div class="size-8 rounded-lg bg-yellow-400/15 group-hover/row:bg-yellow-400/25 flex items-center justify-center shrink-0 border border-yellow-400/30 transition-colors">
+                              <app-hero-icon name="play-circle" class="text-base text-yellow-400 group-hover/row:scale-110 transition-transform" />
+                            </div>
+                            <div class="min-w-0 flex-1">
+                              <p class="text-xs font-bold text-white group-hover/row:text-yellow-300 transition-colors truncate">
+                                {{ video.nombre || video.name || 'Video General' }}
+                              </p>
+                              <p class="text-[10px] text-neutral-400 font-mono truncate">{{ video.source }}</p>
+                            </div>
+                          </button>
+
+                          <button
+                            type="button"
+                            uiSfx="select"
+                            class="relative inline-flex h-8 w-14 shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none"
+                            [class]="video.enabled ? 'bg-emerald-500 border-emerald-400' : 'bg-white/15 border-white/30'"
+                            (click)="toggleGeneralVideo(video)"
+                            [attr.aria-label]="(video.enabled ? 'Desactivar video ' : 'Activar video ') + (video.nombre || video.name)"
+                          >
+                            <span
+                              class="pointer-events-none inline-flex items-center justify-center size-6 rounded-full bg-white shadow-md transform transition duration-200 ease-in-out mt-0.5"
+                              [class]="video.enabled ? 'translate-x-6' : 'translate-x-0.5'"
+                            >
+                              <app-hero-icon [name]="video.enabled ? 'check' : 'x-mark'" class="text-xs" [class]="video.enabled ? 'text-emerald-600' : 'text-neutral-400'" />
+                            </span>
+                          </button>
+                        </div>
+                      }
+                    </div>
+
+                    <!-- Grupos: Por Marca -->
+                    @for (brand of catalog.rawManifest().brands; track brand.id) {
+                      @if (getBrandVideos(brand).length > 0) {
+                        <div class="space-y-2 rounded-xl bg-black/30 p-3.5 border border-white/10">
+                          <div class="flex items-center justify-between pb-1.5 border-b border-white/10">
+                            <span class="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
+                              <app-hero-icon name="tag" class="text-xs text-yellow-400" />
+                              <span>{{ cleanText(brand.name) }}</span>
+                            </span>
+                            @if (!brand.enabled) {
+                              <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/20 border border-rose-400/30 text-rose-300">
+                                Marca desactivada en kiosco
+                              </span>
+                            } @else {
+                              <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-neutral-300">
+                                Marca
+                              </span>
+                            }
+                          </div>
+
+                          @for (video of getBrandVideos(brand); track video.source) {
+                            <div class="flex items-center justify-between gap-3 py-2 px-2.5 rounded-lg bg-white/4 hover:bg-white/[0.07] border border-white/5 transition-colors group/row">
+                              <button
+                                type="button"
+                                uiSfx="click"
+                                (click)="openVideoPreview(video, brand)"
+                                class="flex items-center gap-2.5 min-w-0 flex-1 text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 rounded-lg p-1 -m-1 transition-all active:scale-[0.99]"
+                                title="Reproducir vista previa del video"
+                                [attr.aria-label]="'Reproducir vista previa de ' + (video.nombre || video.name || brand.name)"
+                              >
+                                <div class="size-8 rounded-lg bg-yellow-400/15 group-hover/row:bg-yellow-400/25 flex items-center justify-center shrink-0 border border-yellow-400/30 transition-colors">
+                                  <app-hero-icon name="play-circle" class="text-base text-yellow-400 group-hover/row:scale-110 transition-transform" />
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                  <p class="text-xs font-bold text-white group-hover/row:text-yellow-300 transition-colors truncate">
+                                    {{ video.nombre || video.name || brand.name }}
+                                  </p>
+                                  <p class="text-[10px] text-neutral-400 font-mono truncate">{{ video.source }}</p>
+                                </div>
+                              </button>
+
+                              <button
+                                type="button"
+                                uiSfx="select"
+                                class="relative inline-flex h-8 w-14 shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none"
+                                [class]="video.enabled ? 'bg-emerald-500 border-emerald-400' : 'bg-white/15 border-white/30'"
+                                (click)="toggleBrandVideo(brand.id, video)"
+                                [attr.aria-label]="(video.enabled ? 'Desactivar video ' : 'Activar video ') + (video.nombre || video.name)"
+                              >
+                                <span
+                                  class="pointer-events-none inline-flex items-center justify-center size-6 rounded-full bg-white shadow-md transform transition duration-200 ease-in-out mt-0.5"
+                                  [class]="video.enabled ? 'translate-x-6' : 'translate-x-0.5'"
+                                >
+                                  <app-hero-icon [name]="video.enabled ? 'check' : 'x-mark'" class="text-xs" [class]="video.enabled ? 'text-emerald-600' : 'text-neutral-400'" />
+                                </span>
+                              </button>
+                            </div>
+                          }
+                        </div>
+                      }
+                    }
+
+                    @if (activeVideosCount() === 0) {
+                      <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-400/20 text-amber-300 text-xs flex items-start gap-2">
+                        <app-hero-icon name="information-circle" class="text-amber-400 shrink-0 mt-0.5 text-sm" />
+                        <span>No hay videos de atracción habilitados. El protector se mantendrá indefinidamente en animación clásica.</span>
+                      </div>
+                    }
+                  </div>
+                }
+                <!-- Botón restablecer valores por defecto del Protector -->
                 <button
                   type="button"
                   uiSfx="select"
-                  class="w-full py-3.5 px-4 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 active:bg-rose-500/25 border border-rose-400/30 text-rose-300 hover:text-rose-200 text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  class="w-full py-3.5 px-4 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 active:bg-rose-500/25 border border-rose-400/30 hover:border-rose-400/50 backdrop-blur-md text-rose-300 hover:text-rose-200 text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.99] shadow-md"
                   style="touch-action: manipulation;"
-                  (click)="askConfirm('resetDefaults')"
+                  (click)="askConfirm('resetScreensaver')"
                 >
                   <app-hero-icon name="arrow-path" class="text-base text-rose-400" />
-                  <span>Restaurar ajustes por defecto del catálogo</span>
+                  <span>Restablecer valores</span>
                 </button>
               </div>
+
+              <!-- Zona Restaurar Ajustes Generales por Defecto -->
+              <button
+                type="button"
+                uiSfx="select"
+                class="w-full py-3.5 px-4 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 active:bg-rose-500/25 border border-rose-400/30 hover:border-rose-400/50 backdrop-blur-md text-rose-300 hover:text-rose-200 text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.99] shadow-md"
+                style="touch-action: manipulation;"
+                (click)="askConfirm('resetGeneral')"
+              >
+                <app-hero-icon name="arrow-path" class="text-base text-rose-400" />
+                <span>Restablecer ajustes generales</span>
+              </button>
             </div>
           }
 
@@ -750,9 +1046,20 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     </button>
                   </div>
                 }
-              </div>
+              <!-- Zona Restaurar Marcas por Defecto -->
+              <button
+                type="button"
+                uiSfx="select"
+                class="w-full py-3.5 px-4 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 active:bg-rose-500/25 border border-rose-400/30 hover:border-rose-400/50 backdrop-blur-md text-rose-300 hover:text-rose-200 text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.99] shadow-md"
+                style="touch-action: manipulation;"
+                (click)="askConfirm('resetBrands')"
+              >
+                <app-hero-icon name="arrow-path" class="text-base text-rose-400" />
+                <span>Restablecer valores de marcas por defecto</span>
+              </button>
             </div>
-          }
+          </div>
+        }
 
           <!-- Nivel 2.2: Selección de Marca para el juego seleccionado -->
           @if (settingsView() === 'brands' && selectedGame(); as gameId) {
@@ -773,7 +1080,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                   <button
                     type="button"
                     uiSfx="select"
-                    class="min-h-16 sm:min-h-18 w-full rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] active:bg-white/[0.18] border border-white/15 hover:border-yellow-400/40 backdrop-blur-md px-5 py-3.5 flex items-center justify-between gap-4 transition-all text-left group active:scale-[0.99] cursor-pointer"
+                    class="min-h-16 sm:min-h-18 w-full rounded-2xl bg-white/6 hover:bg-white/12 active:bg-white/18 border border-white/15 hover:border-yellow-400/40 backdrop-blur-md px-5 py-3.5 flex items-center justify-between gap-4 transition-all text-left group active:scale-[0.99] cursor-pointer"
                     style="touch-action: manipulation;"
                     (click)="openSettingsExperience(brand)"
                   >
@@ -843,12 +1150,19 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     </p>
                   </div>
 
-                  <!-- Control Global de la Marca -->
-                  <div class="p-4 sm:p-5 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-md flex items-center justify-between gap-4">
-                    <div class="min-w-0">
+                  <!-- Estado Informativo Global de la Marca (Navega a Marcas del Kiosco) -->
+                  <button
+                    type="button"
+                    uiSfx="select"
+                    class="w-full text-left p-4 sm:p-5 rounded-2xl bg-white/4 hover:bg-white/8 active:bg-white/12 border border-white/10 hover:border-white/20 transition-all flex items-center justify-between gap-4 cursor-pointer select-none group"
+                    style="touch-action: manipulation;"
+                    (click)="openSettingsBrandsGlobal()"
+                    [attr.aria-label]="'Marca ' + cleanText(brand.name) + ' ' + (isBrandEnabled(brand.id) ? 'activa' : 'desactivada') + ' a nivel global. Tocar para ir a Marcas del Kiosco'"
+                  >
+                    <div class="min-w-0 flex-1">
                       <div class="flex items-center gap-2">
                         <app-hero-icon name="swatch" class="text-sm text-yellow-400" />
-                        <span class="font-extrabold uppercase tracking-wider text-xs sm:text-sm text-neutral-200">
+                        <span class="font-extrabold uppercase tracking-wider text-xs sm:text-sm text-neutral-200 group-hover:text-white transition-colors">
                           Marca en el Kiosco (Global)
                         </span>
                         <span
@@ -859,27 +1173,14 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                         </span>
                       </div>
                       <p class="text-xs text-neutral-400 mt-1">
-                        {{ isBrandEnabled(brand.id) ? 'Visible en el selector de marcas inicial del paciente.' : 'Marca oculta en todo el kiosco.' }}
+                        {{ isBrandEnabled(brand.id) ? 'Visible en el selector inicial del paciente.' : 'Marca oculta en todo el kiosco.' }}
                       </p>
                     </div>
 
-                    <button
-                      type="button"
-                      uiSfx="select"
-                      class="relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none"
-                      [class]="isBrandEnabled(brand.id) ? 'bg-emerald-500 border-emerald-400' : 'bg-white/15 border-white/30'"
-                      (click)="toggleBrandById(brand.id)"
-                      [attr.aria-label]="isBrandEnabled(brand.id) ? 'Desactivar marca a nivel global' : 'Activar marca a nivel global'"
-                    >
-                      <span
-                        class="pointer-events-none inline-flex items-center justify-center size-5 rounded-full bg-white shadow-md transform transition duration-200 ease-in-out mt-0.5"
-                        [class]="isBrandEnabled(brand.id) ? 'translate-x-5' : 'translate-x-0.5'"
-                      >
-                        <app-hero-icon [name]="isBrandEnabled(brand.id) ? 'check' : 'x-mark'" class="text-[10px]" [class]="isBrandEnabled(brand.id) ? 'text-emerald-600' : 'text-neutral-400'" />
-                      </span>
-                    </button>
-                  </div>
-
+                    <div class="size-8 rounded-full bg-white/5 group-hover:bg-yellow-400/20 border border-white/10 group-hover:border-yellow-400/30 flex items-center justify-center text-neutral-400 group-hover:text-yellow-300 transition-all shrink-0">
+                      <app-hero-icon name="chevron-right" class="text-sm" />
+                    </div>
+                  </button>
                   <!-- Primera Opción: Switch de juego activo / desactivado para esa marca -->
                   <div class="p-5 sm:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl flex items-center justify-between gap-4">
                     <div class="min-w-0">
@@ -941,7 +1242,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       </div>
 
                       <!-- Control 1: Cantidad de parejas con stepper [-] N [+] -->
-                      <div class="p-4 rounded-xl bg-white/[0.03] border border-white/10 space-y-2">
+                      <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
                         <div class="flex items-center justify-between">
                           <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">
                             Cantidad de parejas
@@ -986,7 +1287,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       </div>
 
                       <!-- Control 2: Presets de Dificultad -->
-                      <div class="p-4 rounded-xl bg-white/[0.03] border border-white/10 space-y-2">
+                      <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
                         <div class="flex items-center justify-between">
                           <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">
                             Dificultad
@@ -1035,7 +1336,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       </div>
 
                       <!-- Control 3: Vidas / errores permitidos con stepper [-] N [+] -->
-                      <div class="p-4 rounded-xl bg-white/[0.03] border border-white/10 space-y-2">
+                      <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
                         <div class="flex items-center justify-between">
                           <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">
                             Vidas / errores permitidos
@@ -1082,7 +1383,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       </div>
 
                       <!-- Explicación contextual -->
-                      <div class="p-3.5 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-neutral-300 flex items-start gap-2.5">
+                      <div class="p-3.5 rounded-xl bg-white/4 border border-white/10 text-xs text-neutral-300 flex items-start gap-2.5">
                         <app-hero-icon name="information-circle" class="text-yellow-400 shrink-0 mt-0.5 text-base" />
                         <span>{{ memoryConfigExplanation(memConfig, memConfig.isCustomOverride) }}</span>
                       </div>
@@ -1091,114 +1392,198 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
 
                   <!-- Ajustes específicos de Triqui -->
                   @if (gameId === 'triqui') {
-                    <!-- Triqui · Dificultad -->
                     @let defaultDiff = getDefaultTriquiDifficulty(exp);
                     @let currentDiff = settings.getExperienceTriquiDifficulty(exp.id);
-                    <div class="space-y-3 p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
-                      <div class="flex items-center gap-2">
-                        <app-hero-icon name="chart-bar" class="text-sm text-yellow-400" />
-                        <p class="font-bold uppercase tracking-wider text-sm kiosk:text-base text-white">
-                          Dificultad
-                        </p>
-                      </div>
-
-                      <div class="grid grid-cols-2 gap-3">
-                        <!-- Opción por defecto -->
-                        <button
-                          type="button"
-                          uiSfx="select"
-                          [class]="chipClass(currentDiff === null)"
-                          style="touch-action: manipulation;"
-                          (click)="changeExperienceTriquiDifficulty(exp.id, null, brand.name, defaultDiff)"
-                        >
-                          <div class="flex flex-col items-center justify-center gap-1 py-0.5">
-                            <span class="text-xs sm:text-sm uppercase font-bold">Opción por defecto</span>
-                            <span class="text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-yellow-300">
-                              {{ difficultyLabel(defaultDiff) }}
-                            </span>
-                          </div>
-                        </button>
-
-                        @for (opt of triquiDifficultyOptions; track opt.value) {
-                          @let isDefaultVal = opt.value === defaultDiff;
-                          <button
-                            type="button"
-                            uiSfx="select"
-                            [disabled]="isDefaultVal"
-                            [class]="isDefaultVal ? chipDisabledClass() : chipClass(currentDiff === opt.value)"
-                            style="touch-action: manipulation;"
-                            (click)="changeExperienceTriquiDifficulty(exp.id, opt.value, brand.name, defaultDiff)"
-                          >
-                            <div class="flex flex-col items-center justify-center gap-0.5 py-0.5">
-                              <span>{{ opt.label }}</span>
-                              @if (isDefaultVal) {
-                                <span class="text-[9px] uppercase tracking-wider text-neutral-400 font-semibold">(Por defecto)</span>
-                              }
-                            </div>
-                          </button>
-                        }
-                      </div>
-
-                      <div class="p-3 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-neutral-300 flex items-start gap-2">
-                        <app-hero-icon name="information-circle" class="text-yellow-400 shrink-0 mt-0.5" />
-                        <span>{{ triquiDifficultyExplanation(currentDiff, defaultDiff) }}</span>
-                      </div>
-                    </div>
-
-                    <!-- Triqui · Quién empieza -->
                     @let defaultFirst = getDefaultTriquiFirstPlayer(exp);
                     @let currentFirst = settings.getExperienceTriquiFirstPlayer(exp.id);
-                    <div class="space-y-3 p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
-                      <div class="flex items-center gap-2">
-                        <app-hero-icon name="user" class="text-sm text-yellow-400" />
-                        <p class="font-bold uppercase tracking-wider text-sm kiosk:text-base text-white">
-                          Quién empieza
-                        </p>
-                      </div>
+                    @let defaultSymbol = getDefaultTriquiPlayerSymbol(exp);
+                    @let currentSymbol = settings.getExperienceTriquiPlayerSymbol(exp.id);
+                    @let isTriquiCustom = currentDiff !== null || currentFirst !== null || currentSymbol !== null;
 
-                      <div class="grid grid-cols-2 gap-3">
-                        <!-- Opción por defecto -->
-                        <button
-                          type="button"
-                          uiSfx="select"
-                          [class]="chipClass(currentFirst === null)"
-                          style="touch-action: manipulation;"
-                          (click)="changeExperienceTriquiFirstPlayer(exp.id, null, brand.name, defaultFirst)"
-                        >
-                          <div class="flex flex-col items-center justify-center gap-1 py-0.5">
-                            <span class="text-xs sm:text-sm uppercase font-bold">Opción por defecto</span>
-                            <span class="text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-yellow-300">
-                              {{ firstPlayerLabel(defaultFirst) }}
-                            </span>
-                          </div>
-                        </button>
-
-                        @for (opt of triquiFirstOptions; track opt.value) {
-                          @let isDefaultVal = opt.value === defaultFirst;
+                    <div class="space-y-4 p-5 sm:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl">
+                      <!-- Encabezado unificado de Configuración de Partida -->
+                      <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-2">
+                          <app-hero-icon name="squares-2x2" class="text-lg text-yellow-400" />
+                          <h3 class="font-extrabold uppercase tracking-wide text-sm kiosk:text-base text-white">
+                            Configuración de partida
+                          </h3>
+                        </div>
+                        @if (isTriquiCustom) {
                           <button
                             type="button"
                             uiSfx="select"
-                            [disabled]="isDefaultVal"
-                            [class]="isDefaultVal ? chipDisabledClass() : chipClass(currentFirst === opt.value)"
-                            style="touch-action: manipulation;"
-                            (click)="changeExperienceTriquiFirstPlayer(exp.id, opt.value, brand.name, defaultFirst)"
+                            class="text-xs font-bold text-neutral-400 hover:text-yellow-400 underline transition-colors cursor-pointer"
+                            (click)="resetExperienceTriquiToDefault(exp.id, brand.name)"
                           >
-                            <div class="flex flex-col items-center justify-center gap-0.5 py-0.5">
-                              <span>{{ opt.label }}</span>
-                              @if (isDefaultVal) {
-                                <span class="text-[9px] uppercase tracking-wider text-neutral-400 font-semibold">(Por defecto)</span>
-                              }
-                            </div>
+                            Restaurar catálogo
                           </button>
                         }
                       </div>
 
-                      <div class="p-3 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-neutral-300 flex items-start gap-2">
-                        <app-hero-icon name="information-circle" class="text-yellow-400 shrink-0 mt-0.5" />
-                        <span>{{ triquiFirstPlayerExplanation(currentFirst, defaultFirst) }}</span>
+                      <!-- Control 1: Dificultad (3 columnas como en Memoria) -->
+                      <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
+                        <div class="flex items-center justify-between">
+                          <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">
+                            Dificultad
+                          </span>
+                          @if (currentDiff !== null) {
+                            <span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40">
+                              Ajuste Kiosco
+                            </span>
+                          }
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-2.5 pt-1">
+                          @for (opt of triquiDifficultyOptions; track opt.value) {
+                            @let isDefaultVal = opt.value === defaultDiff;
+                            @let isActive = (currentDiff ?? defaultDiff) === opt.value;
+                            <button
+                              type="button"
+                              uiSfx="select"
+                              [class]="chipClass(isActive)"
+                              style="touch-action: manipulation;"
+                              (click)="changeExperienceTriquiDifficulty(exp.id, opt.value === defaultDiff ? null : opt.value, brand.name, defaultDiff)"
+                            >
+                              <div class="flex flex-col items-center justify-center py-0.5">
+                                <span class="text-xs sm:text-sm font-extrabold uppercase">{{ opt.label }}</span>
+                                @if (isDefaultVal) {
+                                  <span class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold">Catálogo</span>
+                                }
+                              </div>
+                            </button>
+                          }
+                        </div>
+                      </div>
+
+                      <!-- Control 2: Quién empieza (3 columnas como en Memoria) -->
+                      <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
+                        <div class="flex items-center justify-between">
+                          <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">
+                            Quién empieza
+                          </span>
+                          @if (currentFirst !== null) {
+                            <span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40">
+                              Ajuste Kiosco
+                            </span>
+                          }
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-2.5 pt-1">
+                          @for (opt of triquiFirstOptions; track opt.value) {
+                            @let isDefaultVal = opt.value === defaultFirst;
+                            @let isActive = (currentFirst ?? defaultFirst) === opt.value;
+                            <button
+                              type="button"
+                              uiSfx="select"
+                              [class]="chipClass(isActive)"
+                              style="touch-action: manipulation;"
+                              (click)="changeExperienceTriquiFirstPlayer(exp.id, opt.value === defaultFirst ? null : opt.value, brand.name, defaultFirst)"
+                            >
+                              <div class="flex flex-col items-center justify-center py-0.5">
+                                <span class="text-xs sm:text-sm font-extrabold uppercase">{{ opt.label }}</span>
+                                @if (isDefaultVal) {
+                                  <span class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold">Catálogo</span>
+                                }
+                              </div>
+                            </button>
+                          }
+                        </div>
+                      </div>
+
+                      <!-- Control 3: Figura del Jugador (X u O) -->
+                      <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
+                        <div class="flex items-center justify-between">
+                          <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">
+                            Figura del Jugador
+                          </span>
+                          @if (currentSymbol !== null) {
+                            <span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40">
+                              Ajuste Kiosco
+                            </span>
+                          }
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-2.5 pt-1">
+                          @for (opt of triquiSymbolOptions; track opt.value) {
+                            @let isDefaultVal = opt.value === defaultSymbol;
+                            @let isActive = (currentSymbol ?? defaultSymbol) === opt.value;
+                            @let markAsset = getExperienceMarkAsset(exp, opt.value);
+                            <button
+                              type="button"
+                              uiSfx="select"
+                              [class]="chipClass(isActive)"
+                              style="touch-action: manipulation;"
+                              (click)="changeExperienceTriquiPlayerSymbol(exp.id, opt.value === defaultSymbol ? null : opt.value, brand.name, defaultSymbol)"
+                            >
+                              <div class="flex flex-col items-center justify-center py-0.5 gap-0.5">
+                                @if (opt.value === 'random') {
+                                  <svg xmlns="http://www.w3.org/2000/svg" class="size-6 sm:size-7 drop-shadow text-amber-300" fill="currentColor" viewBox="0 0 16 16">
+                                    <path fill-rule="evenodd" d="M0 3.5A.5.5 0 0 1 .5 3H1c2.202 0 3.827 1.24 4.874 2.418.49.552.865 1.102 1.126 1.532.26-.43.636-.98 1.126-1.532C9.173 4.24 10.798 3 13 3v1c-1.798 0-3.173 1.01-4.126 2.082A9.6 9.6 0 0 0 7.556 8a9.6 9.6 0 0 0 1.317 1.918C9.828 10.99 11.204 12 13 12v1c-2.202 0-3.827-1.24-4.874-2.418A10.6 10.6 0 0 1 7 9.05c-.26.43-.636.98-1.126 1.532C4.827 11.76 3.202 13 1 13H.5a.5.5 0 0 1 0-1H1c1.798 0 3.173-1.01 4.126-2.082A9.6 9.6 0 0 0 6.444 8a9.6 9.6 0 0 0-1.317-1.918C4.172 5.01 2.796 4 1 4H.5a.5.5 0 0 1-.5-.5"/>
+                                    <path d="M13 5.466V1.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384l-2.36 1.966a.25.25 0 0 1-.41-.192m0 9v-3.932a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384l-2.36 1.966a.25.25 0 0 1-.41-.192"/>
+                                  </svg>
+                                  <span class="text-[10px] font-bold uppercase tracking-wider text-neutral-200">Aleatorio</span>
+                                } @else if (markAsset) {
+                                  <img [src]="markAsset" [alt]="opt.value" class="size-6 sm:size-7 object-contain drop-shadow" />
+                                  <span class="text-[10px] font-bold uppercase tracking-wider text-neutral-200">{{ opt.value === 'X' ? 'Cruz' : 'Círculo' }}</span>
+                                } @else {
+                                  <span class="text-base sm:text-lg font-black" [class]="opt.value === 'X' ? 'text-cyan-400' : 'text-amber-200'">{{ opt.value }}</span>
+                                  <span class="text-[10px] font-bold uppercase tracking-wider text-neutral-200">{{ opt.value === 'X' ? 'Cruz' : 'Círculo' }}</span>
+                                }
+                                @if (isDefaultVal) {
+                                  <span class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold">Catálogo</span>
+                                }
+                              </div>
+                            </button>
+                          }
+                        </div>
+                      </div>
+
+                      <!-- Explicación contextual -->
+                      <div class="p-3.5 rounded-xl bg-white/4 border border-white/10 text-xs text-neutral-300 flex items-start gap-2.5">
+                        <app-hero-icon name="information-circle" class="text-yellow-400 shrink-0 mt-0.5 text-base" />
+                        <div class="space-y-1">
+                          <p><strong>Dificultad:</strong> {{ triquiDifficultyExplanation(currentDiff, defaultDiff) }}</p>
+                          <p><strong>Primer Turno:</strong> {{ triquiFirstPlayerExplanation(currentFirst, defaultFirst) }}</p>
+                          <p class="leading-normal">
+                            <strong>Figura:</strong>
+                            @let activePlayerSym = currentSymbol ?? defaultSymbol;
+                            @if (activePlayerSym === 'random') {
+                              <span>Sorteo aleatorio por ronda (50% ✕, 50% ○). La inteligencia artificial jugará con la figura contraria en cada ronda.</span>
+                            } @else {
+                              El jugador utiliza la marca
+                              @let activeAiSym = activePlayerSym === 'X' ? 'O' : 'X';
+                              @let playerAsset = getExperienceMarkAsset(exp, activePlayerSym);
+                              @if (playerAsset) {
+                                <img [src]="playerAsset" alt="Jugador" class="inline-block size-4.5 object-contain align-middle mx-0.5 drop-shadow" />
+                              } @else {
+                                <strong [class]="activePlayerSym === 'X' ? 'text-cyan-400' : 'text-amber-200'">{{ activePlayerSym === 'X' ? '✕' : '○' }}</strong>
+                              }
+                              y la inteligencia artificial juega con la marca
+                              @let aiAsset = getExperienceMarkAsset(exp, activeAiSym);
+                              @if (aiAsset) {
+                                <img [src]="aiAsset" alt="IA" class="inline-block size-4.5 object-contain align-middle mx-0.5 drop-shadow" />
+                              } @else {
+                                <strong [class]="activeAiSym === 'X' ? 'text-cyan-400' : 'text-amber-200'">{{ activeAiSym === 'X' ? '✕' : '○' }}</strong>
+                              }.
+                            }
+                          </p>
+                        </div>
                       </div>
                     </div>
                   }
+
+                  <!-- Botón al final para restablecer valores de juego por defecto -->
+                  <button
+                    type="button"
+                    uiSfx="select"
+                    class="w-full py-3.5 px-4 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 active:bg-rose-500/25 border border-rose-400/30 hover:border-rose-400/50 backdrop-blur-md text-rose-300 hover:text-rose-200 text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.99] shadow-md"
+                    style="touch-action: manipulation;"
+                    (click)="askConfirmResetExperience(exp, brand.name)"
+                  >
+                    <app-hero-icon name="arrow-path" class="text-base text-rose-400" />
+                    <span>Restablecer valores de juego por defecto</span>
+                  </button>
                 </div>
               }
             }
@@ -1387,8 +1772,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
             <!-- Tres Inputs Verticales -->
             <div class="flex flex-col gap-3.5">
               <!-- Campo 1: PIN anterior -->
-              <button
-                type="button"
+              <div
                 class="w-full text-left p-4 rounded-2xl border transition-all cursor-pointer shadow-lg select-none"
                 [class]="pinFieldClass('current')"
                 (click)="pinField.set('current')"
@@ -1402,20 +1786,30 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     <app-hero-icon name="lock-closed" class="text-sm" />
                     <span>1. Ingrese su PIN anterior</span>
                   </span>
-                  @if (pinField() === 'current') {
-                    <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-yellow-400/20 text-yellow-400 border border-yellow-400/30">
-                      Editando
-                    </span>
-                  }
+                  <div class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      uiSfx="click"
+                      class="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
+                      [attr.aria-label]="showPinDigits().current ? 'Ocultar PIN' : 'Ver PIN'"
+                      (click)="togglePinVisibility('current', $event)"
+                    >
+                      <app-hero-icon [name]="showPinDigits().current ? 'eye-slash' : 'eye'" class="text-base" />
+                    </button>
+                    @if (pinField() === 'current') {
+                      <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-yellow-400/20 text-yellow-400 border border-yellow-400/30">
+                        Editando
+                      </span>
+                    }
+                  </div>
                 </div>
-                <div class="mt-2 text-2xl font-mono tracking-[0.4em] text-white">
-                  {{ pinDots(pinModel().current) }}
+                <div class="mt-2 text-2xl font-mono tracking-[0.4em] text-white overflow-hidden text-ellipsis whitespace-nowrap">
+                  {{ formatPinDisplay('current') }}
                 </div>
-              </button>
+              </div>
 
               <!-- Campo 2: Nuevo PIN -->
-              <button
-                type="button"
+              <div
                 class="w-full text-left p-4 rounded-2xl border transition-all cursor-pointer shadow-lg select-none"
                 [class]="pinFieldClass('next')"
                 (click)="pinField.set('next')"
@@ -1427,22 +1821,32 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     [class.text-neutral-400]="pinField() !== 'next'"
                   >
                     <app-hero-icon name="key" class="text-sm" />
-                    <span>2. Ingrese su nuevo PIN (mín. 4 dígitos)</span>
+                    <span>2. Ingrese su nuevo PIN (4 a 10 dígitos)</span>
                   </span>
-                  @if (pinField() === 'next') {
-                    <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-yellow-400/20 text-yellow-400 border border-yellow-400/30">
-                      Editando
-                    </span>
-                  }
+                  <div class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      uiSfx="click"
+                      class="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
+                      [attr.aria-label]="showPinDigits().next ? 'Ocultar PIN' : 'Ver PIN'"
+                      (click)="togglePinVisibility('next', $event)"
+                    >
+                      <app-hero-icon [name]="showPinDigits().next ? 'eye-slash' : 'eye'" class="text-base" />
+                    </button>
+                    @if (pinField() === 'next') {
+                      <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-yellow-400/20 text-yellow-400 border border-yellow-400/30">
+                        Editando
+                      </span>
+                    }
+                  </div>
                 </div>
-                <div class="mt-2 text-2xl font-mono tracking-[0.4em] text-white">
-                  {{ pinDots(pinModel().next) }}
+                <div class="mt-2 text-2xl font-mono tracking-[0.4em] text-white overflow-hidden text-ellipsis whitespace-nowrap">
+                  {{ formatPinDisplay('next') }}
                 </div>
-              </button>
+              </div>
 
               <!-- Campo 3: Repetir nuevo PIN -->
-              <button
-                type="button"
+              <div
                 class="w-full text-left p-4 rounded-2xl border transition-all cursor-pointer shadow-lg select-none"
                 [class]="pinFieldClass('confirm')"
                 (click)="pinField.set('confirm')"
@@ -1456,16 +1860,46 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     <app-hero-icon name="shield-check" class="text-sm" />
                     <span>3. Repita su nuevo PIN</span>
                   </span>
-                  @if (pinField() === 'confirm') {
-                    <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-yellow-400/20 text-yellow-400 border border-yellow-400/30">
-                      Editando
-                    </span>
-                  }
+                  <div class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      uiSfx="click"
+                      class="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
+                      [attr.aria-label]="showPinDigits().confirm ? 'Ocultar PIN' : 'Ver PIN'"
+                      (click)="togglePinVisibility('confirm', $event)"
+                    >
+                      <app-hero-icon [name]="showPinDigits().confirm ? 'eye-slash' : 'eye'" class="text-base" />
+                    </button>
+                    @if (pinField() === 'confirm') {
+                      <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-yellow-400/20 text-yellow-400 border border-yellow-400/30">
+                        Editando
+                      </span>
+                    }
+                  </div>
                 </div>
-                <div class="mt-2 text-2xl font-mono tracking-[0.4em] text-white">
-                  {{ pinDots(pinModel().confirm) }}
+                <div class="mt-2 text-2xl font-mono tracking-[0.4em] text-white overflow-hidden text-ellipsis whitespace-nowrap">
+                  {{ formatPinDisplay('confirm') }}
                 </div>
-              </button>
+              </div>
+
+              <!-- Campo 4: Frase de recordación (opcional) -->
+              <div class="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2 select-none">
+                <label for="pin-hint-input" class="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-2 cursor-pointer">
+                  <app-hero-icon name="light-bulb" class="text-sm text-yellow-400" />
+                  <span>4. Frase de recordación (opcional)</span>
+                </label>
+                <input
+                  id="pin-hint-input"
+                  type="text"
+                  class="w-full px-4 py-3 rounded-xl bg-black/30 border border-white/15 text-white text-sm sm:text-base placeholder-neutral-500 focus:outline-none focus:border-yellow-400/60 transition-all"
+                  placeholder="Ej: Código interno de la sede Norte"
+                  [value]="pinModel().hint"
+                  (input)="updatePinHint($event)"
+                />
+                <p class="text-[11px] text-neutral-400">
+                  Esta frase se mostrará en la pantalla de ingreso si olvidas tu PIN.
+                </p>
+              </div>
             </div>
 
             <!-- Teclado Numérico Táctil -->
@@ -1474,7 +1908,10 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 <button
                   type="button"
                   uiSfx="click"
-                  class="min-h-14 sm:min-h-16 rounded-2xl bg-white/8 hover:bg-white/15 border border-white/15 text-xl font-bold active:scale-95 transition-all text-white"
+                  [disabled]="isPinFieldFull()"
+                  [class.opacity-40]="isPinFieldFull()"
+                  [class.cursor-not-allowed]="isPinFieldFull()"
+                  class="min-h-14 sm:min-h-16 rounded-2xl bg-white/8 hover:bg-white/15 border border-white/15 text-xl font-bold active:scale-95 transition-all text-white disabled:pointer-events-none"
                   style="touch-action: manipulation;"
                   (click)="appendPinDigit(key)"
                 >
@@ -1494,7 +1931,10 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
               <button
                 type="button"
                 uiSfx="click"
-                class="min-h-14 sm:min-h-16 rounded-2xl bg-white/8 hover:bg-white/15 border border-white/15 text-xl font-bold active:scale-95 transition-all text-white"
+                [disabled]="isPinFieldFull()"
+                [class.opacity-40]="isPinFieldFull()"
+                [class.cursor-not-allowed]="isPinFieldFull()"
+                class="min-h-14 sm:min-h-16 rounded-2xl bg-white/8 hover:bg-white/15 border border-white/15 text-xl font-bold active:scale-95 transition-all text-white disabled:pointer-events-none"
                 style="touch-action: manipulation;"
                 (click)="appendPinDigit('0')"
               >
@@ -1503,11 +1943,15 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
               <button
                 type="button"
                 uiSfx="click"
-                class="min-h-14 sm:min-h-16 rounded-2xl bg-yellow-400/25 hover:bg-yellow-400/35 border border-yellow-400/50 text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-yellow-300 active:scale-95 transition-all flex flex-col items-center justify-center gap-1 text-center"
+                [disabled]="!canSavePin()"
+                [class]="canSavePin()
+                  ? 'bg-yellow-400/25 hover:bg-yellow-400/35 border-yellow-400/50 text-yellow-300 active:scale-95 cursor-pointer'
+                  : 'bg-white/5 border-white/10 text-neutral-500 opacity-40 cursor-not-allowed pointer-events-none'"
+                class="min-h-14 sm:min-h-16 rounded-2xl border text-[10px] sm:text-xs font-extrabold uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 text-center"
                 style="touch-action: manipulation;"
                 (click)="requestPinChange()"
               >
-                <app-hero-icon name="check" class="text-xl text-yellow-300" />
+                <app-hero-icon name="check" class="text-xl" [class]="canSavePin() ? 'text-yellow-300' : 'text-neutral-500'" />
                 <span>Guardar</span>
               </button>
             </div>
@@ -1536,10 +1980,107 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
       <app-admin-confirm
         [title]="confirmTitle(kind)"
         [message]="confirmMessage(kind)"
-        [confirmLabel]="kind === 'applyUpdate' ? 'Instalar' : kind === 'changePin' ? 'Confirmar y cambiar' : kind === 'resetDefaults' ? 'Restaurar' : 'Confirmar'"
+        [confirmLabel]="kind === 'applyUpdate' ? 'Instalar' : kind === 'changePin' ? 'Confirmar y cambiar' : (kind === 'resetDefaults' || kind === 'resetAudio' || kind === 'resetScreensaver' || kind === 'resetGeneral' || kind === 'resetBrands' || kind === 'resetExperience') ? 'Restaurar' : kind === 'restart' ? 'Reiniciar' : kind === 'exit' ? 'Cerrar' : kind === 'enterKiosk' ? 'Activar' : kind === 'leaveKiosk' ? 'Salir' : 'Confirmar'"
         (confirmed)="onConfirm()"
         (cancelled)="confirmKind.set(null)"
       />
+    }
+
+    @if (previewVideo(); as preview) {
+      <div
+        class="fixed inset-0 z-70 flex items-center justify-center p-4 sm:p-6"
+        style="background: rgba(3, 7, 18, 0.78); backdrop-filter: blur(16px);"
+        role="dialog"
+        aria-modal="true"
+        [attr.aria-label]="'Vista previa: ' + (preview.video.nombre || preview.video.name || 'Video')"
+        (click)="closeVideoPreview()"
+      >
+        <div
+          class="relative w-full max-w-2xl bg-neutral-900/95 border border-white/20 rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col gap-4 text-white select-none"
+          (click)="$event.stopPropagation()"
+        >
+          <!-- Header del Modal -->
+          <div class="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="size-10 rounded-2xl bg-yellow-400/15 flex items-center justify-center text-yellow-400 shrink-0 border border-yellow-400/30">
+                <app-hero-icon name="play-circle" class="text-2xl text-yellow-400" />
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base sm:text-lg font-extrabold text-white truncate font-['Montserrat']">
+                  {{ preview.video.nombre || preview.video.name || 'Vista previa de video' }}
+                </h3>
+                <p class="text-xs text-neutral-400 font-mono truncate">
+                  {{ preview.brandName ? 'Marca: ' + preview.brandName + ' · ' : 'Institucional · ' }}{{ preview.video.source }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Botón Cerrar X -->
+            <button
+              type="button"
+              uiSfx="click"
+              (click)="closeVideoPreview()"
+              class="size-10 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-neutral-300 hover:text-white transition-all shrink-0 cursor-pointer"
+              aria-label="Cerrar vista previa"
+            >
+              <app-hero-icon name="x-mark" class="text-xl" />
+            </button>
+          </div>
+
+          <!-- Video Player -->
+          <div class="relative w-full aspect-video rounded-2xl overflow-hidden bg-black flex items-center justify-center border border-white/10 shadow-inner">
+            <video
+              [src]="preview.video.source"
+              controls
+              autoplay
+              playsinline
+              class="w-full h-full object-contain"
+            >
+              Tu navegador no soporta la reproducción de video HTML5.
+            </video>
+          </div>
+
+          <!-- Footer con Estado y Acciones para tomar decisión -->
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1 border-t border-white/10">
+            <div class="flex items-center gap-2.5 self-start sm:self-center">
+              <span class="text-xs text-neutral-300 font-medium">Estado en protector:</span>
+              @if (isPreviewVideoEnabled()) {
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  <app-hero-icon name="check" class="text-xs" />
+                  Habilitado
+                </span>
+              } @else {
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                  <app-hero-icon name="x-mark" class="text-xs" />
+                  Deshabilitado
+                </span>
+              }
+            </div>
+
+            <div class="flex items-center gap-2.5 w-full sm:w-auto">
+              <button
+                type="button"
+                uiSfx="select"
+                (click)="togglePreviewVideo()"
+                class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                [class]="isPreviewVideoEnabled() ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/40' : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-500/40'"
+              >
+                <app-hero-icon [name]="isPreviewVideoEnabled() ? 'x-mark' : 'check'" class="text-sm" />
+                <span>{{ isPreviewVideoEnabled() ? 'Deshabilitar video' : 'Habilitar video' }}</span>
+              </button>
+
+              <button
+                type="button"
+                uiSfx="click"
+                (click)="closeVideoPreview()"
+                class="flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-xs font-bold bg-white/15 hover:bg-white/25 text-white transition-all active:scale-95 border border-white/10 cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     }
   `,
 })
@@ -1563,6 +2104,7 @@ export class AdminPanel {
   protected readonly memoryPairOptions = MEMORY_PAIR_OPTIONS;
   protected readonly triquiDifficultyOptions = TRIQUI_DIFFICULTY_OPTIONS;
   protected readonly triquiFirstOptions = TRIQUI_FIRST_OPTIONS;
+  protected readonly triquiSymbolOptions = TRIQUI_SYMBOL_OPTIONS;
   protected readonly pinKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const;
 
   protected readonly snapshot = this.updates.snapshot;
@@ -1573,9 +2115,23 @@ export class AdminPanel {
   protected readonly pinError = signal(false);
   protected readonly viewport = signal({ width: 0, height: 0 });
 
-  protected readonly pinModel = signal({ current: '', next: '', confirm: '' });
+  protected readonly pinModel = signal<{ current: string; next: string; confirm: string; hint?: string }>({ current: '', next: '', confirm: '', hint: '' });
+  protected readonly showPinDigits = signal<Record<PinField, boolean>>({ current: false, next: false, confirm: false });
+
+  protected readonly isPinFieldFull = computed(() => {
+    const field = this.pinField();
+    const current = this.pinModel();
+    const val = current[field] ?? '';
+    return val.length >= 10;
+  });
+
+  protected readonly canSavePin = computed(() => {
+    const { current, next, confirm } = this.pinModel();
+    return (current?.length ?? 0) >= 4 && (next?.length ?? 0) >= 4 && (confirm?.length ?? 0) >= 4;
+  });
 
   protected readonly isNative = computed(() => this.platform.isNative);
+  protected readonly isKiosk = computed(() => this.platform.isKiosk());
   protected readonly updateBusy = computed(() => {
     const status = this.snapshot().status;
     return status === 'checking' || status === 'downloading' || status === 'installing';
@@ -1585,11 +2141,20 @@ export class AdminPanel {
   );
 
   // ─── Toast Reactivo ──────────────────────────────────────────────────────────
-  protected readonly toast = signal<{ title: string; message: string } | null>(null);
+  protected readonly toast = signal<{ title: string; message: string; exiting?: boolean } | null>(null);
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
+  private toastExitTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // ─── Vista Previa de Video ──────────────────────────────────────────────────
+  protected readonly previewVideo = signal<{
+    video: AttractionVideo;
+    brandId?: string;
+    brandName?: string;
+  } | null>(null);
 
   constructor() {
     this.refreshViewport();
+    this.pinModel.set({ current: '', next: '', confirm: '', hint: this.session.getPinHint?.() ?? '' });
     const onResize = () => this.refreshViewport();
     if (typeof window !== 'undefined') {
       window.addEventListener('resize', onResize);
@@ -1597,17 +2162,31 @@ export class AdminPanel {
     }
     this.destroyRef.onDestroy(() => {
       if (this.toastTimer) clearTimeout(this.toastTimer);
+      if (this.toastExitTimer) clearTimeout(this.toastExitTimer);
+      if (this.previewVideo()) {
+        this.mediaPlayer.resumeBgm();
+      }
       this.session.logout();
     });
   }
 
   protected showToast(title: string, message: string): void {
     if (this.toastTimer) clearTimeout(this.toastTimer);
-    this.toast.set({ title, message });
+    if (this.toastExitTimer) clearTimeout(this.toastExitTimer);
+
+    // Entrada animada (300 ms) + permanencia de 3800 ms = 4100 ms total antes de iniciar la salida
+    this.toast.set({ title, message, exiting: false });
+
     this.toastTimer = setTimeout(() => {
-      this.toast.set(null);
-      this.toastTimer = null;
-    }, 2500);
+      this.toast.update((curr) => (curr ? { ...curr, exiting: true } : null));
+
+      // Salida animada (300 ms) antes de desmontar del DOM
+      this.toastExitTimer = setTimeout(() => {
+        this.toast.set(null);
+        this.toastTimer = null;
+        this.toastExitTimer = null;
+      }, 300);
+    }, 4100);
   }
 
   protected isAtRootMenu(): boolean {
@@ -1661,6 +2240,103 @@ export class AdminPanel {
     const brand = this.catalog.rawManifest().brands.find((b) => b.id === brandId);
     if (!brand) return;
     this.toggleBrand(brand);
+  }
+
+  protected generalVideos(): AttractionVideo[] {
+    return this.catalog.rawManifest()?.app?.protector?.attractionVideos ?? [];
+  }
+
+  protected getBrandVideos(brand: Brand): AttractionVideo[] {
+    if (brand.attractionVideos && brand.attractionVideos.length > 0) {
+      return brand.attractionVideos;
+    }
+    if (brand.attractionVideo) {
+      return [
+        {
+          nombre: this.cleanText(brand.name),
+          source: brand.attractionVideo,
+          enabled: true,
+        },
+      ];
+    }
+    return [];
+  }
+
+  protected activeVideosCount(): number {
+    let count = 0;
+    for (const v of this.generalVideos()) {
+      if (v.enabled !== false) count++;
+    }
+    for (const b of this.catalog.rawManifest().brands) {
+      if (!b.enabled) continue;
+      for (const v of this.getBrandVideos(b)) {
+        if (v.enabled !== false) count++;
+      }
+    }
+    return count;
+  }
+
+  protected totalVideosCount(): number {
+    let count = this.generalVideos().length;
+    for (const b of this.catalog.rawManifest().brands) {
+      count += this.getBrandVideos(b).length;
+    }
+    return count;
+  }
+
+  protected toggleGeneralVideo(video: AttractionVideo): void {
+    const nextState = !video.enabled;
+    this.catalog.setGeneralVideoEnabled(video.source, nextState);
+    const name = video.nombre || video.name || 'Video General';
+    this.showToast(name, nextState ? 'Video activado' : 'Video desactivado');
+  }
+
+  protected toggleBrandVideo(brandId: string, video: AttractionVideo): void {
+    const nextState = !video.enabled;
+    this.catalog.setBrandVideoEnabled(brandId, video.source, nextState);
+    const name = video.nombre || video.name || 'Video';
+    this.showToast(name, nextState ? 'Video activado' : 'Video desactivado');
+  }
+
+  protected openVideoPreview(video: AttractionVideo, brand?: Brand): void {
+    this.mediaPlayer.pauseBgm();
+    this.previewVideo.set({
+      video,
+      brandId: brand?.id,
+      brandName: brand ? this.cleanText(brand.name) : undefined,
+    });
+  }
+
+  protected closeVideoPreview(): void {
+    if (this.previewVideo()) {
+      this.previewVideo.set(null);
+      this.mediaPlayer.resumeBgm();
+    }
+  }
+
+  protected isPreviewVideoEnabled(): boolean {
+    const current = this.previewVideo();
+    if (!current) return false;
+    if (current.brandId) {
+      const brand = this.catalog.rawManifest().brands.find((b) => b.id === current.brandId);
+      const v = brand?.attractionVideos?.find((item) => item.source === current.video.source);
+      return v ? v.enabled !== false : current.video.enabled !== false;
+    }
+    const v = this.catalog.rawManifest().app?.protector?.attractionVideos?.find((item) => item.source === current.video.source);
+    return v ? v.enabled !== false : current.video.enabled !== false;
+  }
+
+  protected togglePreviewVideo(): void {
+    const current = this.previewVideo();
+    if (!current) return;
+    if (current.brandId) {
+      const brand = this.catalog.rawManifest().brands.find((b) => b.id === current.brandId);
+      const v = brand?.attractionVideos?.find((item) => item.source === current.video.source) ?? current.video;
+      this.toggleBrandVideo(current.brandId, v);
+    } else {
+      const v = this.catalog.rawManifest().app?.protector?.attractionVideos?.find((item) => item.source === current.video.source) ?? current.video;
+      this.toggleGeneralVideo(v);
+    }
   }
 
   protected onBack(): void {
@@ -1803,22 +2479,6 @@ export class AdminPanel {
     return 4;
   }
 
-  protected getDefaultTriquiDifficulty(exp?: GameExperience): Difficulty {
-    const expDiff = exp?.config?.['difficulty'];
-    if (expDiff === 'easy' || expDiff === 'medium' || expDiff === 'hard') return expDiff;
-    const gameDiff = this.catalog.getGameById('triqui')?.config?.['difficulty'];
-    if (gameDiff === 'easy' || gameDiff === 'medium' || gameDiff === 'hard') return gameDiff;
-    return 'medium';
-  }
-
-  protected getDefaultTriquiFirstPlayer(exp?: GameExperience): FirstPlayer {
-    const expFirst = exp?.config?.['firstPlayer'];
-    if (expFirst === 'patient' || expFirst === 'alternate' || expFirst === 'random') return expFirst;
-    const gameFirst = this.catalog.getGameById('triqui')?.config?.['firstPlayer'];
-    if (gameFirst === 'patient' || gameFirst === 'alternate' || gameFirst === 'random') return gameFirst;
-    return 'patient';
-  }
-
   protected difficultyLabel(diff: Difficulty | null): string {
     switch (diff) {
       case 'easy':
@@ -1835,14 +2495,61 @@ export class AdminPanel {
   protected firstPlayerLabel(player: FirstPlayer | null): string {
     switch (player) {
       case 'patient':
-        return 'Paciente';
+        return 'Jugador';
       case 'alternate':
         return 'Alternado';
       case 'random':
         return 'Azar';
       default:
-        return 'Paciente';
+        return 'Jugador';
     }
+  }
+
+  protected playerSymbolLabel(symbol: PlayerSymbolChoice | null): string {
+    if (symbol === 'random') {
+      return 'Aleatorio';
+    }
+    return symbol === 'O' ? '○' : '✕';
+  }
+
+  protected getExperienceMarkAsset(exp: GameExperience, symbol: PlayerSymbolChoice): string {
+    if (symbol === 'random') {
+      return '';
+    }
+    const assetKey = symbol === 'X' ? 'markX' : 'markO';
+    const expAsset = exp.assets?.[assetKey];
+    if (typeof expAsset === 'string' && expAsset.length > 0) {
+      return expAsset;
+    }
+    const gameAsset = this.catalog.getGameById('triqui')?.assets?.[assetKey];
+    if (typeof gameAsset === 'string' && gameAsset.length > 0) {
+      return gameAsset;
+    }
+    return '';
+  }
+
+  protected getDefaultTriquiDifficulty(exp: GameExperience): Difficulty {
+    return resolveTriquiDifficulty({
+      kioskOverride: null,
+      experienceConfig: exp.config,
+      gameConfig: this.catalog.getGameById('triqui')?.config,
+    }).difficulty;
+  }
+
+  protected getDefaultTriquiFirstPlayer(exp: GameExperience): FirstPlayer {
+    return resolveTriquiFirstPlayer({
+      kioskOverride: null,
+      experienceConfig: exp.config,
+      gameConfig: this.catalog.getGameById('triqui')?.config,
+    }).firstPlayer;
+  }
+
+  protected getDefaultTriquiPlayerSymbol(exp: GameExperience): PlayerSymbolChoice {
+    return resolveTriquiPlayerSymbol({
+      kioskOverride: null,
+      experienceConfig: exp.config,
+      gameConfig: this.catalog.getGameById('triqui')?.config,
+    }).playerSymbol;
   }
 
   // ─── Setters de Ajustes con Toast ──────────────────────────────────────────
@@ -1991,6 +2698,67 @@ export class AdminPanel {
     }
   }
 
+  protected changeExperienceTriquiPlayerSymbol(
+    experienceId: string,
+    symbol: PlayerSymbolChoice | null,
+    brandName: string,
+    defaultSymbol: PlayerSymbolChoice,
+  ): void {
+    this.settings.setExperienceTriquiPlayerSymbol(experienceId, symbol);
+    const cleanBrand = this.cleanText(brandName);
+    if (symbol === null) {
+      this.showToast(`Triqui · ${cleanBrand}`, `Opción por defecto (${this.playerSymbolLabel(defaultSymbol)})`);
+    } else {
+      this.showToast(`Triqui · ${cleanBrand}`, `Figura: ${this.playerSymbolLabel(symbol)}`);
+    }
+  }
+
+  protected resetExperienceTriquiToDefault(experienceId: string, brandName: string): void {
+    this.settings.setExperienceTriquiDifficulty(experienceId, null);
+    this.settings.setExperienceTriquiFirstPlayer(experienceId, null);
+    this.settings.setExperienceTriquiPlayerSymbol(experienceId, null);
+    const cleanBrand = this.cleanText(brandName);
+    this.showToast(`Triqui · ${cleanBrand}`, 'Restaurados valores por defecto del catálogo');
+  }
+
+  protected resetAudioSettings(): void {
+    this.settings.resetAudioToDefault();
+    this.showToast('Audio General', 'Valores de audio restaurados por defecto');
+  }
+
+  protected resetScreensaverSettings(): void {
+    this.settings.resetScreensaverToDefault();
+    this.catalog.resetVideosToDefault();
+    this.showToast('Protector de Pantalla', 'Valores del protector restaurados por defecto');
+  }
+
+  protected resetGeneralSettings(): void {
+    this.settings.resetGeneralToDefault();
+    this.catalog.resetVideosToDefault();
+    this.showToast('Ajustes Generales', 'Valores de ajustes generales restaurados por defecto');
+  }
+
+  protected resetBrandsSettings(): void {
+    this.catalog.resetBrandsToDefault();
+    this.showToast('Marcas del Kiosco', 'Valores de marcas restaurados por defecto');
+  }
+
+  protected resetCurrentGameExperienceToDefault(exp: GameExperience, brandName: string): void {
+    if (!exp.enabled) {
+      this.catalog.setExperienceEnabled(exp.id, true);
+    }
+    if (exp.gameId === 'memory') {
+      this.settings.setExperienceMemoryConfig(exp.id, null);
+    } else if (exp.gameId === 'triqui') {
+      this.settings.setExperienceTriquiDifficulty(exp.id, null);
+      this.settings.setExperienceTriquiFirstPlayer(exp.id, null);
+      this.settings.setExperienceTriquiPlayerSymbol(exp.id, null);
+    }
+    const cleanBrand = this.cleanText(brandName);
+    const gameTitle = exp.gameId === 'memory' ? 'Memoria' : 'Triqui';
+    this.showToast(`${gameTitle} · ${cleanBrand}`, 'Valores de juego restaurados por defecto');
+  }
+
   protected memoryExplanation(pairs: number | null, defaultPairs: number): string {
     if (pairs === null) {
       return `Opción por defecto: Usa la configuración del catálogo (${defaultPairs} parejas / ${defaultPairs * 2} cartas).`;
@@ -2017,7 +2785,7 @@ export class AdminPanel {
     }
     switch (diff) {
       case 'easy':
-        return 'Fácil: La IA comete fallos intencionales y no bloquea oportunidades de victoria del paciente.';
+        return 'Fácil: La IA comete fallos intencionales y no bloquea oportunidades de victoria del jugador.';
       case 'medium':
         return 'Medio: La IA bloquea jugadas evidentes pero permite oportunidades de ganar.';
       case 'hard':
@@ -2031,12 +2799,27 @@ export class AdminPanel {
     }
     switch (player) {
       case 'patient':
-        return 'Paciente: El paciente siempre realiza la primera jugada al iniciar la dinámica.';
+        return 'Jugador: El jugador siempre realiza la primera jugada al iniciar la dinámica.';
       case 'alternate':
-        return 'Alternado: El primer turno rota entre el paciente y la IA en cada nueva partida.';
+        return 'Alternado: El primer turno rota entre el jugador y la IA en cada nueva partida.';
       case 'random':
         return 'Azar: Un sorteo aleatorio decide quién empieza cada partida.';
     }
+  }
+
+  protected triquiPlayerSymbolExplanation(
+    symbol: PlayerSymbolChoice | null,
+    defaultSymbol: PlayerSymbolChoice,
+  ): string {
+    if (symbol === null) {
+      return `Opción por defecto: Respeta la figura del jugador definida en el catálogo (${this.playerSymbolLabel(defaultSymbol)}).`;
+    }
+    if (symbol === 'random') {
+      return 'Aleatorio: En cada ronda se sortea al azar si juegas con ✕ o con ○.';
+    }
+    return symbol === 'O'
+      ? 'Marca ○: El jugador utiliza la marca ○ y la inteligencia artificial juega con la marca ✕.'
+      : 'Marca ✕: El jugador utiliza la marca ✕ y la inteligencia artificial juega con la marca ○.';
   }
 
   protected changeScreensaver(mode: ScreensaverMode): void {
@@ -2128,6 +2911,13 @@ export class AdminPanel {
     playUiSfx(this.mediaPlayer, 'select');
   }
 
+  protected pendingExperienceToReset = signal<{ exp: GameExperience; brandName: string } | null>(null);
+
+  protected askConfirmResetExperience(exp: GameExperience, brandName: string): void {
+    this.pendingExperienceToReset.set({ exp, brandName });
+    this.askConfirm('resetExperience');
+  }
+
   // ─── Diálogos de Confirmación ───────────────────────────────────────────────
 
   protected askConfirm(kind: Exclude<ConfirmKind, null>): void {
@@ -2142,24 +2932,42 @@ export class AdminPanel {
       case 'exit':
         return '¿Cerrar la app?';
       case 'leaveKiosk':
-        return '¿Salir del kiosco?';
+        return this.isNative() ? '¿Salir del kiosco?' : '¿Salir de pantalla completa?';
+      case 'enterKiosk':
+        return this.isNative() ? '¿Entrar al modo kiosco?' : '¿Activar pantalla completa?';
       case 'applyUpdate':
         return '¿Instalar actualizaciones?';
       case 'changePin':
         return '¿Generar nuevo PIN?';
       case 'resetDefaults':
         return '¿Restaurar valores por defecto?';
+      case 'resetAudio':
+        return '¿Restablecer ajustes de audio?';
+      case 'resetScreensaver':
+        return '¿Restablecer protector de pantalla?';
+      case 'resetGeneral':
+        return '¿Restablecer ajustes generales?';
+      case 'resetBrands':
+        return '¿Restablecer marcas del kiosco?';
+      case 'resetExperience':
+        return '¿Restablecer valores del juego?';
     }
   }
 
   protected confirmMessage(kind: Exclude<ConfirmKind, null>): string {
     switch (kind) {
       case 'restart':
-        return 'La aplicación se reiniciará en este equipo.';
+        return this.isNative() ? 'La aplicación se reiniciará en este equipo.' : 'La aplicación se recargará y volverá a la pantalla inicial.';
       case 'exit':
         return 'Se cerrará Merz Games. Habrá que abrirla de nuevo.';
       case 'leaveKiosk':
-        return 'Se quita pantalla completa y vuelven las decoraciones de ventana.';
+        return this.isNative()
+          ? 'Se quita pantalla completa y vuelven las decoraciones de ventana.'
+          : 'Se saldrá del modo de pantalla completa en el navegador.';
+      case 'enterKiosk':
+        return this.isNative()
+          ? 'La ventana pasará a pantalla completa sin bordes ni decoraciones.'
+          : 'La aplicación pasará a modo pantalla completa en el navegador.';
       case 'applyUpdate':
         return this.snapshot().appUpdateAvailable
           ? 'Primero se aplica el catálogo y después el ejecutable, que puede reiniciar la app.'
@@ -2168,6 +2976,22 @@ export class AdminPanel {
         return `Va a generar un nuevo PIN: "${this.pinModel().next}". ¿Desea confirmar el cambio?`;
       case 'resetDefaults':
         return 'Se restablecerán marcas, juegos, audio y parámetros a los valores definidos en el catálogo original (content-manifest.json).';
+      case 'resetAudio':
+        return 'Se restablecerán los niveles de volumen (BGM, SFX) y el estado del sonido a sus valores por defecto.';
+      case 'resetScreensaver':
+        return 'Se restablecerá el modo, tiempo de inactividad, orden de videos, activación de clips y volumen del protector de pantalla a sus valores por defecto.';
+      case 'resetGeneral':
+        return 'Se restablecerán todos los ajustes de audio, protector de pantalla y activación de clips a sus valores por defecto.';
+      case 'resetBrands':
+        return 'Se restablecerá el estado de activación de todas las marcas del kiosco a los valores por defecto.';
+      case 'resetExperience': {
+        const pending = this.pendingExperienceToReset();
+        if (pending) {
+          const gameTitle = pending.exp.gameId === 'memory' ? 'Memoria' : 'Triqui';
+          return `Se restablecerá la configuración de la partida de ${gameTitle} (${this.cleanText(pending.brandName)}) a los valores por defecto.`;
+        }
+        return 'Se restablecerá la configuración de la partida de este juego a los valores por defecto.';
+      }
     }
   }
 
@@ -2183,6 +3007,35 @@ export class AdminPanel {
       return;
     }
 
+    if (kind === 'resetAudio') {
+      this.resetAudioSettings();
+      return;
+    }
+
+    if (kind === 'resetScreensaver') {
+      this.resetScreensaverSettings();
+      return;
+    }
+
+    if (kind === 'resetGeneral') {
+      this.resetGeneralSettings();
+      return;
+    }
+
+    if (kind === 'resetBrands') {
+      this.resetBrandsSettings();
+      return;
+    }
+
+    if (kind === 'resetExperience') {
+      const pending = this.pendingExperienceToReset();
+      if (pending) {
+        this.resetCurrentGameExperienceToDefault(pending.exp, pending.brandName);
+        this.pendingExperienceToReset.set(null);
+      }
+      return;
+    }
+
     if (kind === 'changePin') {
       await this.executePinChange();
       return;
@@ -2193,17 +3046,40 @@ export class AdminPanel {
       return;
     }
 
-    const result =
-      kind === 'restart'
-        ? await this.platform.restart()
-        : kind === 'exit'
-          ? await this.platform.exit()
-          : await this.platform.leaveKiosk();
+    if (kind === 'enterKiosk') {
+      const result = await this.platform.enterKiosk();
+      if (!result.ok) {
+        this.opMessage.set(result.message ?? 'No se pudo activar pantalla completa.');
+      } else {
+        this.opMessage.set('Modo kiosco (pantalla completa) activado.');
+      }
+      return;
+    }
 
-    if (!result.ok) {
-      this.opMessage.set(result.message ?? 'Solo en la app de escritorio.');
-    } else if (kind === 'leaveKiosk') {
-      this.opMessage.set('Modo kiosco desactivado.');
+    if (kind === 'leaveKiosk') {
+      const result = await this.platform.leaveKiosk();
+      if (!result.ok) {
+        this.opMessage.set(result.message ?? 'No se pudo salir del modo kiosco.');
+      } else {
+        this.opMessage.set('Modo kiosco desactivado.');
+      }
+      return;
+    }
+
+    if (kind === 'restart') {
+      const result = await this.platform.restart();
+      if (!result.ok) {
+        this.opMessage.set(result.message ?? 'No se pudo reiniciar.');
+      }
+      return;
+    }
+
+    if (kind === 'exit') {
+      const result = await this.platform.exit();
+      if (!result.ok) {
+        this.opMessage.set(result.message ?? 'No se pudo cerrar la aplicación.');
+      }
+      return;
     }
   }
 
@@ -2243,12 +3119,29 @@ export class AdminPanel {
     return value.length === 0 ? '····' : '•'.repeat(value.length);
   }
 
+  protected togglePinVisibility(field: PinField, event?: Event): void {
+    if (event) event.stopPropagation();
+    const current = this.showPinDigits();
+    this.showPinDigits.set({ ...current, [field]: !current[field] });
+  }
+
+  protected formatPinDisplay(field: PinField): string {
+    const value = this.pinModel()[field] ?? '';
+    if (value.length === 0) return '····';
+    return this.showPinDigits()[field] ? value : '•'.repeat(value.length);
+  }
+
   protected appendPinDigit(digit: string): void {
     this.pinMessage.set('');
     const field = this.pinField();
     const current = this.pinModel();
-    const value = current[field];
-    if (value.length >= 8) return;
+    const value = current[field] ?? '';
+    if (value.length >= 10) {
+      this.pinError.set(true);
+      this.pinMessage.set('Límite máximo de 10 dígitos alcanzado.');
+      this.mediaPlayer.playSfx('back');
+      return;
+    }
     this.pinModel.set({ ...current, [field]: value + digit });
   }
 
@@ -2257,6 +3150,11 @@ export class AdminPanel {
     const field = this.pinField();
     const current = this.pinModel();
     this.pinModel.set({ ...current, [field]: current[field].slice(0, -1) });
+  }
+
+  protected updatePinHint(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.pinModel.set({ ...this.pinModel(), hint: value });
   }
 
   protected requestPinChange(): void {
@@ -2271,6 +3169,11 @@ export class AdminPanel {
       this.pinMessage.set('El nuevo PIN debe tener al menos 4 dígitos.');
       return;
     }
+    if (next.length > 10) {
+      this.pinError.set(true);
+      this.pinMessage.set('El nuevo PIN no debe superar los 10 dígitos.');
+      return;
+    }
     if (next !== confirm) {
       this.pinError.set(true);
       this.pinMessage.set('El nuevo PIN y la confirmación no coinciden.');
@@ -2283,13 +3186,13 @@ export class AdminPanel {
   }
 
   private async executePinChange(): Promise<void> {
-    const { current, next } = this.pinModel();
-    const ok = await this.session.changePin(current, next);
+    const { current, next, hint } = this.pinModel();
+    const ok = await this.session.changePin(current, next, hint);
     this.pinError.set(!ok);
     if (ok) {
       this.pinMessage.set('PIN actualizado en este equipo.');
       this.showToast('Seguridad', 'PIN actualizado con éxito');
-      this.pinModel.set({ current: '', next: '', confirm: '' });
+      this.pinModel.set({ current: '', next: '', confirm: '', hint: this.session.getPinHint?.() ?? '' });
       this.pinField.set('current');
     } else {
       this.pinMessage.set('El PIN anterior no coincide.');

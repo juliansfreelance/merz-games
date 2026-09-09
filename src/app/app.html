@@ -12,6 +12,27 @@
       <router-outlet />
     </div>
 
+    <!-- Botón flotante de ajustes rápidos (esquina superior derecha) -->
+    @if (showQuickSettings()) {
+      <button
+        type="button"
+        uiSfx="click"
+        class="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 z-40 size-11 sm:size-12 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 border border-white/20 backdrop-blur-md shadow-xl flex items-center justify-center text-white/80 hover:text-white transition-all cursor-pointer select-none focus:outline-none touch-manipulation"
+        [class.border-amber-400/50]="isQuickSettingsOpen()"
+        [class.text-amber-300]="isQuickSettingsOpen()"
+        [class.bg-amber-500/20]="isQuickSettingsOpen()"
+        aria-label="Ajustes rápidos de sonido y operación"
+        (click)="openQuickSettings()"
+      >
+        <app-hero-icon name="cog-8-tooth" class="text-xl sm:text-2xl" />
+      </button>
+    }
+
+    <!-- Diálogo modal de ajustes rápidos -->
+    @if (isQuickSettingsOpen()) {
+      <app-quick-settings-dialog (close)="closeQuickSettings()" />
+    }
+
     <!-- Badge de versión: long-press (~2 s) abre el login de administración -->
     <span
       class="absolute bottom-1 right-3 text-[10px] text-neutral-600 font-mono z-50 select-none cursor-default"

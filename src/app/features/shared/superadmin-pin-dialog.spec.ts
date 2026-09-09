@@ -45,7 +45,7 @@ describe('SuperadminPinDialog', () => {
 
     const el = fixture.nativeElement as HTMLElement;
     expect(component['error']()).toContain('PIN de superadministrador incorrecto');
-    expect(el.textContent).toContain('Lo mejor 2026');
+    expect(el.textContent).toContain(authService.hint);
   });
 
   it('al ingresar 210726 emite unlocked y desbloquea el servicio', () => {

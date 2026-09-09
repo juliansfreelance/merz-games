@@ -11,6 +11,9 @@ export type CellIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 /** Marcas de juego: el paciente es siempre 'X' y la IA es siempre 'O'. */
 export type Mark = 'X' | 'O';
 
+/** Elección de figura para el jugador: fija ('X' u 'O') o aleatoria por ronda ('random'). */
+export type PlayerSymbolChoice = Mark | 'random';
+
 /** Niveles de dificultad para la inteligencia artificial. */
 export type Difficulty = 'easy' | 'medium' | 'hard';
 
@@ -53,9 +56,11 @@ export interface TriquiEngineOptions {
   readonly difficulty: Difficulty;
   /** Estrategia para determinar qué jugador mueve primero en la ronda. */
   readonly firstPlayer: FirstPlayer;
+  /** Ficha / Figura elegida para el jugador ('X', 'O' o 'random'). Default: 'random'. */
+  readonly playerSymbol?: PlayerSymbolChoice;
   /**
    * Número de rondas jugadas en la sesión activa (usado por 'alternate').
-   * Rondas pares (0, 2, 4…) inicia el paciente; impares (1, 3, 5…) la IA.
+   * Rondas pares (0, 2, 4…) inicia el jugador; impares (1, 3, 5…) la IA.
    */
   readonly sessionRound: number;
   /**

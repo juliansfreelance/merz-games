@@ -16,10 +16,12 @@ import {
   ExperienceAssets,
   ExperienceConfig,
   ExperienceTheme,
+  ExperienceTurnNoticeConfig,
 } from '../../core/catalog/game-experience.model';
 import { GameAssets } from '../../core/catalog/game.model';
 import { KioskSettings } from '../../core/settings/kiosk-settings';
 import { MediaPlayer } from '../../core/media/media-player';
+import { ImageCacheService } from '../../core/media/image-cache.service';
 import { MemoryEngine, MISMATCH_DELAY_MS } from '../../core/games/memory/memory-engine';
 import { MemoryCard as MemoryCardModel } from '../../core/games/memory/memory.model';
 import { resolveMemoryConfig, resolveMemoryPairs } from '../../core/games/memory/memory-config';
@@ -87,6 +89,18 @@ const SFX = {
 
     <!-- Tablero activo -->
     @if (!loading() && engine()) {
+      <!-- Tutorial Modal de pantalla completa interactivo -->
+      <app-memory-tutorial
+        #tutorialModal
+        [tutorialText]="tutorialText()"
+        [pairs]="resolvedPairs()"
+        [backUrl]="backUrl()"
+        [sampleFaceUrl]="sampleFaceUrl()"
+        [accentColor]="accentColor()"
+        [blurTint]="blurTint()"
+        (closed)="onTutorialClosed()"
+      />
+
       <div
         #boardContainer
         class="relative w-full h-full flex items-center justify-center overflow-hidden p-0.5"
@@ -94,19 +108,8 @@ const SFX = {
         role="status"
         [attr.aria-label]="boardStatus()"
       >
-        <!-- Tutorial Modal de pantalla completa interactivo -->
-        <app-memory-tutorial
-          #tutorialModal
-          [tutorialText]="tutorialText()"
-          [pairs]="resolvedPairs()"
-          [backUrl]="backUrl()"
-          [sampleFaceUrl]="sampleFaceUrl()"
-          [accentColor]="accentColor()"
-          [blurTint]="blurTint()"
-          (closed)="onTutorialClosed()"
-        />
 
-        <!-- Rejilla de cartas calculada matemáticamente con las dimensiones reales del slot -->
+        <!-- Rejilla de cartas calculada matemáticamente -->
         <div
           class="grid justify-center items-center m-auto transition-all duration-300 ease-out"
           [style.width.px]="layout().boardWidth"
@@ -149,11 +152,14 @@ export class MemoryPlay implements OnInit {
   readonly gameConfig   = input<ExperienceConfig>({});
   /** Assets del motor (game.assets, p.ej. SFX compartidos). */
   readonly gameAssets   = input<GameAssets>({});
+  /** Configuración opcional de aviso de turno provista por la experiencia. */
+  readonly turnNotice   = input<ExperienceTurnNoticeConfig | undefined>(undefined);
 
   // ── Servicios ───────────────────────────────────────────────────────────────
   private readonly session     = inject(GameSession);
   private readonly settings    = inject(KioskSettings);
   private readonly media       = inject(MediaPlayer);
+  private readonly imageCache  = inject(ImageCacheService);
   private readonly destroyRef  = inject(DestroyRef);
 
   // ── Estado de UI ────────────────────────────────────────────────────────────
@@ -163,7 +169,7 @@ export class MemoryPlay implements OnInit {
   private _mismatchTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly _delayedSfxTimers: ReturnType<typeof setTimeout>[] = [];
   private _destroyed = false;
-  private lastHelpReq = 0;
+  private lastHelpReq = inject(GameSession).tutorialRequested();
 
   // ── Computados ──────────────────────────────────────────────────────────────
 
@@ -206,16 +212,18 @@ export class MemoryPlay implements OnInit {
 
     const brand = this.brandId();
     if (brand === 'radiesse') {
-      return Array.from(
-        { length: 27 },
-        (_, i) => `/content/images/games/memory/cards/radiesse/card-${String(i + 1).padStart(2, '0')}.png`,
-      );
+      return Array.from({ length: 20 }, (_, i) => {
+        const num = i + 1;
+        const name = num === 14 ? '014' : String(num).padStart(2, '0');
+        return `/content/images/games/memory/cards/radiesse/card-${name}.jpg`;
+      });
     }
     if (brand === 'ultherapy') {
-      return Array.from(
-        { length: 27 },
-        (_, i) => `/content/images/games/memory/cards/ultherapy/card-${String(i + 28).padStart(2, '0')}.png`,
-      );
+      return Array.from({ length: 20 }, (_, i) => {
+        const num = i + 1;
+        const name = num === 6 ? '6' : String(num).padStart(2, '0');
+        return `/content/images/games/memory/cards/ultherapy/card-${name}.jpg`;
+      });
     }
 
     return FALLBACK_CARD_FACES;
@@ -467,13 +475,7 @@ export class MemoryPlay implements OnInit {
   }
 
   private _preloadImage(url: string): Promise<void> {
-    return new Promise((resolve) => {
-      if (!url) { resolve(); return; }
-      const img = new Image();
-      img.onload  = () => resolve();
-      img.onerror = () => resolve(); // resiliente
-      img.src = url;
-    });
+    return this.imageCache.preload(url);
   }
 
   private _preloadAudio(url: string): Promise<void> {

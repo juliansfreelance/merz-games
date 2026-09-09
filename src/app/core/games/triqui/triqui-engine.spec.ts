@@ -70,6 +70,60 @@ describe('TriquiEngine', () => {
     });
   });
 
+  describe('Figura del jugador (playerSymbol)', () => {
+    it('asigna playerMark = X y aiMark = O por defecto o explícito', () => {
+      const defaultEngine = new TriquiEngine({
+        difficulty: 'medium',
+        firstPlayer: 'patient',
+        sessionRound: 0,
+      });
+      expect(defaultEngine.playerMark).toBe('X');
+      expect(defaultEngine.aiMark).toBe('O');
+
+      const explicitEngine = new TriquiEngine({
+        difficulty: 'medium',
+        firstPlayer: 'patient',
+        sessionRound: 0,
+        playerSymbol: 'X',
+      });
+      expect(explicitEngine.playerMark).toBe('X');
+      expect(explicitEngine.aiMark).toBe('O');
+    });
+
+    it('asigna playerMark = O y aiMark = X cuando playerSymbol = "O"', () => {
+      const engine = new TriquiEngine({
+        difficulty: 'medium',
+        firstPlayer: 'patient',
+        sessionRound: 0,
+        playerSymbol: 'O',
+      });
+      expect(engine.playerMark).toBe('O');
+      expect(engine.aiMark).toBe('X');
+    });
+
+    it('asigna figura aleatoria mediante rng cuando playerSymbol = "random"', () => {
+      const engineX = new TriquiEngine({
+        difficulty: 'medium',
+        firstPlayer: 'patient',
+        sessionRound: 0,
+        playerSymbol: 'random',
+        rng: () => 0.25, // < 0.5 -> X
+      });
+      expect(engineX.playerMark).toBe('X');
+      expect(engineX.aiMark).toBe('O');
+
+      const engineO = new TriquiEngine({
+        difficulty: 'medium',
+        firstPlayer: 'patient',
+        sessionRound: 0,
+        playerSymbol: 'random',
+        rng: () => 0.75, // >= 0.5 -> O
+      });
+      expect(engineO.playerMark).toBe('O');
+      expect(engineO.aiMark).toBe('X');
+    });
+  });
+
   describe('Acciones y validación de place()', () => {
     it('place() coloca X y emite evento place si es legal', () => {
       const engine = new TriquiEngine({

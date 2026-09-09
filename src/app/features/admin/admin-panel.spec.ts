@@ -13,16 +13,18 @@ describe('AdminPanel', () => {
   let fixture: ComponentFixture<AdminPanel>;
   let component: AdminPanel;
   let mockRouter: { navigateByUrl: ReturnType<typeof vi.fn> };
-  let mockSession: { logout: ReturnType<typeof vi.fn>; changePin: ReturnType<typeof vi.fn> };
+  let mockSession: { logout: ReturnType<typeof vi.fn>; changePin: ReturnType<typeof vi.fn>; getPinHint: ReturnType<typeof vi.fn>; resetPinToDefault: ReturnType<typeof vi.fn> };
   let mockPlatform: {
     isNative: boolean;
     appVersion: ReturnType<typeof signal<string>>;
+    isKiosk: ReturnType<typeof signal<boolean>>;
     platformKind: string;
     storageGet: ReturnType<typeof vi.fn>;
     storageSet: ReturnType<typeof vi.fn>;
     restart: ReturnType<typeof vi.fn>;
     exit: ReturnType<typeof vi.fn>;
     leaveKiosk: ReturnType<typeof vi.fn>;
+    enterKiosk: ReturnType<typeof vi.fn>;
   };
   let mockUpdates: {
     snapshot: ReturnType<typeof signal<any>>;
@@ -32,16 +34,18 @@ describe('AdminPanel', () => {
 
   beforeEach(async () => {
     mockRouter = { navigateByUrl: vi.fn() };
-    mockSession = { logout: vi.fn(), changePin: vi.fn().mockResolvedValue(true) };
+    mockSession = { logout: vi.fn(), changePin: vi.fn().mockResolvedValue(true), getPinHint: vi.fn().mockReturnValue(''), resetPinToDefault: vi.fn() };
     mockPlatform = {
       isNative: false,
       appVersion: signal('0.1.0'),
+      isKiosk: signal(true),
       platformKind: 'browser',
       storageGet: vi.fn().mockReturnValue(null),
       storageSet: vi.fn(),
       restart: vi.fn().mockResolvedValue({ ok: true }),
       exit: vi.fn().mockResolvedValue({ ok: true }),
       leaveKiosk: vi.fn().mockResolvedValue({ ok: true }),
+      enterKiosk: vi.fn().mockResolvedValue({ ok: true }),
     };
     mockUpdates = {
       snapshot: signal({
@@ -230,14 +234,14 @@ describe('AdminPanel', () => {
 
     expect(el.textContent).toContain('Triqui · Radiesse');
     expect(el.textContent).toContain('Juego en esta marca');
-    expect(el.textContent).toContain('Opción por defecto');
+    expect(el.textContent).toContain('Catálogo');
 
-    // La opción 'Medio' (por defecto en el motor) debe tener disabled
+    // La opción 'Medio' (por defecto en el catálogo) está habilitada y marcada con la etiqueta 'Catálogo'
     const medioBtn = Array.from(el.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Medio') && !b.textContent?.includes('Opción por defecto'),
+      b.textContent?.includes('Medio') && b.textContent?.includes('Catálogo'),
     ) as HTMLButtonElement;
     expect(medioBtn).toBeTruthy();
-    expect(medioBtn.disabled).toBe(true);
+    expect(medioBtn.disabled).toBe(false);
 
     // Conmutar el switch de estado del juego
     const catalog = TestBed.inject(CatalogService);
@@ -335,15 +339,29 @@ describe('AdminPanel', () => {
     opButton?.click();
     fixture.detectChanges();
 
-    // Comprobar elementos en Operación
+    // Comprobar elementos en Operación en entorno web (isNative: false)
+    expect(el.textContent).toContain('Reiniciar aplicación');
+    expect(el.textContent).not.toContain('Cerrar aplicación');
+    const hasKioskText = el.textContent?.includes('modo kiosco') || el.textContent?.includes('pantalla completa');
+    expect(hasKioskText).toBe(true);
+  });
+
+  it('en entorno nativo muestra cerrar aplicación y controles de kiosco', async () => {
+    mockPlatform.isNative = true;
+    fixture = TestBed.createComponent(AdminPanel);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const opButton = Array.from(el.querySelectorAll('main button')).find((b) =>
+      b.textContent?.includes('Operación'),
+    ) as HTMLButtonElement | undefined;
+    opButton?.click();
+    fixture.detectChanges();
+
     expect(el.textContent).toContain('Reiniciar aplicación');
     expect(el.textContent).toContain('Cerrar aplicación');
     expect(el.textContent).toContain('Salir del modo kiosco');
-
-    // Comprobar que existe la nota de advertencia con exclamation-triangle
-    const note = el.querySelector('.bg-yellow-500\\/10');
-    expect(note).toBeTruthy();
-    expect(note?.querySelector('app-hero-icon')?.getAttribute('name')).toBe('exclamation-triangle');
   });
 
   it('debe permitir restaurar los valores por defecto del catálogo y ajustes mediante diálogo de confirmación', async () => {
@@ -358,9 +376,9 @@ describe('AdminPanel', () => {
     settingsBtn?.click();
     fixture.detectChanges();
 
-    // Encontrar botón "Restaurar por defecto"
+    // Encontrar botón "Restablecer"
     const resetBtn = Array.from(el.querySelectorAll('main button')).find((b) =>
-      b.textContent?.includes('Restaurar por defecto'),
+      b.textContent?.includes('Restablecer'),
     ) as HTMLButtonElement | undefined;
     expect(resetBtn).toBeTruthy();
 
@@ -390,6 +408,30 @@ describe('AdminPanel', () => {
     expect(catalogResetSpy).toHaveBeenCalledTimes(1);
     expect(settingsResetSpy).toHaveBeenCalledTimes(1);
     expect(el.textContent).toContain('Valores restaurados');
+  });
+
+  it('debe solicitar confirmación para restablecer audio, salvapantallas, marcas y experiencia de juego', () => {
+    const settings = TestBed.inject(KioskSettings);
+    const audioSpy = vi.spyOn(settings, 'resetAudioToDefault');
+    const screensaverSpy = vi.spyOn(settings, 'resetScreensaverToDefault');
+
+    // Reset Audio dialog
+    component['askConfirm']('resetAudio');
+    fixture.detectChanges();
+    let el = fixture.nativeElement as HTMLElement;
+    let dialog = el.querySelector('app-admin-confirm');
+    expect(dialog?.textContent).toContain('¿Restablecer ajustes de audio?');
+    component['onConfirm']();
+    expect(audioSpy).toHaveBeenCalledTimes(1);
+
+    // Reset Screensaver dialog
+    component['askConfirm']('resetScreensaver');
+    fixture.detectChanges();
+    el = fixture.nativeElement as HTMLElement;
+    dialog = el.querySelector('app-admin-confirm');
+    expect(dialog?.textContent).toContain('¿Restablecer protector de pantalla?');
+    component['onConfirm']();
+    expect(screensaverSpy).toHaveBeenCalledTimes(1);
   });
 
   describe('Configuración de Memoria en AdminPanel', () => {
@@ -472,6 +514,103 @@ describe('AdminPanel', () => {
 
       component['onVideoVolumeInput'](event);
       expect(settings.videoVolume()).toBe(0.75);
+    });
+
+    it('toggleGeneralVideo y toggleBrandVideo alternan el estado en catalog', () => {
+      const catalog = TestBed.inject(CatalogService);
+      const setGenSpy = vi.spyOn(catalog, 'setGeneralVideoEnabled');
+      const setBrandSpy = vi.spyOn(catalog, 'setBrandVideoEnabled');
+
+      const genVideo = { nombre: 'G1', source: '/content/videos/general1.mp4', enabled: true };
+      component['toggleGeneralVideo'](genVideo);
+      expect(setGenSpy).toHaveBeenCalledWith('/content/videos/general1.mp4', false);
+
+      const brandVideo = { nombre: 'R1', source: '/content/videos/radiesse.mp4', enabled: false };
+      component['toggleBrandVideo']('radiesse', brandVideo);
+      expect(setBrandSpy).toHaveBeenCalledWith('radiesse', '/content/videos/radiesse.mp4', true);
+    });
+
+    it('resetScreensaverSettings también restaura videos por defecto en catalog', () => {
+      const catalog = TestBed.inject(CatalogService);
+      const resetVideosSpy = vi.spyOn(catalog, 'resetVideosToDefault');
+
+      component['resetScreensaverSettings']();
+      expect(resetVideosSpy).toHaveBeenCalled();
+    });
+
+    it('openVideoPreview pausa BGM y abre el modal con el video seleccionado', () => {
+      const mediaPlayer = TestBed.inject(MediaPlayer);
+      const pauseSpy = vi.spyOn(mediaPlayer, 'pauseBgm');
+
+      const video = { nombre: 'Video Prueba', source: '/content/videos/test.mp4', enabled: true };
+      component['openVideoPreview'](video);
+
+      expect(pauseSpy).toHaveBeenCalled();
+      expect(component['previewVideo']()).toEqual({
+        video,
+        brandId: undefined,
+        brandName: undefined,
+      });
+      expect(component['isPreviewVideoEnabled']()).toBe(true);
+    });
+
+    it('closeVideoPreview reanuda BGM y cierra el modal', () => {
+      const mediaPlayer = TestBed.inject(MediaPlayer);
+      const resumeSpy = vi.spyOn(mediaPlayer, 'resumeBgm');
+
+      const video = { nombre: 'Video Prueba', source: '/content/videos/test.mp4', enabled: true };
+      component['openVideoPreview'](video);
+      expect(component['previewVideo']()).not.toBeNull();
+
+      component['closeVideoPreview']();
+      expect(resumeSpy).toHaveBeenCalled();
+      expect(component['previewVideo']()).toBeNull();
+    });
+
+    it('togglePreviewVideo conmuta el estado del video general o de marca', () => {
+      const catalog = TestBed.inject(CatalogService);
+      const setGenSpy = vi.spyOn(catalog, 'setGeneralVideoEnabled');
+      const setBrandSpy = vi.spyOn(catalog, 'setBrandVideoEnabled');
+
+      // Video general
+      const genVideo = { nombre: 'General 1', source: '/content/videos/general1.mp4', enabled: true };
+      component['openVideoPreview'](genVideo);
+      component['togglePreviewVideo']();
+      expect(setGenSpy).toHaveBeenCalledWith('/content/videos/general1.mp4', false);
+
+      // Video de marca
+      const brand = catalog.rawManifest().brands[0];
+      const brandVideo = { nombre: 'Brand Video', source: '/content/videos/radiesse.mp4', enabled: true };
+      component['openVideoPreview'](brandVideo, brand);
+      component['togglePreviewVideo']();
+      expect(setBrandSpy).toHaveBeenCalledWith(brand.id, '/content/videos/radiesse.mp4', false);
+    });
+
+    it('ejecuta restart a través de diálogo de confirmación', async () => {
+      component['askConfirm']('restart');
+      expect(component['confirmKind']()).toBe('restart');
+
+      await component['onConfirm']();
+      expect(mockPlatform.restart).toHaveBeenCalled();
+    });
+
+    it('ejecuta enterKiosk y leaveKiosk a través de diálogo de confirmación', async () => {
+      component['askConfirm']('enterKiosk');
+      expect(component['confirmKind']()).toBe('enterKiosk');
+      await component['onConfirm']();
+      expect(mockPlatform.enterKiosk).toHaveBeenCalled();
+
+      component['askConfirm']('leaveKiosk');
+      expect(component['confirmKind']()).toBe('leaveKiosk');
+      await component['onConfirm']();
+      expect(mockPlatform.leaveKiosk).toHaveBeenCalled();
+    });
+
+    it('ejecuta exit a través de diálogo de confirmación', async () => {
+      component['askConfirm']('exit');
+      expect(component['confirmKind']()).toBe('exit');
+      await component['onConfirm']();
+      expect(mockPlatform.exit).toHaveBeenCalled();
     });
   });
 });

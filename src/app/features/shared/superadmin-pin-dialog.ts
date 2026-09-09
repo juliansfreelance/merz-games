@@ -24,7 +24,7 @@ import { MediaPlayer } from '../../core/media/media-player';
         class="relative w-full max-w-md bg-neutral-900/90 border border-white/20 rounded-3xl p-6 sm:p-7 kiosk:p-8 shadow-2xl flex flex-col items-center gap-4 sm:gap-5 text-center text-white select-none"
       >
         <!-- Icono Candado -->
-        <div class="size-14 sm:size-16 rounded-2xl bg-amber-500/15 border border-amber-400/30 flex items-center justify-center text-amber-400">
+        <div class="size-14 sm:size-16 rounded-2xl bg-amber-500/15 flex items-center justify-center text-amber-400">
           <app-hero-icon name="lock-closed" class="text-2xl sm:text-3xl" />
         </div>
 
@@ -38,16 +38,33 @@ import { MediaPlayer } from '../../core/media/media-player';
         </div>
 
         <!-- Indicador de PIN ingresado -->
-        <div
-          class="w-full max-w-[260px] rounded-2xl border border-white/20 bg-white/5 backdrop-blur-md px-4 py-3 flex items-center justify-center gap-2.5"
-          aria-live="polite"
-        >
-          @for (slot of pinSlots(); track $index) {
-            <span
-              class="size-3 sm:size-3.5 rounded-full border transition-all duration-150"
-              [class]="slot ? 'bg-amber-400 border-amber-300 scale-110 shadow-sm shadow-amber-400/50' : 'bg-white/10 border-white/25'"
-            ></span>
-          }
+        <div class="relative w-full max-w-[260px] flex items-center justify-center">
+          <div
+            class="w-full rounded-2xl border border-white/20 bg-white/5 backdrop-blur-md px-4 py-3 flex items-center justify-center gap-2.5 min-h-[48px] pr-12"
+            aria-live="polite"
+          >
+            @if (showPin()) {
+              <span class="font-mono text-xl sm:text-2xl tracking-[0.25em] text-amber-300 font-bold">
+                {{ pin() || '····' }}
+              </span>
+            } @else {
+              @for (slot of pinSlots(); track $index) {
+                <span
+                  class="size-3 sm:size-3.5 rounded-full border transition-all duration-150"
+                  [class]="slot ? 'bg-amber-400 border-amber-300 scale-110 shadow-sm shadow-amber-400/50' : 'bg-white/10 border-white/25'"
+                ></span>
+              }
+            }
+          </div>
+          <button
+            type="button"
+            uiSfx="click"
+            class="absolute right-2.5 size-8 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer"
+            [attr.aria-label]="showPin() ? 'Ocultar PIN' : 'Ver PIN'"
+            (click)="toggleShowPin()"
+          >
+            <app-hero-icon [name]="showPin() ? 'eye-slash' : 'eye'" class="text-base" />
+          </button>
         </div>
 
         <!-- Mensaje de Error y Pista Profesional -->
@@ -142,6 +159,11 @@ export class SuperadminPinDialog {
   protected readonly pin = signal('');
   protected readonly error = signal('');
   protected readonly hint = signal(this.superadminAuth.hint);
+  protected readonly showPin = signal(false);
+
+  protected toggleShowPin(): void {
+    this.showPin.update((v) => !v);
+  }
 
   /** Muestra 6 ranuras de estado */
   protected readonly pinSlots = computed(() => {

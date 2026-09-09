@@ -2,14 +2,21 @@ import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { PlatformService } from '../../core/platform/platform.service';
 import {
+  ADMIN_PIN_MAX_LENGTH,
   ADMIN_PIN_STORAGE_KEY,
   DEFAULT_ADMIN_PIN,
+  getPinHint,
   persistPinHash,
+  persistPinHint,
+  resetAdminPin,
   sha256Hex,
   SUPERADMIN_HINT,
   SUPERADMIN_PIN,
+  SUPERADMIN_RESET_PIN,
   timingSafeEqual,
+  verifyBetaSuperadminPin,
   verifyPin,
+  verifyResetSuperadminPin,
   verifySuperadminPin,
 } from './pin';
 
@@ -22,6 +29,9 @@ function buildPlatform(store: Record<string, string> = {}) {
     storageSet: (key: string, value: string) => {
       store[key] = value;
     },
+    storageRemove: (key: string) => {
+      delete store[key];
+    },
     store,
   };
 }
@@ -33,11 +43,12 @@ describe('PIN admin', () => {
     expect(await verifyPin(platform as unknown as PlatformService, '0000')).toBe(false);
   });
 
-  it('acepta un PIN persistido y rechaza el default anterior', async () => {
+  it('acepta un PIN persistido de hasta 10 dígitos y rechaza el default anterior', async () => {
     const platform = buildPlatform();
-    await persistPinHash(platform as unknown as PlatformService, '147258');
+    expect(ADMIN_PIN_MAX_LENGTH).toBe(10);
+    await persistPinHash(platform as unknown as PlatformService, '3001234567');
     expect(platform.store[ADMIN_PIN_STORAGE_KEY]).toBeTruthy();
-    expect(await verifyPin(platform as unknown as PlatformService, '147258')).toBe(true);
+    expect(await verifyPin(platform as unknown as PlatformService, '3001234567')).toBe(true);
     expect(await verifyPin(platform as unknown as PlatformService, DEFAULT_ADMIN_PIN)).toBe(false);
   });
 
@@ -48,12 +59,32 @@ describe('PIN admin', () => {
     expect(timingSafeEqual(a, b)).toBe(false);
   });
 
-  it('verifySuperadminPin acepta 210726 y rechaza otros pines', () => {
+  it('valida las dos claves independientes de superadministrador (beta 210726 y reset 998877)', () => {
     expect(SUPERADMIN_PIN).toBe('210726');
+    expect(SUPERADMIN_RESET_PIN).toBe('998877');
+
+    expect(verifyBetaSuperadminPin('210726')).toBe(true);
+    expect(verifyBetaSuperadminPin('998877')).toBe(false);
+
+    expect(verifyResetSuperadminPin('998877')).toBe(true);
+    expect(verifyResetSuperadminPin('210726')).toBe(false);
+
     expect(verifySuperadminPin('210726')).toBe(true);
-    expect(verifySuperadminPin('2580')).toBe(false);
-    expect(verifySuperadminPin('123456')).toBe(false);
     expect(SUPERADMIN_HINT).toContain('Lo mejor 2026');
-    expect(SUPERADMIN_HINT).toContain('DD/MM/AA');
+  });
+
+  it('gestiona la frase de recordación y el restablecimiento del PIN a valores de fábrica', async () => {
+    const platform = buildPlatform();
+    const service = platform as unknown as PlatformService;
+
+    persistPinHint(service, 'Mi frase secreta');
+    expect(getPinHint(service)).toBe('Mi frase secreta');
+
+    await persistPinHash(service, '9999');
+    expect(await verifyPin(service, '9999')).toBe(true);
+
+    resetAdminPin(service);
+    expect(getPinHint(service)).toBe('');
+    expect(await verifyPin(service, DEFAULT_ADMIN_PIN)).toBe(true);
   });
 });

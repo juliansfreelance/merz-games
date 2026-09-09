@@ -1,4 +1,4 @@
-import { Atmosphere } from './content-manifest.model';
+import { Atmosphere, AttractionVideo } from './content-manifest.model';
 
 export interface Brand {
   id: string;
@@ -16,8 +16,10 @@ export interface Brand {
   atmosphere?: Atmosphere;
   /** Disclaimer legal específico de la marca (INVIMA, registros, indicaciones). Opcional. */
   disclaimer?: string;
-  /** Video de atracción promocional de la marca para el protector de pantalla (ruta local). Opcional. */
+  /** Video de atracción promocional singular de la marca (compatibilidad hacia atrás). Opcional. */
   attractionVideo?: string;
+  /** Lista de videos de atracción promocionales de la marca para el protector de pantalla. */
+  attractionVideos?: AttractionVideo[];
   /** Indica si la marca se encuentra en fase de desarrollo o beta (requiere PIN superadmin). Opcional. */
   develop?: boolean;
 }

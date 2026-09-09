@@ -5,6 +5,7 @@ import {
   effect,
   ElementRef,
   inject,
+  signal,
   Type,
   untracked,
 } from '@angular/core';
@@ -20,6 +21,7 @@ import { GameExperience } from '../../core/catalog/game-experience.model';
 import { UnavailableScreen } from '../shared/unavailable-screen';
 import { GameChrome } from '../shared/game-chrome';
 import { ResultScreen } from '../result/result-screen';
+import { GameExitConfirmDialog } from '../shared/game-exit-confirm-dialog';
 import { MemoryPlay } from './memory-play';
 import { TriquiPlay } from './triqui-play';
 
@@ -44,7 +46,7 @@ const GAME_COMPONENT_BY_ID: Readonly<Record<string, Type<unknown>>> = {
  */
 @Component({
   selector: 'app-game-host',
-  imports: [NgComponentOutlet, UnavailableScreen, GameChrome, ResultScreen],
+  imports: [NgComponentOutlet, UnavailableScreen, GameChrome, ResultScreen, GameExitConfirmDialog],
   host: {
     class: 'flex flex-col flex-1 w-full h-full min-h-0 overflow-y-auto',
     style: 'touch-action: pan-y; -webkit-overflow-scrolling: touch;',
@@ -60,7 +62,8 @@ const GAME_COMPONENT_BY_ID: Readonly<Record<string, Type<unknown>>> = {
         [remainingLives]="session.remainingLives()"
         [maxLives]="session.maxLives()"
         [roundNumber]="roundCounter()"
-        (back)="goBackToGames()"
+        [blurTint]="brand()?.atmosphere?.blurTint"
+        (back)="onRequestBack()"
         (help)="session.requestTutorial()"
       >
         <!-- Indicador de turno alineado a la izquierda fuera del slot del juego -->
@@ -108,7 +111,20 @@ const GAME_COMPONENT_BY_ID: Readonly<Record<string, Type<unknown>>> = {
           [result]="result"
           [experienceId]="experienceId()"
           [brandName]="brandName()"
-          [gameName]="game()?.name ?? ''"
+          [gameName]="gameTitle()"
+        />
+      }
+      @if (showExitConfirm()) {
+        <app-game-exit-confirm-dialog
+          [iconUrl]="exitConfirmConfig()?.icon || '/content/images/experiences/result/warning.png'"
+          [title]="exitConfirmConfig()?.title || '¿ABANDONAR LA PARTIDA?'"
+          [message]="exitConfirmConfig()?.message || 'Si regresas a la selección de juegos, perderás tu progreso actual en esta sesión.<br><strong>¿Deseas salir o continuar jugando?</strong>'"
+          [confirmLabel]="exitConfirmConfig()?.confirmButtonText || 'Sí, salir'"
+          [cancelLabel]="exitConfirmConfig()?.cancelButtonText || 'Continuar jugando'"
+          [brandName]="brandName()"
+          [gameName]="gameTitle()"
+          (confirmed)="onConfirmExit()"
+          (cancelled)="onCancelExit()"
         />
       }
     } @else {
@@ -128,6 +144,11 @@ export class GameHost {
   private readonly hostEl = inject(ElementRef<HTMLElement>);
   private startedExperienceId = '';
   private leaving = false;
+  protected readonly showExitConfirm = signal<boolean>(false);
+
+  protected readonly exitConfirmConfig = computed(() => {
+    return this.experience()?.exitConfirm;
+  });
 
   protected readonly experienceId = toSignal(
     this.route.paramMap.pipe(map((p) => p.get('experienceId') ?? '')),
@@ -156,7 +177,7 @@ export class GameHost {
   protected readonly gameTitle = computed(() => {
     const exp = this.experience();
     if (!exp) return 'Experiencia de Juego';
-    return exp.title ?? this.game()?.name ?? 'Juego Merz';
+    return exp.name ?? exp.title ?? this.game()?.name ?? 'Juego Merz';
   });
 
   protected readonly brandName = computed(() => {
@@ -202,6 +223,7 @@ export class GameHost {
       // Configuración y activos del motor (nivel game.config / game.assets en la cascada)
       gameConfig: game?.config ?? {},
       gameAssets: game?.assets ?? {},
+      ...(exp.turnNotice !== undefined ? { turnNotice: exp.turnNotice } : {}),
     };
   });
 
@@ -232,6 +254,23 @@ export class GameHost {
       this.cancelHostAnimations();
       this.session.leavePlay();
     });
+  }
+
+  onRequestBack(): void {
+    if (this.session.playResult() !== null) {
+      this.goBackToGames();
+      return;
+    }
+    this.showExitConfirm.set(true);
+  }
+
+  onConfirmExit(): void {
+    this.showExitConfirm.set(false);
+    this.goBackToGames();
+  }
+
+  onCancelExit(): void {
+    this.showExitConfirm.set(false);
   }
 
   goBackToGames(): void {

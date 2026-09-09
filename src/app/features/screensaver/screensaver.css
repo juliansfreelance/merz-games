@@ -1,58 +1,24 @@
-/* Animaciones suaves para el protector de pantalla clásico */
-
-@keyframes gentle-float {
-  0%, 100% {
-    transform: translateY(0px) scale(1);
-  }
-  50% {
-    transform: translateY(-14px) scale(1.02);
-  }
-}
+/* Estilos y animaciones del protector de pantalla */
 
 @keyframes pulse-glow {
   0%, 100% {
     opacity: 0.35;
-    transform: scale(0.98);
+    transform: translate(-50%, -50%) scale(0.98);
   }
   50% {
     opacity: 0.65;
-    transform: scale(1.05);
+    transform: translate(-50%, -50%) scale(1.05);
   }
-}
-
-@keyframes logo-fade {
-  0% {
-    opacity: 0;
-    transform: scale(0.94);
-  }
-  15%, 85% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(1.04);
-  }
-}
-
-.animate-gentle-float {
-  animation: gentle-float 6s ease-in-out infinite;
 }
 
 .animate-pulse-glow {
   animation: pulse-glow 8s ease-in-out infinite;
 }
 
-.animate-logo-cycle {
-  animation: logo-fade 6s ease-in-out infinite;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .animate-gentle-float,
-  .animate-pulse-glow,
-  .animate-logo-cycle {
+  .animate-pulse-glow {
     animation: none !important;
-    transform: none !important;
-    opacity: 0.8 !important;
+    transform: translate(-50%, -50%) scale(1) !important;
+    opacity: 0.5 !important;
   }
 }

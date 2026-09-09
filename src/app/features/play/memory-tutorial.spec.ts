@@ -41,7 +41,7 @@ describe('MemoryTutorial', () => {
     expect(modalElement).toBeTruthy();
     expect(modalElement.classList).toContain('fixed');
     expect(modalElement.classList).toContain('inset-0');
-    expect(modalElement.classList).toContain('z-50');
+    expect(modalElement.classList).toContain('z-[60]');
 
     expect(document.body.style.overflow).toBe('hidden');
   });

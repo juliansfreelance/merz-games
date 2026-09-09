@@ -39,11 +39,10 @@ describe('BrandSelect Component', () => {
     fixture.detectChanges();
   });
 
-  it('debe listar las marcas disponibles incluyendo las que están en desarrollo', () => {
+  it('debe listar las marcas disponibles', () => {
     const el = fixture.nativeElement as HTMLElement;
     expect(el.textContent).toContain('Radiesse');
     expect(el.textContent).toContain('Ultherapy');
-    expect(el.textContent).toContain('Merz');
   });
 
   it('al pulsar una marca regular navega directamente a sus juegos', () => {
@@ -54,24 +53,32 @@ describe('BrandSelect Component', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/brands', 'radiesse', 'games']);
   });
 
-  it('al pulsar una marca en desarrollo (merz) sin superadmin solicita PIN', () => {
+  it('al pulsar una marca en desarrollo sin superadmin solicita PIN', () => {
     superadminAuth.lock();
-    const merzBrand = catalog.getBrandById('merz');
-    expect(merzBrand).toBeTruthy();
+    const devBrand = {
+      id: 'dev-brand',
+      name: 'Dev Brand',
+      version: '0.1.0',
+      enabled: true,
+      develop: true,
+      order: 3,
+      image: '',
+      logo: '',
+    };
 
-    component.onBrandClick(merzBrand!);
+    component.onBrandClick(devBrand);
     fixture.detectChanges();
 
-    expect(component['pendingBrandId']()).toBe('merz');
+    expect(component['pendingBrandId']()).toBe('dev-brand');
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('app-superadmin-pin-dialog')).toBeTruthy();
   });
 
   it('al desbloquear el diálogo navega a la marca en desarrollo', () => {
-    component['pendingBrandId'].set('merz');
+    component['pendingBrandId'].set('dev-brand');
     component['onSuperadminUnlocked']();
 
-    expect(router.navigate).toHaveBeenCalledWith(['/brands', 'merz', 'games']);
+    expect(router.navigate).toHaveBeenCalledWith(['/brands', 'dev-brand', 'games']);
     expect(component['pendingBrandId']()).toBeNull();
   });
 });

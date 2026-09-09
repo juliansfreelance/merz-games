@@ -32,8 +32,8 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
     <!-- Modal Backdrop a pantalla completa con bloqueo -->
     @if (visible()) {
       <div
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
-        style="background: rgba(3, 7, 18, 0.52); backdrop-filter: blur(16px);"
+        class="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+        style="background: rgba(3, 7, 18, 0.65); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);"
         role="dialog"
         aria-modal="true"
         aria-label="Instrucciones del juego de memoria"
@@ -59,7 +59,7 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
 
           <!-- Título del Tutorial -->
           <div class="space-y-1">
-            <span class="text-xs uppercase tracking-[0.25em] font-extrabold text-neutral-400">
+            <span class="text-xs uppercase tracking-[0.25em] font-extrabold text-white/80">
               Tutorial de Juego
             </span>
             <h2 class="text-xl sm:text-2xl font-black font-['Montserrat'] tracking-tight text-white uppercase">
@@ -149,33 +149,33 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
           <div class="w-full space-y-3 text-left bg-white/[0.04] border border-white/10 rounded-2xl p-4 sm:p-5">
             <!-- Regla 1: Emparejar cartas -->
             <div class="flex items-start gap-3">
-              <div class="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center shrink-0 text-xs font-bold text-white mt-0.5">
+              <div class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0 text-xs font-bold text-white mt-0.5">
                 1
               </div>
-              <p class="text-xs sm:text-sm text-neutral-200 leading-relaxed">
+              <p class="text-xs sm:text-sm text-white leading-relaxed">
                 Toca dos cartas por turno para voltearlas y memorizar sus figuras. Si coinciden, quedarán descubiertas.
               </p>
             </div>
 
             <!-- Regla 2: Explicación de pérdida de vidas -->
             <div class="flex items-start gap-3">
-              <div class="w-7 h-7 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 text-xs font-bold mt-0.5">
+              <div class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0 text-xs font-bold text-white mt-0.5">
                 2
               </div>
-              <div class="text-xs sm:text-sm leading-relaxed">
-                <span class="font-bold text-rose-400">Atención a tus vidas:</span>
-                <span class="text-neutral-200 ml-1">
-                  Cada vez que falles y las dos cartas no coincidan, <strong class="text-white">perderás una vida</strong>. ¡Piensa bien cada movimiento!
+              <div class="text-xs sm:text-sm text-white leading-relaxed">
+                <span class="font-bold text-white">Atención a tus vidas:</span>
+                <span class="text-white ml-1">
+                  Cada vez que falles y las dos cartas no coincidan, <strong class="font-bold text-white">perderás una vida</strong>. ¡Piensa bien cada movimiento!
                 </span>
               </div>
             </div>
 
             <!-- Regla 3: Meta del juego -->
             <div class="flex items-start gap-3">
-              <div class="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 text-xs font-bold mt-0.5">
+              <div class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0 text-xs font-bold text-white mt-0.5">
                 3
               </div>
-              <p class="text-xs sm:text-sm text-neutral-200 leading-relaxed">
+              <p class="text-xs sm:text-sm text-white leading-relaxed">
                 Encuentra todas las parejas antes de quedarte sin vidas para ganar la partida.
               </p>
             </div>

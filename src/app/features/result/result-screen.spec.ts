@@ -76,13 +76,17 @@ describe('ResultScreen overlay', () => {
     document.body.style.overflow = '';
   });
 
-  it('debe renderizar un dialog modal a pantalla completa', () => {
+  it('debe renderizar un dialog modal a pantalla completa con logo e imagen de resultado', () => {
     const dialog = fixture.nativeElement.querySelector('[role="dialog"]') as HTMLElement;
     expect(dialog).toBeTruthy();
     expect(dialog.classList).toContain('fixed');
     expect(dialog.classList).toContain('inset-0');
     expect(dialog.getAttribute('aria-modal')).toBe('true');
-    expect(fixture.nativeElement.textContent).toContain('¡Ganaste un premio!');
+    expect(fixture.nativeElement.textContent).toContain('¡GANASTE!');
+    const logoImg = fixture.nativeElement.querySelector('img[src="/content/images/MerzAestheticsLogo.svg"]');
+    expect(logoImg).toBeTruthy();
+    const resultImg = fixture.nativeElement.querySelector('img[src="/content/images/experiences/result/win.png"]');
+    expect(resultImg).toBeTruthy();
   });
 
   it('debe animar la entrada del overlay y de la tarjeta', () => {
@@ -106,7 +110,7 @@ describe('ResultScreen overlay', () => {
   it('en out-of-lives muestra «Volver a jugar» y llama a start()', () => {
     fixture.componentRef.setInput('result', 'out-of-lives');
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Sin más intentos');
+    expect(fixture.nativeElement.textContent).toContain('SIN MÁS INTENTOS');
     expect(fixture.nativeElement.textContent).toContain('Volver a jugar');
 
     const replayBtn = Array.from(
@@ -116,15 +120,17 @@ describe('ResultScreen overlay', () => {
     expect(mockSession.start).toHaveBeenCalledWith('radiesse-memory');
   });
 
-  it('en draw muestra copy de empate con vidas restantes y botón «Siguiente ronda»', () => {
+  it('en draw muestra únicamente el botón «Siguiente ronda» y oculta las salidas del flujo', () => {
     mockSession.remainingLives.set(2);
     fixture.componentRef.setInput('result', 'draw');
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('¡Empate!');
-    expect(fixture.nativeElement.textContent).toContain('Empate. Te quedan 2 oportunidades. Pon atención.');
+    expect(fixture.nativeElement.textContent).toContain('¡EMPATE!');
+    expect(fixture.nativeElement.textContent).toContain('Te quedan 2 oportunidades.');
     expect(fixture.nativeElement.textContent).toContain('Siguiente ronda');
     expect(fixture.nativeElement.textContent).not.toContain('Volver a jugar');
+    expect(fixture.nativeElement.textContent).not.toContain('Ver más juegos');
+    expect(fixture.nativeElement.textContent).not.toContain('Cambiar de marca');
 
     const nextRoundBtn = Array.from(
       fixture.nativeElement.querySelectorAll('button'),
@@ -133,14 +139,17 @@ describe('ResultScreen overlay', () => {
     expect(mockSession.nextRound).toHaveBeenCalled();
   });
 
-  it('en lose muestra copy de derrota con vidas restantes y botón «Siguiente ronda»', () => {
+  it('en lose muestra únicamente el botón «Siguiente ronda» y oculta las salidas del flujo', () => {
     mockSession.remainingLives.set(1);
     fixture.componentRef.setInput('result', 'lose');
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('Perdiste. Te queda 1 oportunidad. Pon atención.');
+    expect(fixture.nativeElement.textContent).toContain('PERDISTE ESTA RONDA');
+    expect(fixture.nativeElement.textContent).toContain('Te queda 1 oportunidad.');
     expect(fixture.nativeElement.textContent).toContain('Siguiente ronda');
     expect(fixture.nativeElement.textContent).not.toContain('Volver a jugar');
+    expect(fixture.nativeElement.textContent).not.toContain('Ver más juegos');
+    expect(fixture.nativeElement.textContent).not.toContain('Cambiar de marca');
 
     const nextRoundBtn = Array.from(
       fixture.nativeElement.querySelectorAll('button'),

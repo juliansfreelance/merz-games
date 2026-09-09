@@ -152,4 +152,62 @@ describe('GameHost', () => {
     expect(headerLeft).toBeTruthy();
     expect(headerLeft?.textContent).toContain('Tu turno');
   });
+
+  it('al pulsar volver durante la partida muestra el diálogo de confirmación de salida sin salir de inmediato', () => {
+    const { fixture, mockSession } = setup('radiesse-memory');
+    const component = fixture.componentInstance;
+
+    // Pulsar volver
+    component.onRequestBack();
+    fixture.detectChanges();
+
+    expect(component['showExitConfirm']()).toBe(true);
+    expect(mockSession.leavePlay).not.toHaveBeenCalled();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('app-game-exit-confirm-dialog')).toBeTruthy();
+  });
+
+  it('al confirmar la salida en el diálogo abandona la partida y llama a session.leavePlay()', () => {
+    const { fixture, mockSession } = setup('radiesse-memory');
+    const component = fixture.componentInstance;
+
+    component.onRequestBack();
+    fixture.detectChanges();
+
+    component.onConfirmExit();
+    fixture.detectChanges();
+
+    expect(component['showExitConfirm']()).toBe(false);
+    expect(mockSession.leavePlay).toHaveBeenCalled();
+  });
+
+  it('al cancelar la salida en el diálogo lo oculta y no llama a session.leavePlay()', () => {
+    const { fixture, mockSession } = setup('radiesse-memory');
+    const component = fixture.componentInstance;
+
+    component.onRequestBack();
+    fixture.detectChanges();
+
+    component.onCancelExit();
+    fixture.detectChanges();
+
+    expect(component['showExitConfirm']()).toBe(false);
+    expect(mockSession.leavePlay).not.toHaveBeenCalled();
+  });
+
+  it('si la partida ya terminó con resultado, pulsar volver sale directamente sin diálogo', () => {
+    const { fixture, mockSession } = setup('radiesse-memory');
+    const component = fixture.componentInstance;
+
+    mockSession.playResult.set('win');
+    fixture.detectChanges();
+
+    component.onRequestBack();
+    fixture.detectChanges();
+
+    expect(component['showExitConfirm']()).toBe(false);
+    expect(mockSession.leavePlay).toHaveBeenCalled();
+  });
 });
+
