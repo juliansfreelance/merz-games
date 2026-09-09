@@ -21,8 +21,8 @@ import { HeroIcon } from './hero-icon';
       [class]="
         (fillContainer() ? '' : 'min-h-85 sm:min-h-95 kiosk:min-h-120 ') +
         (develop()
-          ? 'border-2 border-dashed border-amber-400/30 bg-white/2 opacity-65 hover:opacity-90 hover:border-amber-400/50 backdrop-blur-sm'
-          : 'border border-white/15 bg-white/6 backdrop-blur-md hover:border-white/30 hover:bg-white/9')
+          ? 'border-2 border-dashed border-amber-400/30 bg-white/8 hover:border-amber-400/50 hover:bg-white/16 backdrop-blur-sm'
+          : 'border border-white/15 bg-white/8 hover:border-white/30 hover:bg-white/16 backdrop-blur-md')
       "
     >
       <!-- 1. Imagen / Preview Superior (Aspecto 16:10 amplio) -->
@@ -45,7 +45,7 @@ import { HeroIcon } from './hero-icon';
 
         @if (develop()) {
           <span class="absolute top-2.5 right-2.5 kiosk:top-3.5 kiosk:right-3.5 px-3 py-1 kiosk:px-3.5 kiosk:py-1.5 rounded-full text-[10px] sm:text-xs font-extrabold tracking-wider uppercase bg-amber-500/25 text-amber-300 border border-amber-400/40 backdrop-blur-md shadow-sm flex items-center gap-1.5">
-            <app-hero-icon name="lock-closed" class="text-xs" />
+            <app-hero-icon name="fire" class="text-xs" />
             <span>En desarrollo</span>
           </span>
         } @else if (badge()) {
@@ -86,7 +86,7 @@ import { HeroIcon } from './hero-icon';
           (keydown.space)="handleKey($event)"
         >
           @if (develop()) {
-            <app-hero-icon name="lock-closed" class="text-xs" />
+            <app-hero-icon name="fire" class="text-xs" />
             <span>Acceso Beta</span>
           } @else {
             <span>{{ actionLabel() }}</span>

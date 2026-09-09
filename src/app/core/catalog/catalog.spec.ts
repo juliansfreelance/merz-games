@@ -369,8 +369,20 @@ describe('CatalogService — Atmósfera y Cards', () => {
 describe('CatalogService', () => {
   beforeEach(() => TestBed.resetTestingModule());
 
-  it('should expose enabled brands with activas before beta, then by order', () => {
+  it('should expose enabled brands without beta when developMode is off', () => {
     const { catalog } = buildCatalog();
+    expect(catalog.developMode()).toBe(false);
+    const brands = catalog.brands();
+    expect(brands.length).toBeGreaterThan(0);
+    brands.forEach((b) => {
+      expect(b.enabled).toBe(true);
+      expect(b.develop).toBeFalsy();
+    });
+  });
+
+  it('with developMode on exposes enabled brands with activas before beta, then by order', () => {
+    const { catalog } = buildCatalog();
+    catalog.setDevelopMode(true);
     const brands = catalog.brands();
     expect(brands.length).toBeGreaterThan(0);
     brands.forEach((b) => expect(b.enabled).toBe(true));
@@ -386,6 +398,7 @@ describe('CatalogService', () => {
 
     const actives = brands.filter((b) => !b.develop);
     const betas = brands.filter((b) => !!b.develop);
+    expect(betas.length).toBeGreaterThan(0);
     for (let i = 1; i < actives.length; i++) {
       expect(actives[i - 1].order).toBeLessThanOrEqual(actives[i].order);
     }
@@ -788,6 +801,23 @@ describe('UpdateModel', () => {
 
     catalog.setExperiencesMode('global');
     expect(catalog.experiencesMode()).toBe('global');
+  });
+
+  it('setDevelopMode controla la visibilidad de marcas y experiencias beta', () => {
+    const { catalog } = buildCatalog();
+    expect(catalog.developMode()).toBe(false);
+    expect(catalog.brands().some((b) => b.id === 'radiesse2')).toBe(false);
+    expect(catalog.experiences().some((e) => e.id === 'radiesse2-memory')).toBe(false);
+
+    catalog.setDevelopMode(true);
+    expect(catalog.developMode()).toBe(true);
+    expect(catalog.rawManifest().app?.developMode).toBe(true);
+    expect(catalog.brands().some((b) => b.id === 'radiesse2')).toBe(true);
+    expect(catalog.experiences().some((e) => e.id === 'radiesse2-memory')).toBe(true);
+
+    catalog.setDevelopMode(false);
+    expect(catalog.developMode()).toBe(false);
+    expect(catalog.brands().some((b) => b.id === 'radiesse2')).toBe(false);
   });
 
   it('detecta marcas, motores y experiencias en desarrollo correctamente', () => {

@@ -230,6 +230,10 @@ function hydrateManifestFromSeed(candidate: ContentManifest): void {
         candidate.app?.experiencesMode === 'individual'
           ? candidate.app.experiencesMode
           : seed.app?.experiencesMode,
+      developMode:
+        typeof candidate.app?.developMode === 'boolean'
+          ? candidate.app.developMode
+          : seed.app?.developMode,
     };
   }
   if (seed.atmosphere) {
@@ -312,6 +316,14 @@ export class CatalogService {
     this.manifest().app?.experiencesMode === 'individual' ? 'individual' : 'global',
   );
 
+  /**
+   * Modo desarrollo / beta (`app.developMode`).
+   * Default: `false` — el contenido marcado como beta queda oculto en el kiosco y el panel.
+   */
+  readonly developMode = computed<boolean>(
+    () => this.manifest().app?.developMode === true,
+  );
+
   /** Configuración resuelta del Cover Flow (`app.cover` + defaults). */
   readonly coverConfig = computed(() =>
     resolveAppCoverConfig(this.manifest().app?.cover),
@@ -348,22 +360,24 @@ export class CatalogService {
     );
   });
 
-  /** Marcas habilitadas: primero activas (no beta), luego beta; dentro de cada grupo por `order`. */
-  readonly brands = computed<Brand[]>(() =>
-    this.manifest()
-      .brands.filter((b) => b.enabled)
+  /** Marcas habilitadas visibles: sin beta salvo `developMode`; activas primero, luego beta; por `order`. */
+  readonly brands = computed<Brand[]>(() => {
+    const showBeta = this.developMode();
+    return this.manifest()
+      .brands.filter((b) => b.enabled && (showBeta || !b.develop))
       .sort((a, b) => {
         const groupA = a.develop ? 1 : 0;
         const groupB = b.develop ? 1 : 0;
         if (groupA !== groupB) return groupA - groupB;
         return a.order - b.order;
-      }),
-  );
+      });
+  });
 
-  /** Experiencias habilitadas con relaciones válidas y `minAppVersion` compatible. */
+  /** Experiencias habilitadas con relaciones válidas, `minAppVersion` compatible y filtro beta. */
   readonly experiences = computed<GameExperience[]>(() => {
     const manifest = this.manifest();
     const appVersion = this.platform.appVersion();
+    const showBeta = this.developMode();
 
     const brandMap = new Map<string, Brand>(
       manifest.brands.map((b) => [b.id, b]),
@@ -380,6 +394,9 @@ export class CatalogService {
         const game = gameMap.get(exp.gameId);
         if (!game?.enabled) return false;
         if (!semverGte(appVersion, game.minAppVersion)) return false;
+        const isBeta =
+          exp.develop === true || brand.develop === true || game.develop === true;
+        if (isBeta && !showBeta) return false;
         return true;
       })
       .sort((a, b) => {
@@ -736,6 +753,22 @@ export class CatalogService {
       },
     });
     this.logger.info('CatalogService', `experiencesMode: ${next}`);
+  }
+
+  /**
+   * Activa o desactiva el modo desarrollo / beta (`app.developMode`) en el manifest activo.
+   */
+  setDevelopMode(enabled: boolean): void {
+    const next = enabled === true;
+    const current = this.manifest();
+    this.manifest.set({
+      ...current,
+      app: {
+        ...current.app,
+        developMode: next,
+      },
+    });
+    this.logger.info('CatalogService', `developMode: ${next}`);
   }
 
   /**

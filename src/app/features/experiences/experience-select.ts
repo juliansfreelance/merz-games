@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CatalogService } from '../../core/catalog/catalog';
 import { GameExperience } from '../../core/catalog/game-experience.model';
@@ -8,13 +8,12 @@ import { CatalogCard } from '../shared/catalog-card';
 import { CoverFlow } from '../shared/cover-flow';
 import { KioskDisclaimer } from '../shared/kiosk-disclaimer';
 import { HeroIcon } from '../shared/hero-icon';
-import { SuperadminPinDialog } from '../shared/superadmin-pin-dialog';
-import { SuperadminAuthService } from '../admin/superadmin-auth.service';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs/operators';
 
 /**
  * Selector de experiencias con Cover Flow 3D horizontal (sin scroll vertical de cards).
+ * El contenido beta solo aparece cuando `app.developMode` está activo.
  */
 @Component({
   selector: 'app-experience-select',
@@ -25,7 +24,6 @@ import { map } from 'rxjs/operators';
     CoverFlow,
     KioskDisclaimer,
     HeroIcon,
-    SuperadminPinDialog,
   ],
   host: {
     class: 'flex flex-col flex-1 w-full h-full min-h-0 overflow-hidden',
@@ -92,7 +90,7 @@ import { map } from 'rxjs/operators';
           [develop]="card.develop ?? false"
           [selectable]="active"
           [fillContainer]="true"
-          (selected)="onExperienceClick(exp, card.develop ?? false)"
+          (selected)="onExperienceClick(exp)"
         />
       </ng-template>
 
@@ -111,26 +109,13 @@ import { map } from 'rxjs/operators';
         </div>
       </app-kiosk-disclaimer>
 
-      <!-- Diálogo modal de superadmin si la experiencia está en desarrollo -->
-      @if (pendingExperienceId()) {
-        <app-superadmin-pin-dialog
-          title="Juego en Desarrollo"
-          subtitle="Esta experiencia se encuentra en fase de pruebas técnicas. Ingrese el PIN de superadministrador para acceder."
-          (unlocked)="onSuperadminUnlocked()"
-          (cancelled)="pendingExperienceId.set(null)"
-        />
-      }
-
     </div>
   `,
 })
 export class ExperienceSelect {
   private readonly route = inject(ActivatedRoute);
   protected readonly catalog = inject(CatalogService);
-  protected readonly superadminAuth = inject(SuperadminAuthService);
   private readonly router = inject(Router);
-
-  protected readonly pendingExperienceId = signal<string | null>(null);
 
   private readonly brandId = toSignal(
     this.route.paramMap.pipe(map((p) => p.get('brandId') ?? '')),
@@ -162,20 +147,8 @@ export class ExperienceSelect {
     return this.catalog.getBrandById(this.brandId())?.name ?? this.brandId();
   }
 
-  onExperienceClick(exp: GameExperience, isDevelop: boolean): void {
-    if (isDevelop && !this.superadminAuth.isUnlocked()) {
-      this.pendingExperienceId.set(exp.id);
-      return;
-    }
+  onExperienceClick(exp: GameExperience): void {
     this.selectExperience(exp.id);
-  }
-
-  protected onSuperadminUnlocked(): void {
-    const id = this.pendingExperienceId();
-    this.pendingExperienceId.set(null);
-    if (id) {
-      this.selectExperience(id);
-    }
   }
 
   selectExperience(experienceId: string): void {

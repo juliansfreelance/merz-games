@@ -88,10 +88,17 @@ const FIREWORKS_DURATION_MS = 15_000;
 
         <!-- Marca / Juego (Salto de línea, marca destacada) -->
         @if (brandName()) {
-          <div class="flex flex-col items-center justify-center gap-1 uppercase tracking-widest select-none mb-2 sm:mb-4 [&>span>sup]:text-[0.6em] [&>span>sup]:top-[-0.4em]">
+          <div class="flex flex-col items-center justify-center gap-1.5 uppercase tracking-widest select-none mb-2 sm:mb-4 [&>span>sup]:text-[0.6em] [&>span>sup]:top-[-0.4em]">
             <span class="text-lg sm:text-xl font-black text-white" [innerHTML]="brandName()"></span>
             @if (gameName()) {
-              <span class="text-xs sm:text-sm font-semibold text-neutral-300" [innerHTML]="gameName()"></span>
+              <span class="inline-flex items-center justify-center gap-2 flex-wrap">
+                <span class="text-xs sm:text-sm font-semibold text-neutral-300" [innerHTML]="gameName()"></span>
+                @if (develop()) {
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider uppercase bg-amber-500/25 text-amber-300 border border-amber-400/40 normal-case">
+                    Beta
+                  </span>
+                }
+              </span>
             }
           </div>
         }
@@ -200,6 +207,8 @@ export class ResultScreen {
   readonly experienceId = input.required<string>();
   readonly brandName = input<string>('');
   readonly gameName = input<string>('');
+  /** Experiencia en fase beta / desarrollo. */
+  readonly develop = input<boolean>(false);
 
   protected readonly experience = computed(() =>
     this.catalog.getExperienceById(this.experienceId()),

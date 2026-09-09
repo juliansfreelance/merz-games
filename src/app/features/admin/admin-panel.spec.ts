@@ -178,6 +178,36 @@ describe('AdminPanel', () => {
     expect(el.textContent).toContain('Diagnóstico del Sistema');
   });
 
+  it('en Diagnóstico puede activar modo desarrollo tras PIN y mostrar sección Beta', async () => {
+    const catalog = TestBed.inject(CatalogService);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+
+    const diagButton = Array.from(el.querySelectorAll('main button')).find((b) =>
+      b.textContent?.includes('Diagnóstico'),
+    ) as HTMLButtonElement | undefined;
+    diagButton?.click();
+    fixture.detectChanges();
+
+    expect(el.textContent).toContain('Modo desarrollo');
+    expect(el.textContent).toContain('Activar modo desarrollo');
+    expect(catalog.developMode()).toBe(false);
+    expect(component['kioskBrandSections']().some((s) => s.id === 'beta')).toBe(false);
+
+    component['onDevelopModeToggle']();
+    fixture.detectChanges();
+    expect(component['pendingDevelopModeUnlock']()).toBe(true);
+    expect(el.querySelector('app-superadmin-pin-dialog')).toBeTruthy();
+
+    component['onDevelopModePinUnlocked']();
+    fixture.detectChanges();
+
+    expect(catalog.developMode()).toBe(true);
+    expect(component['pendingDevelopModeUnlock']()).toBe(false);
+    expect(el.textContent).toContain('Desactivar modo desarrollo');
+    expect(component['kioskBrandSections']().some((s) => s.id === 'beta')).toBe(true);
+  });
+
   it('permite cambiar volumen de BGM y SFX con feedback de toast', async () => {
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;

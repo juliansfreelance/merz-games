@@ -4,7 +4,7 @@ import { verifyBetaSuperadminPin } from './pin';
 
 /**
  * SuperadminAuthService — Gestiona la sesión temporal de desbloqueo de superadmin
- * para interactuar con marcas y juegos en desarrollo.
+ * (p. ej. activar modo desarrollo desde Diagnóstico).
  */
 @Injectable({ providedIn: 'root' })
 export class SuperadminAuthService {

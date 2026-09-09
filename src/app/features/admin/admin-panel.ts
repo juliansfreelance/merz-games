@@ -15,7 +15,7 @@ import {
   CdkDropList,
   moveItemInArray,
 } from '@angular/cdk/drag-drop';
-import { CatalogService, Brand, GameExperience } from '../../core/catalog/catalog';
+import { CatalogService, Brand, Game, GameExperience } from '../../core/catalog/catalog';
 import { AttractionVideo } from '../../core/catalog/content-manifest.model';
 import { CatalogDiffItem } from '../../core/catalog/compare-catalogs';
 import { UpdateStatus } from '../../core/catalog/update.model';
@@ -39,8 +39,10 @@ import {
 import { MediaPlayer } from '../../core/media/media-player';
 import { AdminSession } from './admin-session';
 import { AdminConfirm } from './admin-confirm';
+import { SuperadminAuthService } from './superadmin-auth.service';
 import { KioskButton } from '../shared/kiosk-button';
 import { HeroIcon, HeroIconName } from '../shared/hero-icon';
+import { SuperadminPinDialog } from '../shared/superadmin-pin-dialog';
 import { playUiSfx, UiSfx } from '../shared/ui-sfx';
 
 export type AdminSection =
@@ -173,6 +175,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
     KioskButton,
     HeroIcon,
     AdminConfirm,
+    SuperadminPinDialog,
     UiSfx,
     CdkDropList,
     CdkDrag,
@@ -1125,7 +1128,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                           <div class="brand-drag-placeholder" *cdkDragPlaceholder></div>
                           <div class="brand-drag-preview" *cdkDragPreview>
                             <div class="min-h-14 px-5 py-3 flex items-center gap-3 text-white">
-                              <app-hero-icon name="bars-3" class="text-yellow-400" />
+                              <app-hero-icon name="arrows-up-down" class="text-yellow-400" />
                               <span class="font-bold">{{ cleanText(brand.name) }}</span>
                             </div>
                           </div>
@@ -1140,7 +1143,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                                   aria-label="Arrastrar marca para reordenar"
                                   style="touch-action: none;"
                                 >
-                                  <app-hero-icon name="bars-3" class="text-lg" />
+                                  <app-hero-icon name="arrows-up-down" class="text-lg" />
                                 </button>
                               }
                               <div class="size-11 sm:size-12 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-yellow-400 shrink-0">
@@ -1155,7 +1158,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                                   <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-emerald-500/20 border-emerald-400/40 text-emerald-300">Activa</span>
                                 </div>
                                 <p class="text-xs text-neutral-400 truncate mt-0.5">
-                                  {{ brand.develop ? 'Visible tras las marcas activas (PIN superadmin)' : 'Visible en el selector de marcas del kiosco' }}
+                                  {{ brand.develop ? 'Visible en el kiosco con modo desarrollo activo' : 'Visible en el selector de marcas del kiosco' }}
                                 </p>
                               </div>
                             </div>
@@ -1214,7 +1217,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                                               aria-label="Arrastrar experiencia"
                                               style="touch-action: none;"
                                             >
-                                              <app-hero-icon name="bars-3" class="text-sm" />
+                                              <app-hero-icon name="arrows-up-down" class="text-sm" />
                                             </button>
                                           }
                                           <app-hero-icon
@@ -1352,7 +1355,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                                         <div class="flex items-center gap-2 min-w-0 flex-1">
                                           @if (expSection.items.length > 1) {
                                             <button type="button" cdkDragHandle class="size-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-neutral-400 cursor-grab shrink-0" style="touch-action: none;" aria-label="Arrastrar experiencia">
-                                              <app-hero-icon name="bars-3" class="text-sm" />
+                                              <app-hero-icon name="arrows-up-down" class="text-sm" />
                                             </button>
                                           }
                                           <span class="text-xs font-bold text-white truncate">{{ experienceLabel(exp) }}</span>
@@ -2248,47 +2251,155 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
               </div>
             </div>
 
-            <div class="space-y-4 p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
-              <div>
-                <p class="font-bold uppercase tracking-wider text-xs sm:text-sm text-yellow-400 pb-2 flex items-center gap-2">
+            <div class="p-5 sm:p-6 rounded-2xl border backdrop-blur-md space-y-4"
+              [class]="catalog.developMode() ? 'border-amber-400/35 bg-amber-500/10' : 'border-white/15 bg-white/5'">
+              <div class="flex items-start justify-between gap-4">
+                <div class="min-w-0 space-y-1.5">
+                  <p class="font-extrabold uppercase tracking-wider text-sm sm:text-base flex items-center gap-2"
+                    [class]="catalog.developMode() ? 'text-amber-300' : 'text-yellow-400'">
+                    <app-hero-icon name="beaker" class="text-lg" />
+                    <span>Modo desarrollo</span>
+                  </p>
+                  <p class="text-neutral-300 text-sm sm:text-base leading-relaxed">
+                    @if (catalog.developMode()) {
+                      Activo: el kiosco y este panel muestran marcas, juegos y experiencias beta.
+                    } @else {
+                      Inactivo: el contenido y las configuraciones beta permanecen ocultos en toda la aplicación.
+                    }
+                  </p>
+                </div>
+                <span
+                  class="shrink-0 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider border"
+                  [class]="catalog.developMode()
+                    ? 'bg-amber-500/20 border-amber-400/40 text-amber-300'
+                    : 'bg-white/10 border-white/20 text-neutral-400'"
+                >
+                  {{ catalog.developMode() ? 'ON' : 'OFF' }}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                uiSfx="select"
+                class="w-full min-h-14 px-4 rounded-xl border backdrop-blur-md text-sm sm:text-base font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.99]"
+                [class]="catalog.developMode()
+                  ? 'bg-white/5 hover:bg-white/10 border-white/20 text-neutral-200'
+                  : 'bg-amber-500/15 hover:bg-amber-500/25 border-amber-400/40 text-amber-200'"
+                style="touch-action: manipulation;"
+                (click)="onDevelopModeToggle()"
+              >
+                <app-hero-icon [name]="catalog.developMode() ? 'eye-slash' : 'lock-closed'" class="text-lg" />
+                <span>{{ catalog.developMode() ? 'Desactivar modo desarrollo' : 'Activar modo desarrollo' }}</span>
+              </button>
+            </div>
+
+            <div class="space-y-5 p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+              <div class="space-y-3">
+                <p class="font-bold uppercase tracking-wider text-xs sm:text-sm text-yellow-400 flex items-center gap-2">
                   <app-hero-icon name="swatch" class="text-sm text-yellow-400" />
                   <span>Marcas</span>
+                  <span class="text-neutral-500 font-bold normal-case tracking-normal">({{ catalog.rawManifest().brands.length }})</span>
                 </p>
-                <div class="space-y-1.5">
+                <ul class="space-y-2">
                   @for (brand of catalog.rawManifest().brands; track brand.id) {
-                    <p class="text-sm kiosk:text-base text-neutral-200">
-                      {{ brand.id }} · v{{ brand.version }} · <span [class.text-emerald-400]="brand.enabled" [class.text-neutral-500]="!brand.enabled">{{ brand.enabled ? 'activa' : 'off' }}</span>
-                    </p>
+                    <li class="rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-3 flex items-start justify-between gap-3">
+                      <div class="min-w-0 space-y-1">
+                        <p class="text-sm sm:text-base font-bold text-white truncate">{{ cleanText(brand.name) }}</p>
+                        <p class="text-[11px] sm:text-xs font-mono text-neutral-500 truncate">{{ brand.id }}</p>
+                      </div>
+                      <div class="shrink-0 flex flex-col items-end gap-1.5">
+                        <span class="text-[11px] sm:text-xs font-mono text-neutral-300">v{{ brand.version }}</span>
+                        <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                          @if (brand.develop) {
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-300">
+                              <app-hero-icon name="fire" class="text-[10px]" />
+                              Beta
+                            </span>
+                          }
+                          @let brandVis = diagnosticVisibility(brand.enabled, !!brand.develop, 'f');
+                          <span
+                            class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider border"
+                            [class]="brandVis.className"
+                          >
+                            {{ brandVis.label }}
+                          </span>
+                        </div>
+                      </div>
+                    </li>
                   }
-                </div>
+                </ul>
               </div>
 
-              <div class="pt-2 border-t border-white/10">
-                <p class="font-bold uppercase tracking-wider text-xs sm:text-sm text-yellow-400 pb-2 flex items-center gap-2">
+              <div class="pt-2 border-t border-white/10 space-y-3">
+                <p class="font-bold uppercase tracking-wider text-xs sm:text-sm text-yellow-400 flex items-center gap-2">
                   <app-hero-icon name="cube" class="text-sm text-yellow-400" />
                   <span>Motores</span>
+                  <span class="text-neutral-500 font-bold normal-case tracking-normal">({{ catalog.rawManifest().games.length }})</span>
                 </p>
-                <div class="space-y-1.5">
+                <ul class="space-y-2">
                   @for (game of catalog.rawManifest().games; track game.id) {
-                    <p class="text-sm kiosk:text-base text-neutral-200">
-                      {{ game.id }} · v{{ game.version }} · <span [class.text-emerald-400]="game.enabled" [class.text-neutral-500]="!game.enabled">{{ game.enabled ? 'activo' : 'off' }}</span>
-                    </p>
+                    <li class="rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-3 flex items-start justify-between gap-3">
+                      <div class="min-w-0 space-y-1">
+                        <p class="text-sm sm:text-base font-bold text-white truncate">{{ diagnosticGameName(game) }}</p>
+                        <p class="text-[11px] sm:text-xs font-mono text-neutral-500 truncate">{{ game.id }}</p>
+                      </div>
+                      <div class="shrink-0 flex flex-col items-end gap-1.5">
+                        <span class="text-[11px] sm:text-xs font-mono text-neutral-300">v{{ game.version }}</span>
+                        <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                          @if (game.develop) {
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-300">
+                              <app-hero-icon name="fire" class="text-[10px]" />
+                              Beta
+                            </span>
+                          }
+                          @let gameVis = diagnosticVisibility(!!game.enabled, !!game.develop, 'm');
+                          <span
+                            class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider border"
+                            [class]="gameVis.className"
+                          >
+                            {{ gameVis.label }}
+                          </span>
+                        </div>
+                      </div>
+                    </li>
                   }
-                </div>
+                </ul>
               </div>
 
-              <div class="pt-2 border-t border-white/10">
-                <p class="font-bold uppercase tracking-wider text-xs sm:text-sm text-yellow-400 pb-2 flex items-center gap-2">
+              <div class="pt-2 border-t border-white/10 space-y-3">
+                <p class="font-bold uppercase tracking-wider text-xs sm:text-sm text-yellow-400 flex items-center gap-2">
                   <app-hero-icon name="sparkles" class="text-sm text-yellow-400" />
                   <span>Experiencias</span>
+                  <span class="text-neutral-500 font-bold normal-case tracking-normal">({{ catalog.rawManifest().experiences.length }})</span>
                 </p>
-                <div class="space-y-1.5">
+                <ul class="space-y-2">
                   @for (exp of catalog.rawManifest().experiences; track exp.id) {
-                    <p class="text-sm kiosk:text-base text-neutral-200">
-                      {{ exp.id }} · v{{ exp.version }} · <span [class.text-emerald-400]="exp.enabled" [class.text-neutral-500]="!exp.enabled">{{ exp.enabled ? 'activa' : 'off' }}</span>
-                    </p>
+                    <li class="rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-3 flex items-start justify-between gap-3">
+                      <div class="min-w-0 space-y-1">
+                        <p class="text-sm sm:text-base font-bold text-white truncate">{{ experienceLabel(exp) }}</p>
+                        <p class="text-[11px] sm:text-xs font-mono text-neutral-500 truncate">{{ exp.id }}</p>
+                      </div>
+                      <div class="shrink-0 flex flex-col items-end gap-1.5">
+                        <span class="text-[11px] sm:text-xs font-mono text-neutral-300">v{{ exp.version }}</span>
+                        <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                          @if (catalog.isExperienceDevelop(exp)) {
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-300">
+                              <app-hero-icon name="fire" class="text-[10px]" />
+                              Beta
+                            </span>
+                          }
+                          @let expVis = diagnosticVisibility(exp.enabled, catalog.isExperienceDevelop(exp), 'f');
+                          <span
+                            class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider border"
+                            [class]="expVis.className"
+                          >
+                            {{ expVis.label }}
+                          </span>
+                        </div>
+                      </div>
+                    </li>
                   }
-                </div>
+                </ul>
               </div>
             </div>
           </div>
@@ -2593,6 +2704,15 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
       />
     }
 
+    @if (pendingDevelopModeUnlock()) {
+      <app-superadmin-pin-dialog
+        title="Activar modo desarrollo"
+        subtitle="Ingrese el PIN de superadministrador beta para mostrar marcas, juegos y experiencias en fase de pruebas."
+        (unlocked)="onDevelopModePinUnlocked()"
+        (cancelled)="pendingDevelopModeUnlock.set(false)"
+      />
+    }
+
     @if (previewVideo(); as preview) {
       <div
         class="fixed inset-0 z-70 flex items-center justify-center p-4 sm:p-6"
@@ -2701,11 +2821,13 @@ export class AdminPanel {
   private readonly updates = inject(UpdateCoordinator);
   private readonly mediaPlayer = inject(MediaPlayer);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly superadminAuth = inject(SuperadminAuthService);
 
   protected readonly activeSection = signal<AdminSection | null>(null);
   protected readonly settingsView = signal<SettingsView>('menu');
   protected readonly selectedGame = signal<'memory' | 'triqui' | null>(null);
   protected readonly selectedBrand = signal<Brand | null>(null);
+  protected readonly pendingDevelopModeUnlock = signal(false);
 
   protected readonly menuOptions = MENU_OPTIONS;
   protected readonly memoryPairOptions = MEMORY_PAIR_OPTIONS;
@@ -2732,45 +2854,62 @@ export class AdminPanel {
       .sort((a, b) => a.order - b.order),
   );
 
-  /** Marcas deshabilitadas (activas o beta). */
-  protected readonly inactiveKioskBrands = computed(() =>
-    this.catalog
+  /** Marcas deshabilitadas (activas o beta; las beta solo en modo desarrollo). */
+  protected readonly inactiveKioskBrands = computed(() => {
+    const showBeta = this.catalog.developMode();
+    return this.catalog
       .rawManifest()
-      .brands.filter((b) => !b.enabled)
+      .brands.filter((b) => !b.enabled && (showBeta || !b.develop))
       .slice()
-      .sort((a, b) => a.order - b.order),
-  );
+      .sort((a, b) => a.order - b.order);
+  });
 
   /** Secciones Activas / Beta / Inactivas del árbol de marcas. */
-  protected readonly kioskBrandSections = computed(() => [
-    {
-      id: 'active' as const,
-      title: 'Activas',
-      titleClass: 'text-emerald-300',
-      dotClass: 'bg-emerald-400',
-      emptyLabel: 'No hay marcas activas.',
-      reorderable: true,
-      brands: this.activeKioskBrands(),
-    },
-    {
-      id: 'beta' as const,
-      title: 'Beta',
-      titleClass: 'text-amber-300',
-      dotClass: 'bg-amber-400',
-      emptyLabel: 'No hay marcas beta activas.',
-      reorderable: true,
-      brands: this.betaKioskBrands(),
-    },
-    {
-      id: 'inactive' as const,
+  protected readonly kioskBrandSections = computed(() => {
+    const sections: Array<{
+      id: 'active' | 'beta' | 'inactive';
+      title: string;
+      titleClass: string;
+      dotClass: string;
+      emptyLabel: string;
+      reorderable: boolean;
+      brands: Brand[];
+    }> = [
+      {
+        id: 'active',
+        title: 'Activas',
+        titleClass: 'text-emerald-300',
+        dotClass: 'bg-emerald-400',
+        emptyLabel: 'No hay marcas activas.',
+        reorderable: true,
+        brands: this.activeKioskBrands(),
+      },
+    ];
+
+    if (this.catalog.developMode()) {
+      sections.push({
+        id: 'beta',
+        title: 'Beta',
+        titleClass: 'text-amber-300',
+        dotClass: 'bg-amber-400',
+        emptyLabel: 'No hay marcas beta activas.',
+        reorderable: true,
+        brands: this.betaKioskBrands(),
+      });
+    }
+
+    sections.push({
+      id: 'inactive',
       title: 'Inactivas',
       titleClass: 'text-rose-300',
       dotClass: 'bg-rose-400',
       emptyLabel: 'No hay marcas inactivas.',
       reorderable: false,
       brands: this.inactiveKioskBrands(),
-    },
-  ]);
+    });
+
+    return sections;
+  });
 
   protected readonly snapshot = this.updates.snapshot;
   protected readonly confirmKind = signal<ConfirmKind>(null);
@@ -2932,6 +3071,41 @@ export class AdminPanel {
     return exp.gameId;
   }
 
+  /** Nombre legible de un motor para el listado de Diagnóstico. */
+  protected diagnosticGameName(game: Game): string {
+    if (game.name) return this.cleanText(game.name);
+    if (game.id === 'memory') return 'Memoria';
+    if (game.id === 'triqui') return 'Triqui';
+    return game.id;
+  }
+
+  /**
+   * Estado visible en Diagnóstico según enabled, beta y modo desarrollo.
+   * Beta con developMode off → Oculta/Oculto (no aparece en el kiosco).
+   */
+  protected diagnosticVisibility(
+    enabled: boolean,
+    isBeta: boolean,
+    gender: 'f' | 'm',
+  ): { label: string; className: string } {
+    if (!enabled) {
+      return {
+        label: 'Off',
+        className: 'bg-rose-500/15 border-rose-400/30 text-rose-300',
+      };
+    }
+    if (isBeta && !this.catalog.developMode()) {
+      return {
+        label: gender === 'm' ? 'Oculto' : 'Oculta',
+        className: 'bg-neutral-500/20 border-neutral-400/35 text-neutral-300',
+      };
+    }
+    return {
+      label: gender === 'm' ? 'Activo' : 'Activa',
+      className: 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300',
+    };
+  }
+
   /** Experiencias de una marca agrupadas en Activas / Beta / Inactivas. */
   protected experienceSectionsForBrand(brandId: string): Array<{
     id: 'active' | 'beta' | 'inactive';
@@ -2940,9 +3114,10 @@ export class AdminPanel {
     reorderable: boolean;
     items: GameExperience[];
   }> {
+    const showBeta = this.catalog.developMode();
     const all = this.catalog
       .rawManifest()
-      .experiences.filter((e) => e.brandId === brandId)
+      .experiences.filter((e) => e.brandId === brandId && (showBeta || !e.develop))
       .slice()
       .sort((a, b) => a.order - b.order);
 
@@ -2950,7 +3125,13 @@ export class AdminPanel {
     const beta = all.filter((e) => e.enabled && !!e.develop);
     const inactive = all.filter((e) => !e.enabled);
 
-    return [
+    const sections: Array<{
+      id: 'active' | 'beta' | 'inactive';
+      title: string;
+      titleClass: string;
+      reorderable: boolean;
+      items: GameExperience[];
+    }> = [
       {
         id: 'active',
         title: 'Activas',
@@ -2958,21 +3139,27 @@ export class AdminPanel {
         reorderable: true,
         items: active,
       },
-      {
+    ];
+
+    if (showBeta) {
+      sections.push({
         id: 'beta',
         title: 'Beta',
         titleClass: 'text-amber-300/90',
         reorderable: true,
         items: beta,
-      },
-      {
-        id: 'inactive',
-        title: 'Inactivas',
-        titleClass: 'text-rose-300/80',
-        reorderable: false,
-        items: inactive,
-      },
-    ];
+      });
+    }
+
+    sections.push({
+      id: 'inactive',
+      title: 'Inactivas',
+      titleClass: 'text-rose-300/80',
+      reorderable: false,
+      items: inactive,
+    });
+
+    return sections;
   }
 
   protected onKioskExperienceDrop(
@@ -3233,10 +3420,32 @@ export class AdminPanel {
 
   /** Marcas que tienen experiencia del juego seleccionado (modo individual). */
   protected brandsWithExperienceForGame(gameId: string): Brand[] {
+    const showBeta = this.catalog.developMode();
     const brandIds = new Set(
-      this.catalog.rawManifest().experiences.filter((e) => e.gameId === gameId).map((e) => e.brandId),
+      this.catalog
+        .rawManifest()
+        .experiences.filter((e) => e.gameId === gameId && (showBeta || !e.develop))
+        .map((e) => e.brandId),
     );
-    return this.catalog.rawManifest().brands.filter((brand) => brandIds.has(brand.id));
+    return this.catalog
+      .rawManifest()
+      .brands.filter((brand) => brandIds.has(brand.id) && (showBeta || !brand.develop));
+  }
+
+  protected onDevelopModeToggle(): void {
+    if (this.catalog.developMode()) {
+      this.catalog.setDevelopMode(false);
+      this.superadminAuth.lock();
+      this.showToast('Modo desarrollo', 'Desactivado. El contenido beta queda oculto.');
+      return;
+    }
+    this.pendingDevelopModeUnlock.set(true);
+  }
+
+  protected onDevelopModePinUnlocked(): void {
+    this.pendingDevelopModeUnlock.set(false);
+    this.catalog.setDevelopMode(true);
+    this.showToast('Modo desarrollo', 'Activado. Marcas y experiencias beta visibles.');
   }
 
   /** Resumen etiquetado de la config efectiva para el listado de marcas (modo individual). */

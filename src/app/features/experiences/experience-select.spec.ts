@@ -1,7 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ExperienceSelect } from './experience-select';
 import { CatalogService } from '../../core/catalog/catalog';
-import { SuperadminAuthService } from '../admin/superadmin-auth.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MediaPlayer } from '../../core/media/media-player';
 import { of } from 'rxjs';
@@ -11,7 +10,6 @@ describe('ExperienceSelect Component', () => {
   let fixture: ComponentFixture<ExperienceSelect>;
   let component: ExperienceSelect;
   let catalog: CatalogService;
-  let superadminAuth: SuperadminAuthService;
   let router: { navigate: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
@@ -21,7 +19,6 @@ describe('ExperienceSelect Component', () => {
       imports: [ExperienceSelect],
       providers: [
         CatalogService,
-        SuperadminAuthService,
         { provide: Router, useValue: router },
         {
           provide: ActivatedRoute,
@@ -42,7 +39,6 @@ describe('ExperienceSelect Component', () => {
     fixture = TestBed.createComponent(ExperienceSelect);
     component = fixture.componentInstance;
     catalog = TestBed.inject(CatalogService);
-    superadminAuth = TestBed.inject(SuperadminAuthService);
     fixture.detectChanges();
   });
 
@@ -52,32 +48,23 @@ describe('ExperienceSelect Component', () => {
     expect(el.textContent).toContain('Triqui');
   });
 
-  it('al pulsar una experiencia regular navega directamente a /play', () => {
+  it('al pulsar una experiencia navega directamente a /play', () => {
     const exp = catalog.experiences().find((e) => e.id === 'radiesse-memory');
     expect(exp).toBeTruthy();
 
-    component.onExperienceClick(exp!, false);
+    component.onExperienceClick(exp!);
     expect(router.navigate).toHaveBeenCalledWith(['/play', 'radiesse-memory']);
   });
 
-  it('al pulsar una experiencia en desarrollo (Triqui) solicita superadmin PIN', () => {
-    superadminAuth.lock();
+  it('no muestra diálogo de PIN al seleccionar una experiencia', () => {
     const exp = catalog.experiences().find((e) => e.id === 'radiesse-triqui');
     expect(exp).toBeTruthy();
 
-    component.onExperienceClick(exp!, true);
+    component.onExperienceClick(exp!);
     fixture.detectChanges();
 
-    expect(component['pendingExperienceId']()).toBe('radiesse-triqui');
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector('app-superadmin-pin-dialog')).toBeTruthy();
-  });
-
-  it('al desbloquear el diálogo navega a la experiencia en desarrollo', () => {
-    component['pendingExperienceId'].set('radiesse-triqui');
-    component['onSuperadminUnlocked']();
-
+    expect(el.querySelector('app-superadmin-pin-dialog')).toBeFalsy();
     expect(router.navigate).toHaveBeenCalledWith(['/play', 'radiesse-triqui']);
-    expect(component['pendingExperienceId']()).toBeNull();
   });
 });

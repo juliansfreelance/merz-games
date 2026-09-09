@@ -36,6 +36,8 @@ describe('GameHost', () => {
         config: id === 'memory' ? { pairs: 4 } : {},
         assets: {},
       }),
+      isExperienceDevelop: (exp: { develop?: boolean } | string) =>
+        typeof exp === 'object' && exp?.develop === true,
     };
 
     const mockSession = {

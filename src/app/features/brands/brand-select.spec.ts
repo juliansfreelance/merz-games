@@ -1,7 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BrandSelect } from './brand-select';
 import { CatalogService } from '../../core/catalog/catalog';
-import { SuperadminAuthService } from '../admin/superadmin-auth.service';
 import { Router } from '@angular/router';
 import { MediaPlayer } from '../../core/media/media-player';
 import { vi } from 'vitest';
@@ -10,7 +9,6 @@ describe('BrandSelect Component', () => {
   let fixture: ComponentFixture<BrandSelect>;
   let component: BrandSelect;
   let catalog: CatalogService;
-  let superadminAuth: SuperadminAuthService;
   let router: { navigate: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
@@ -20,7 +18,6 @@ describe('BrandSelect Component', () => {
       imports: [BrandSelect],
       providers: [
         CatalogService,
-        SuperadminAuthService,
         { provide: Router, useValue: router },
         {
           provide: MediaPlayer,
@@ -35,17 +32,17 @@ describe('BrandSelect Component', () => {
     fixture = TestBed.createComponent(BrandSelect);
     component = fixture.componentInstance;
     catalog = TestBed.inject(CatalogService);
-    superadminAuth = TestBed.inject(SuperadminAuthService);
     fixture.detectChanges();
   });
 
-  it('debe listar las marcas disponibles', () => {
+  it('debe listar las marcas disponibles sin contenido beta por defecto', () => {
     const el = fixture.nativeElement as HTMLElement;
     expect(el.textContent).toContain('Radiesse');
     expect(el.textContent).toContain('Ultherapy');
+    expect(catalog.brands().some((b) => !!b.develop)).toBe(false);
   });
 
-  it('al pulsar una marca regular navega directamente a sus juegos', () => {
+  it('al pulsar una marca navega directamente a sus juegos', () => {
     const radiesseBrand = catalog.getBrandById('radiesse');
     expect(radiesseBrand).toBeTruthy();
 
@@ -53,32 +50,10 @@ describe('BrandSelect Component', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/brands', 'radiesse', 'games']);
   });
 
-  it('al pulsar una marca en desarrollo sin superadmin solicita PIN', () => {
-    superadminAuth.lock();
-    const devBrand = {
-      id: 'dev-brand',
-      name: 'Dev Brand',
-      version: '0.1.0',
-      enabled: true,
-      develop: true,
-      order: 3,
-      image: '',
-      logo: '',
-    };
-
-    component.onBrandClick(devBrand);
+  it('con developMode activo incluye marcas beta en el catálogo visible', () => {
+    catalog.setDevelopMode(true);
     fixture.detectChanges();
 
-    expect(component['pendingBrandId']()).toBe('dev-brand');
-    const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector('app-superadmin-pin-dialog')).toBeTruthy();
-  });
-
-  it('al desbloquear el diálogo navega a la marca en desarrollo', () => {
-    component['pendingBrandId'].set('dev-brand');
-    component['onSuperadminUnlocked']();
-
-    expect(router.navigate).toHaveBeenCalledWith(['/brands', 'dev-brand', 'games']);
-    expect(component['pendingBrandId']()).toBeNull();
+    expect(catalog.brands().some((b) => b.id === 'radiesse2' && !!b.develop)).toBe(true);
   });
 });

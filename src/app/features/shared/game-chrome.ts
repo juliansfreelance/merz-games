@@ -39,9 +39,22 @@ import { LivesIndicator } from './lives-indicator';
         </div>
 
         <!-- Badge con nombre del juego en mayúsculas -->
-        <div class="inline-flex items-center gap-2 px-4 py-1.5 sm:px-6 sm:py-2 rounded-full text-xs sm:text-sm font-extrabold font-['Montserrat'] tracking-wider uppercase bg-white/10 text-neutral-200 border border-white/15 backdrop-blur-md shadow-sm [&>span>sup]:text-[0.6em] [&>span>sup]:top-[-0.4em] [&>span>sup]:font-normal">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+        <div
+          class="inline-flex items-center gap-2 px-4 py-1.5 sm:px-6 sm:py-2 rounded-full text-xs sm:text-sm font-extrabold font-['Montserrat'] tracking-wider uppercase backdrop-blur-md shadow-sm [&>span>sup]:text-[0.6em] [&>span>sup]:top-[-0.4em] [&>span>sup]:font-normal"
+          [class]="develop()
+            ? 'bg-amber-500/15 text-amber-100 border border-amber-400/35'
+            : 'bg-white/10 text-neutral-200 border border-white/15'"
+        >
+          <span
+            class="w-2 h-2 rounded-full animate-pulse shrink-0"
+            [class]="develop() ? 'bg-amber-400' : 'bg-emerald-400'"
+          ></span>
           <span [innerHTML]="gameTitle()"></span>
+          @if (develop()) {
+            <span class="px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-extrabold tracking-wider uppercase bg-amber-500/25 text-amber-300 border border-amber-400/40">
+              Beta
+            </span>
+          }
         </div>
 
       </header>
@@ -181,6 +194,8 @@ export class GameChrome {
   readonly roundNumber = input<number | null>(null);
   readonly blurTint = input<string | undefined>(undefined);
   readonly customInfoText = input<string | undefined>(undefined);
+  /** Experiencia en fase beta / desarrollo. */
+  readonly develop = input<boolean>(false);
 
   readonly back = output<void>();
   readonly help = output<void>();

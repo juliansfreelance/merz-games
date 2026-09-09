@@ -101,13 +101,14 @@
       "enableScroll": true,
       "enableAudio": true,
       "reduceMotion": false,
-      "stackSpacing": 60,
-      "centerGap": 200,
-      "rotation": 45,
+      "stackSpacing": 80,
+      "centerGap": 250,
+      "rotation": 50,
       "initialIndex": 0,
-      "scrollThreshold": 100
+      "scrollThreshold": 50
     },
-    "experiencesMode": "global"
+    "experiencesMode": "global",
+    "developMode": true
   },
   "brands": [
     {
@@ -378,7 +379,7 @@
       "order": 2,
       "config": {
         "difficulty": "medium",
-        "firstPlayer": "patient",
+        "firstPlayer": "random",
         "playerSymbol": "random"
       },
       "name": "Triqui interactivo",
@@ -438,7 +439,7 @@
       "gameId": "memory",
       "version": "0.5.0",
       "enabled": true,
-      "order": 2,
+      "order": 1,
       "config": {
         "pairs": 3,
         "lives": 3,
@@ -501,10 +502,10 @@
       "gameId": "triqui",
       "version": "0.6.0",
       "enabled": true,
-      "order": 1,
+      "order": 2,
       "config": {
         "difficulty": "medium",
-        "firstPlayer": "patient",
+        "firstPlayer": "random",
         "playerSymbol": "random"
       },
       "name": "Triqui interactivo",

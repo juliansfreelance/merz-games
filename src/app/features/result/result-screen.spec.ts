@@ -87,6 +87,14 @@ describe('ResultScreen overlay', () => {
     expect(logoImg).toBeTruthy();
     const resultImg = fixture.nativeElement.querySelector('img[src="/content/images/experiences/result/win.png"]');
     expect(resultImg).toBeTruthy();
+    expect(fixture.nativeElement.textContent).not.toContain('Beta');
+  });
+
+  it('muestra badge Beta junto al nombre del juego cuando develop es true', () => {
+    fixture.componentRef.setInput('develop', true);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Encuentra la Pareja');
+    expect(fixture.nativeElement.textContent).toContain('Beta');
   });
 
   it('debe animar la entrada del overlay y de la tarjeta', () => {

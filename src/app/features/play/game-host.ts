@@ -63,6 +63,7 @@ const GAME_COMPONENT_BY_ID: Readonly<Record<string, Type<unknown>>> = {
         [maxLives]="session.maxLives()"
         [roundNumber]="roundCounter()"
         [blurTint]="brand()?.atmosphere?.blurTint"
+        [develop]="isDevelop()"
         (back)="onRequestBack()"
         (help)="session.requestTutorial()"
       >
@@ -120,6 +121,7 @@ const GAME_COMPONENT_BY_ID: Readonly<Record<string, Type<unknown>>> = {
           [experienceId]="experienceId()"
           [brandName]="brandName()"
           [gameName]="gameTitle()"
+          [develop]="isDevelop()"
         />
       }
       @if (showExitConfirm()) {
@@ -186,6 +188,11 @@ export class GameHost {
     const exp = this.experience();
     if (!exp) return 'Experiencia de Juego';
     return exp.name ?? exp.title ?? this.game()?.name ?? 'Juego Merz';
+  });
+
+  protected readonly isDevelop = computed(() => {
+    const exp = this.experience();
+    return exp ? this.catalog.isExperienceDevelop(exp) : false;
   });
 
   protected readonly brandName = computed(() => {

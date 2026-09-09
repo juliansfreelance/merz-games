@@ -123,6 +123,12 @@ export interface AppConfig {
    * - `individual`: reglas y overrides por marca.
    */
   experiencesMode?: ExperiencesMode;
+  /**
+   * Modo desarrollo / beta del kiosco.
+   * - `false` (default): oculta marcas, juegos, experiencias y ajustes marcados como beta.
+   * - `true`: muestra contenido y configuraciones beta (se activa desde Diagnóstico con PIN).
+   */
+  developMode?: boolean;
 }
 
 export interface ContentManifest {
