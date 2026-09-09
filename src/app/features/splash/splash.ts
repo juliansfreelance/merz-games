@@ -17,6 +17,8 @@ const CORE_IMAGE_URLS = [
   '/content/images/merzGamesIcono.png',
   '/content/images/merzGamesLogotipo.png',
   '/content/images/MerzAestheticsLogo.svg',
+  // Textura de fondo de CatalogCard (fake backdrop)
+  '/content/images/texture.jpg',
   // Iconos de resultado y advertencia
   '/content/images/experiences/result/win.png',
   '/content/images/experiences/result/die.png',

@@ -102,13 +102,13 @@
       "enableAudio": true,
       "reduceMotion": false,
       "stackSpacing": 80,
-      "centerGap": 250,
+      "centerGap": 270,
       "rotation": 50,
       "initialIndex": 0,
       "scrollThreshold": 50
     },
     "experiencesMode": "global",
-    "developMode": true
+    "developMode": false
   },
   "brands": [
     {
@@ -220,55 +220,44 @@
       }
     },
     {
-      "id": "radiesse2",
-      "name": "Radiesse<sup>®</sup>",
+      "id": "belotero",
+      "name": "Belotero<sup>®</sup>",
       "version": "0.1.0",
       "enabled": true,
       "develop": true,
       "order": 3,
-      "image": "/content/images/brands/RadiesseBrand.png",
-      "logo": "/content/images/brands/RadiesseLogo.svg",
-      "attractionVideos": [
-        {
-          "nombre": "Radiesse Promocional 1",
-          "source": "/content/videos/radiesse.mp4",
-          "enabled": true
-        },
-        {
-          "nombre": "Radiesse Promocional 2",
-          "source": "/content/videos/radiesse2.mp4",
-          "enabled": true
-        }
-      ],
-      "description": "Estimulador de colágeno para una piel firme, elástica y definida.",
+      "image": "/content/images/brands/BeloteroBrand.png",
+      "logo": "/content/images/brands/BeloteroLogo.webp",
+      "attractionVideos": [],
+      "description": "Descubre una completa gama de tratamientos con rellenos de ácido hialurónico para rejuvenecer y corregir el aspecto de la piel.",
       "disclaimer": "Para indicaciones, contraindicaciones, advertencias y precauciones, ver inserto del producto.<br>RADIESSE® CLÁSICO: Registro Sanitario INVIMA 2019DM-0004463-R1. RADIESSE® PLUS: Registro Sanitario INVIMA 2018DM-0017846.<br>RADIESSE es una marca comercial y/o marca registrada de Merz North America, Inc. en Colombia y/o en otros países.",
       "atmosphere": {
-        "baseColor": "#03171e",
-        "blurTint": "#00E5FF",
+        "baseColor": "#1f0e06",
+        "blurTint": "#C8681D",
         "blobs": [
           {
-            "from": "#00E5FF",
-            "to": "#0891b2",
+            "from": "#C8681D",
+            "to": "#EBB082",
             "opacity": 0.55
           },
           {
-            "from": "#06b6d4",
-            "to": "#0369a1",
+            "from": "#F3A96E",
+            "to": "#C86011",
             "opacity": 0.5
           },
           {
-            "from": "#14b8a6",
-            "to": "#0284c7",
+            "from": "#FDF5E6",
+            "to": "#EBB082",
             "opacity": 0.48
           },
           {
-            "from": "#0284c7",
-            "to": "#0891b2",
+            "from": "#E07A2F",
+            "to": "#A34E12",
             "opacity": 0.52
           },
           {
-            "from": "#00E5FF",
-            "to": "#042f2e",
+            "from": "#C8681D",
+            "to": "#8B4510",
             "opacity": 0.5
           }
         ]
@@ -560,55 +549,43 @@
       }
     },
     {
-      "id": "radiesse2-memory",
-      "brandId": "radiesse2",
-      "gameId": "memory",
-      "version": "0.5.0",
+      "id": "belotero-triqui",
+      "brandId": "belotero",
+      "gameId": "triqui",
+      "version": "0.6.0",
       "enabled": true,
-      "develop": true,
       "order": 1,
       "config": {
-        "pairs": 3,
-        "lives": 3,
-        "difficulty": "medium"
+        "difficulty": "medium",
+        "firstPlayer": "random",
+        "playerSymbol": "random"
       },
-      "name": "Encuentra la Pareja",
-      "description": "<strong>Descubre cuánto sabes del universo de la estética mientras te diviertes.</strong> Encuentra todas las parejas de imágenes en este juego de memoria y, al completar el desafío, podrás participar por atractivos premios.<br><strong>¡Cada coincidencia cuenta!</strong>",
-      "image": "/content/images/experiences/radiesse-memory.png",
+      "name": "Triqui interactivo",
+      "description": "Pon a prueba tu habilidad en nuestro reto de tres en línea y <strong>descubre más sobre el lifting facial.</strong> Completa la secuencia, conquista el tablero y acércate a uno de nuestros premios.<br><strong>¡Cada movimiento cuenta!</strong>",
+      "image": "/content/images/experiences/belotero-triqui.png",
       "theme": {
-        "accentColor": "#00E5FF",
-        "primaryColor": "#0891b2"
+        "accentColor": "#D4AF37",
+        "primaryColor": "#B8860B"
       },
       "assets": {
-        "cardBack": "/content/images/games/memory/cards/radiesse/card-back.png",
-        "cardFaces": [
-          "/content/images/games/memory/cards/radiesse/card-01.jpg",
-          "/content/images/games/memory/cards/radiesse/card-02.jpg",
-          "/content/images/games/memory/cards/radiesse/card-03.jpg",
-          "/content/images/games/memory/cards/radiesse/card-04.jpg",
-          "/content/images/games/memory/cards/radiesse/card-05.jpg",
-          "/content/images/games/memory/cards/radiesse/card-06.jpg",
-          "/content/images/games/memory/cards/radiesse/card-07.jpg",
-          "/content/images/games/memory/cards/radiesse/card-08.jpg",
-          "/content/images/games/memory/cards/radiesse/card-09.jpg",
-          "/content/images/games/memory/cards/radiesse/card-10.jpg",
-          "/content/images/games/memory/cards/radiesse/card-11.jpg",
-          "/content/images/games/memory/cards/radiesse/card-12.jpg",
-          "/content/images/games/memory/cards/radiesse/card-13.jpg",
-          "/content/images/games/memory/cards/radiesse/card-014.jpg",
-          "/content/images/games/memory/cards/radiesse/card-15.jpg",
-          "/content/images/games/memory/cards/radiesse/card-16.jpg",
-          "/content/images/games/memory/cards/radiesse/card-17.jpg",
-          "/content/images/games/memory/cards/radiesse/card-18.jpg",
-          "/content/images/games/memory/cards/radiesse/card-19.jpg",
-          "/content/images/games/memory/cards/radiesse/card-20.jpg"
-        ]
+        "markX": "/content/images/games/triqui/ultherapy/mark-x.png",
+        "markO": "/content/images/games/triqui/ultherapy/mark-o.png"
       },
       "results": {
         "win": {
           "title": "¡GANASTE!",
           "description": "Completaste el reto con éxito.<br>Gracias por ser parte de esta experiencia Merz Aesthetics.",
-          "note": "Conquistaste el tablero y descubriste más sobre la estética."
+          "note": "Conquistaste el tablero y descubriste más sobre el lifting facial."
+        },
+        "lose": {
+          "title": "PERDISTE ESTA RONDA",
+          "description": "La máquina ganó esta jugada.<br>Te quedan {lives} oportunidades.<br>Concéntrate y sigue jugando.",
+          "note": "Aún puedes recuperarte en la siguiente ronda.<br>Ajusta tu estrategia y vuelve a intentarlo."
+        },
+        "draw": {
+          "title": "¡EMPATE!",
+          "description": "La ronda terminó en empate.<br>Te quedan {lives} oportunidades.<br>Pon atención y sigue jugando.",
+          "note": "Ninguno logró cerrar la jugada.<br>Prepárate para la siguiente ronda."
         },
         "out-of-lives": {
           "title": "SIN MÁS INTENTOS",
@@ -616,9 +593,20 @@
           "note": "Aún puedes volver a jugar o descubrir más experiencias Merz Aesthetics."
         }
       },
+      "turnNotice": {
+        "durationSeconds": 30,
+        "player": {
+          "title": "¡ES TU TURNO!",
+          "message": "Inicias <strong>TÚ</strong> con {asset}.<br>¡Elige bien tu jugada!"
+        },
+        "ai": {
+          "title": "INICIA TU RIVAL",
+          "message": "Inicia la <strong>IA</strong> con {asset}.<br>¡No la dejes ganar!"
+        }
+      },
       "exitConfirm": {
         "title": "¿ABANDONAR LA PARTIDA?",
-        "message": "Si regresas a la selección de juegos, perderás tu progreso actual en este juego de memoria.<br><strong>¿Deseas salir o continuar jugando?</strong>",
+        "message": "Si regresas a la selección de juegos, perderás tu partida actual de Triqui.<br><strong>¿Deseas salir o continuar jugando?</strong>",
         "confirmButtonText": "Sí, salir",
         "cancelButtonText": "Continuar jugando"
       }

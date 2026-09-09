@@ -31,6 +31,14 @@ describe('CatalogCard', () => {
     expect(host.textContent).toContain('Jugar');
   });
 
+  it('debe incluir la capa falsa de backdrop con textura', () => {
+    const host: HTMLElement = fixture.nativeElement;
+    const texture = host.querySelector(
+      'img[src="/content/images/texture.jpg"][aria-hidden="true"]',
+    ) as HTMLImageElement | null;
+    expect(texture).toBeTruthy();
+  });
+
   it('debe emitir selected al hacer pointerup en el botón CTA', () => {
     let emitted = false;
     component.selected.subscribe(() => {

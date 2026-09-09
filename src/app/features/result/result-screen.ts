@@ -94,7 +94,7 @@ const FIREWORKS_DURATION_MS = 15_000;
               <span class="inline-flex items-center justify-center gap-2 flex-wrap">
                 <span class="text-xs sm:text-sm font-semibold text-neutral-300" [innerHTML]="gameName()"></span>
                 @if (develop()) {
-                  <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider uppercase bg-amber-500/25 text-amber-300 border border-amber-400/40 normal-case">
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider bg-amber-500/25 text-amber-300 border border-amber-400/40 normal-case">
                     Beta
                   </span>
                 }

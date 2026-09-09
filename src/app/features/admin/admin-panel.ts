@@ -1204,7 +1204,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                                         [cdkDragDisabled]="expSection.items.length < 2"
                                         [cdkDragData]="exp"
                                       >
-                                        <div class="brand-drag-placeholder !min-h-12" *cdkDragPlaceholder></div>
+                                        <div class="brand-drag-placeholder min-h-12!" *cdkDragPlaceholder></div>
                                         <div class="brand-drag-preview" *cdkDragPreview>
                                           <div class="px-3 py-2 text-white text-sm font-bold">{{ experienceLabel(exp) }}</div>
                                         </div>
@@ -1299,7 +1299,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                   } @else {
                     <div class="flex flex-col gap-3.5">
                       @for (brand of section.brands; track brand.id) {
-                        <div class="w-full rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-md shadow-xl overflow-hidden opacity-95">
+                        <div class="w-full rounded-2xl bg-white/3 border border-white/10 backdrop-blur-md shadow-xl overflow-hidden opacity-95">
                           <div class="px-4 sm:px-5 py-4 flex items-center justify-between gap-3">
                             <div class="flex items-center gap-3.5 min-w-0">
                               <div class="size-11 sm:size-12 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-neutral-400 shrink-0">
@@ -1351,7 +1351,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                                         cdkDrag
                                         [cdkDragDisabled]="expSection.items.length < 2"
                                       >
-                                        <div class="brand-drag-placeholder !min-h-12" *cdkDragPlaceholder></div>
+                                        <div class="brand-drag-placeholder min-h-12!" *cdkDragPlaceholder></div>
                                         <div class="flex items-center gap-2 min-w-0 flex-1">
                                           @if (expSection.items.length > 1) {
                                             <button type="button" cdkDragHandle class="size-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-neutral-400 cursor-grab shrink-0" style="touch-action: none;" aria-label="Arrastrar experiencia">
@@ -2302,7 +2302,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 </p>
                 <ul class="space-y-2">
                   @for (brand of catalog.rawManifest().brands; track brand.id) {
-                    <li class="rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-3 flex items-start justify-between gap-3">
+                    <li class="rounded-xl border border-white/10 bg-white/3 px-3.5 py-3 flex items-start justify-between gap-3">
                       <div class="min-w-0 space-y-1">
                         <p class="text-sm sm:text-base font-bold text-white truncate">{{ cleanText(brand.name) }}</p>
                         <p class="text-[11px] sm:text-xs font-mono text-neutral-500 truncate">{{ brand.id }}</p>
@@ -2338,7 +2338,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 </p>
                 <ul class="space-y-2">
                   @for (game of catalog.rawManifest().games; track game.id) {
-                    <li class="rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-3 flex items-start justify-between gap-3">
+                    <li class="rounded-xl border border-white/10 bg-white/3 px-3.5 py-3 flex items-start justify-between gap-3">
                       <div class="min-w-0 space-y-1">
                         <p class="text-sm sm:text-base font-bold text-white truncate">{{ diagnosticGameName(game) }}</p>
                         <p class="text-[11px] sm:text-xs font-mono text-neutral-500 truncate">{{ game.id }}</p>
@@ -2374,7 +2374,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 </p>
                 <ul class="space-y-2">
                   @for (exp of catalog.rawManifest().experiences; track exp.id) {
-                    <li class="rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-3 flex items-start justify-between gap-3">
+                    <li class="rounded-xl border border-white/10 bg-white/3 px-3.5 py-3 flex items-start justify-between gap-3">
                       <div class="min-w-0 space-y-1">
                         <p class="text-sm sm:text-base font-bold text-white truncate">{{ experienceLabel(exp) }}</p>
                         <p class="text-[11px] sm:text-xs font-mono text-neutral-500 truncate">{{ exp.id }}</p>
