@@ -11,29 +11,22 @@ import manifestSeed from '../../../../content/manifests/content-manifest.json';
 const MANIFEST_KEY = 'merz-games.catalog-manifest';
 
 /** Construye un mock de PlatformService con storage en memoria. */
-function buildMockPlatform(
-  appVersion = '0.1.0',
-  initialStorage: Record<string, string> = {},
-) {
+function buildMockPlatform(appVersion = '0.1.0', initialStorage: Record<string, string> = {}) {
   const store = { ...initialStorage };
   return {
     appVersion: signal(appVersion),
     storageGet: (key: string) => store[key] ?? null,
-    storageSet: (key: string, value: string) => { store[key] = value; },
+    storageSet: (key: string, value: string) => {
+      store[key] = value;
+    },
     store,
   };
 }
 
-function buildCatalog(
-  appVersion = '0.1.0',
-  initialStorage: Record<string, string> = {},
-) {
+function buildCatalog(appVersion = '0.1.0', initialStorage: Record<string, string> = {}) {
   const mockPlatform = buildMockPlatform(appVersion, initialStorage);
   TestBed.configureTestingModule({
-    providers: [
-      CatalogService,
-      { provide: PlatformService, useValue: mockPlatform },
-    ],
+    providers: [CatalogService, { provide: PlatformService, useValue: mockPlatform }],
   });
   return {
     catalog: TestBed.inject(CatalogService),
@@ -321,7 +314,7 @@ describe('CatalogService — Atmósfera y Cards', () => {
       blurTint: '#ff00ff',
       blobs: [
         { from: '#ff00ff', to: '#7700aa', opacity: 0.25 },
-        { from: '#aa00ff', to: '#330055', opacity: 0.20 },
+        { from: '#aa00ff', to: '#330055', opacity: 0.2 },
       ],
     };
 
@@ -595,7 +588,9 @@ describe('CatalogService — persistencia', () => {
     const broken: ContentManifest = {
       version: '0.2.0',
       brands: [{ id: 'radiesse', name: 'Radiesse', version: '0.1.0', enabled: true, order: 1 }],
-      games: [{ id: 'memory', name: 'Memory', version: '0.1.0', minAppVersion: '0.1.0', enabled: true }],
+      games: [
+        { id: 'memory', name: 'Memory', version: '0.1.0', minAppVersion: '0.1.0', enabled: true },
+      ],
       experiences: [
         {
           id: 'bad-exp',
@@ -733,8 +728,14 @@ describe('CatalogService — persistencia', () => {
 describe('UpdateModel', () => {
   it('UpdateStatus debe incluir todos los estados requeridos', () => {
     const validStates: UpdateStatus[] = [
-      'idle', 'checking', 'available', 'downloading',
-      'installing', 'completed', 'error', 'offline',
+      'idle',
+      'checking',
+      'available',
+      'downloading',
+      'installing',
+      'completed',
+      'error',
+      'offline',
     ];
     validStates.forEach((s) => {
       expect(typeof s).toBe('string');
@@ -767,11 +768,15 @@ describe('UpdateModel', () => {
 
     catalog.setExperienceEnabled('radiesse-memory', false);
     expect(catalog.experiences().some((e) => e.id === 'radiesse-memory')).toBe(false);
-    expect(catalog.rawManifest().experiences.find((e) => e.id === 'radiesse-memory')?.enabled).toBe(false);
+    expect(catalog.rawManifest().experiences.find((e) => e.id === 'radiesse-memory')?.enabled).toBe(
+      false,
+    );
 
     catalog.setExperienceEnabled('radiesse-memory', true);
     expect(catalog.experiences().some((e) => e.id === 'radiesse-memory')).toBe(true);
-    expect(catalog.rawManifest().experiences.find((e) => e.id === 'radiesse-memory')?.enabled).toBe(true);
+    expect(catalog.rawManifest().experiences.find((e) => e.id === 'radiesse-memory')?.enabled).toBe(
+      true,
+    );
   });
 
   it('setBrandEnabled actualiza el estado enabled de la marca y el signal brands', () => {
@@ -797,7 +802,9 @@ describe('UpdateModel', () => {
     expect(catalog.rawManifest().app?.experiencesMode).toBe('individual');
 
     catalog.resetGameExperiencesToDefault('memory');
-    expect(catalog.rawManifest().experiences.find((e) => e.id === 'radiesse-memory')?.enabled).toBe(true);
+    expect(catalog.rawManifest().experiences.find((e) => e.id === 'radiesse-memory')?.enabled).toBe(
+      true,
+    );
 
     catalog.setExperiencesMode('global');
     expect(catalog.experiencesMode()).toBe('global');
@@ -806,18 +813,18 @@ describe('UpdateModel', () => {
   it('setDevelopMode controla la visibilidad de marcas y experiencias beta', () => {
     const { catalog } = buildCatalog();
     expect(catalog.developMode()).toBe(false);
-    expect(catalog.brands().some((b) => b.id === 'radiesse2')).toBe(false);
-    expect(catalog.experiences().some((e) => e.id === 'radiesse2-memory')).toBe(false);
+    expect(catalog.brands().some((b) => b.id === 'belotero')).toBe(false);
+    expect(catalog.experiences().some((e) => e.id === 'belotero-triqui')).toBe(false);
 
     catalog.setDevelopMode(true);
     expect(catalog.developMode()).toBe(true);
     expect(catalog.rawManifest().app?.developMode).toBe(true);
-    expect(catalog.brands().some((b) => b.id === 'radiesse2')).toBe(true);
-    expect(catalog.experiences().some((e) => e.id === 'radiesse2-memory')).toBe(true);
+    expect(catalog.brands().some((b) => b.id === 'belotero')).toBe(true);
+    expect(catalog.experiences().some((e) => e.id === 'belotero-triqui')).toBe(true);
 
     catalog.setDevelopMode(false);
     expect(catalog.developMode()).toBe(false);
-    expect(catalog.brands().some((b) => b.id === 'radiesse2')).toBe(false);
+    expect(catalog.brands().some((b) => b.id === 'belotero')).toBe(false);
   });
 
   it('detecta marcas, motores y experiencias en desarrollo correctamente', () => {
@@ -828,14 +835,49 @@ describe('UpdateModel', () => {
     expect(catalog.isGameDevelop('memory')).toBe(false);
 
     // Una marca con develop: true está en desarrollo
-    expect(catalog.isBrandDevelop({ id: 'dev-brand', name: 'Dev', version: '1.0.0', enabled: true, order: 1, develop: true })).toBe(true);
+    expect(
+      catalog.isBrandDevelop({
+        id: 'dev-brand',
+        name: 'Dev',
+        version: '1.0.0',
+        enabled: true,
+        order: 1,
+        develop: true,
+      }),
+    ).toBe(true);
     expect(catalog.isBrandDevelop('radiesse')).toBe(false);
 
     // Una experiencia con develop: true directo está en desarrollo
-    expect(catalog.isExperienceDevelop({ id: 'test-triqui', brandId: 'radiesse', gameId: 'triqui', version: '1.0.0', enabled: true, order: 1, title: '', description: '', image: '', develop: true })).toBe(true);
+    expect(
+      catalog.isExperienceDevelop({
+        id: 'test-triqui',
+        brandId: 'radiesse',
+        gameId: 'triqui',
+        version: '1.0.0',
+        enabled: true,
+        order: 1,
+        title: '',
+        description: '',
+        image: '',
+        develop: true,
+      }),
+    ).toBe(true);
 
     // Una experiencia con develop: true directo está en desarrollo
-    expect(catalog.isExperienceDevelop({ id: 'test-exp', brandId: 'radiesse', gameId: 'memory', version: '1.0.0', enabled: true, order: 2, title: '', description: '', image: '', develop: true })).toBe(true);
+    expect(
+      catalog.isExperienceDevelop({
+        id: 'test-exp',
+        brandId: 'radiesse',
+        gameId: 'memory',
+        version: '1.0.0',
+        enabled: true,
+        order: 2,
+        title: '',
+        description: '',
+        image: '',
+        develop: true,
+      }),
+    ).toBe(true);
 
     // radiesse-memory NO está en desarrollo
     expect(catalog.isExperienceDevelop('radiesse-memory')).toBe(false);
@@ -845,7 +887,9 @@ describe('UpdateModel', () => {
     if (merzBrand) {
       expect(catalog.cardForBrand(merzBrand).develop).toBe(true);
     }
-    const radiesseMemory = catalog.rawManifest().experiences.find((e) => e.id === 'radiesse-memory');
+    const radiesseMemory = catalog
+      .rawManifest()
+      .experiences.find((e) => e.id === 'radiesse-memory');
     if (radiesseMemory) {
       expect(catalog.cardForExperience(radiesseMemory).develop).toBe(false);
     }
@@ -858,13 +902,17 @@ describe('UpdateModel', () => {
     catalog.setBrandEnabled('radiesse', false);
     catalog.setExperienceEnabled('radiesse-memory', false);
     expect(catalog.getBrandById('radiesse')?.enabled).toBe(false);
-    expect(catalog.rawManifest().experiences.find((e) => e.id === 'radiesse-memory')?.enabled).toBe(false);
+    expect(catalog.rawManifest().experiences.find((e) => e.id === 'radiesse-memory')?.enabled).toBe(
+      false,
+    );
 
     // Restaurar por defecto
     catalog.resetToDefault();
 
     expect(catalog.getBrandById('radiesse')?.enabled).toBe(true);
-    expect(catalog.rawManifest().experiences.find((e) => e.id === 'radiesse-memory')?.enabled).toBe(true);
+    expect(catalog.rawManifest().experiences.find((e) => e.id === 'radiesse-memory')?.enabled).toBe(
+      true,
+    );
     expect(store[MANIFEST_KEY]).toBeTruthy();
     const stored = JSON.parse(store[MANIFEST_KEY]);
     expect(stored.brands.find((b: any) => b.id === 'radiesse').enabled).toBe(true);
@@ -876,19 +924,29 @@ describe('UpdateModel', () => {
     // Deshabilitar video de Radiesse
     catalog.setBrandVideoEnabled('radiesse', '/content/videos/radiesse.mp4', false);
     const radiesseVideos = catalog.getBrandById('radiesse')?.attractionVideos;
-    expect(radiesseVideos?.find((v) => v.source === '/content/videos/radiesse.mp4')?.enabled).toBe(false);
-    expect(radiesseVideos?.find((v) => v.source === '/content/videos/radiesse2.mp4')?.enabled).toBe(true);
+    expect(radiesseVideos?.find((v) => v.source === '/content/videos/radiesse.mp4')?.enabled).toBe(
+      false,
+    );
+    expect(radiesseVideos?.find((v) => v.source === '/content/videos/radiesse2.mp4')?.enabled).toBe(
+      true,
+    );
 
     // Deshabilitar video general
     catalog.setGeneralVideoEnabled('/content/videos/general1.mp4', false);
     const genVideos = catalog.rawManifest()?.app?.protector?.attractionVideos;
-    expect(genVideos?.find((v) => v.source === '/content/videos/general1.mp4')?.enabled).toBe(false);
+    expect(genVideos?.find((v) => v.source === '/content/videos/general1.mp4')?.enabled).toBe(
+      false,
+    );
 
     // Restaurar videos por defecto
     catalog.resetVideosToDefault();
     const restoredRadiesse = catalog.getBrandById('radiesse')?.attractionVideos;
-    expect(restoredRadiesse?.find((v) => v.source === '/content/videos/radiesse.mp4')?.enabled).toBe(true);
+    expect(
+      restoredRadiesse?.find((v) => v.source === '/content/videos/radiesse.mp4')?.enabled,
+    ).toBe(true);
     const restoredGen = catalog.rawManifest()?.app?.protector?.attractionVideos;
-    expect(restoredGen?.find((v) => v.source === '/content/videos/general1.mp4')?.enabled).toBe(true);
+    expect(restoredGen?.find((v) => v.source === '/content/videos/general1.mp4')?.enabled).toBe(
+      true,
+    );
   });
 });

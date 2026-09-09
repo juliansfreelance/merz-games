@@ -40,9 +40,9 @@ describe('UpdateCoordinator', () => {
   beforeEach(() => {
     loadManifest = vi.fn<(raw: unknown) => boolean>().mockReturnValue(true);
     fetchRemote = vi.fn();
-    apply = vi.fn().mockImplementation((_catalog: CatalogService, raw: unknown) =>
-      loadManifest(raw),
-    );
+    apply = vi
+      .fn()
+      .mockImplementation((_catalog: CatalogService, raw: unknown) => loadManifest(raw));
     appCheck = vi.fn().mockResolvedValue({ available: false });
     downloadAndInstall = vi.fn().mockResolvedValue({ ok: true, installed: false });
 
@@ -114,9 +114,9 @@ describe('UpdateCoordinator', () => {
     await coordinator.check();
     expect(coordinator.snapshot().status).toBe('available');
     expect(
-      coordinator.snapshot().catalogDiff?.items.some(
-        (item) => item.id === 'nueva-memory' && item.kind === 'added',
-      ),
+      coordinator
+        .snapshot()
+        .catalogDiff?.items.some((item) => item.id === 'nueva-memory' && item.kind === 'added'),
     ).toBe(true);
 
     await coordinator.apply();

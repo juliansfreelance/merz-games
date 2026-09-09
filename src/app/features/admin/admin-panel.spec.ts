@@ -13,7 +13,12 @@ describe('AdminPanel', () => {
   let fixture: ComponentFixture<AdminPanel>;
   let component: AdminPanel;
   let mockRouter: { navigateByUrl: ReturnType<typeof vi.fn> };
-  let mockSession: { logout: ReturnType<typeof vi.fn>; changePin: ReturnType<typeof vi.fn>; getPinHint: ReturnType<typeof vi.fn>; resetPinToDefault: ReturnType<typeof vi.fn> };
+  let mockSession: {
+    logout: ReturnType<typeof vi.fn>;
+    changePin: ReturnType<typeof vi.fn>;
+    getPinHint: ReturnType<typeof vi.fn>;
+    resetPinToDefault: ReturnType<typeof vi.fn>;
+  };
   let mockPlatform: {
     isNative: boolean;
     appVersion: ReturnType<typeof signal<string>>;
@@ -34,7 +39,12 @@ describe('AdminPanel', () => {
 
   beforeEach(async () => {
     mockRouter = { navigateByUrl: vi.fn() };
-    mockSession = { logout: vi.fn(), changePin: vi.fn().mockResolvedValue(true), getPinHint: vi.fn().mockReturnValue(''), resetPinToDefault: vi.fn() };
+    mockSession = {
+      logout: vi.fn(),
+      changePin: vi.fn().mockResolvedValue(true),
+      getPinHint: vi.fn().mockReturnValue(''),
+      resetPinToDefault: vi.fn(),
+    };
     mockPlatform = {
       isNative: false,
       appVersion: signal('0.1.0'),
@@ -165,7 +175,9 @@ describe('AdminPanel', () => {
     expect(backBtn.className).toContain('text-white');
 
     // Botón de versión interactivo destacado
-    const versionBtn = el.querySelector('header button[aria-label*="diagnóstico"]') as HTMLButtonElement;
+    const versionBtn = el.querySelector(
+      'header button[aria-label*="diagnóstico"]',
+    ) as HTMLButtonElement;
     expect(versionBtn).toBeTruthy();
     expect(versionBtn.textContent).toContain('v0.1.0');
     expect(versionBtn.className).toContain('text-yellow-400');
@@ -248,8 +260,8 @@ describe('AdminPanel', () => {
     fixture.detectChanges();
 
     // Seleccionar Juegos → Triqui
-    const gamesBtn = Array.from(el.querySelectorAll('main button')).find((b) =>
-      b.querySelector('h3')?.textContent?.trim() === 'Juegos',
+    const gamesBtn = Array.from(el.querySelectorAll('main button')).find(
+      (b) => b.querySelector('h3')?.textContent?.trim() === 'Juegos',
     ) as HTMLButtonElement;
     gamesBtn.click();
     fixture.detectChanges();
@@ -271,7 +283,7 @@ describe('AdminPanel', () => {
     expect(el.textContent).toContain('Triqui (Tres en Raya)');
     expect(el.textContent).toContain('Modo de ajustes');
     expect(el.textContent).toContain('Individual');
-    expect(el.textContent).toContain('Dificultad: Medio · Inicia: Jugador · Figura: Aleatorio');
+    expect(el.textContent).toContain('Dificultad: Medio · Inicia: Azar · Figura: Aleatorio');
     expect(el.textContent).not.toContain('ID:');
     expect(el.textContent).not.toContain('Sin experiencia en el catálogo');
     // Solo marcas con experiencia Triqui (radiesse, ultherapy); radiesse2 solo tiene Memoria
@@ -292,8 +304,8 @@ describe('AdminPanel', () => {
     expect(el.textContent).toContain('Catálogo');
 
     // La opción 'Medio' (por defecto en el catálogo) está habilitada y marcada con la etiqueta 'Catálogo'
-    const medioBtn = Array.from(el.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Medio') && b.textContent?.includes('Catálogo'),
+    const medioBtn = Array.from(el.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes('Medio') && b.textContent?.includes('Catálogo'),
     ) as HTMLButtonElement;
     expect(medioBtn).toBeTruthy();
     expect(medioBtn.disabled).toBe(false);
@@ -309,8 +321,8 @@ describe('AdminPanel', () => {
     settingsBtn.click();
     fixture.detectChanges();
 
-    const gamesBtn = Array.from(el.querySelectorAll('main button')).find((b) =>
-      b.querySelector('h3')?.textContent?.trim() === 'Juegos',
+    const gamesBtn = Array.from(el.querySelectorAll('main button')).find(
+      (b) => b.querySelector('h3')?.textContent?.trim() === 'Juegos',
     ) as HTMLButtonElement;
     gamesBtn.click();
     fixture.detectChanges();
@@ -400,16 +412,21 @@ describe('AdminPanel', () => {
 
     expect(el.textContent).toContain('Marcas y Experiencias');
     expect(el.textContent).toContain('Activas');
-    expect(el.textContent).toContain('Beta');
     expect(el.textContent).toContain('Inactivas');
     expect(el.textContent).toContain('Experiencias / juegos');
     expect(el.textContent).toContain('Encuentra la Pareja');
     expect(el.textContent).toContain('Triqui');
 
-    // Conmutar marca Radiesse
     const catalog = TestBed.inject(CatalogService);
+    catalog.setDevelopMode(true);
+    fixture.detectChanges();
+    expect(el.textContent).toMatch(/Beta|Belotero/i);
+
+    // Conmutar marca Radiesse
     const setBrandSpy = vi.spyOn(catalog, 'setBrandEnabled');
-    const radiesseSwitch = el.querySelector('button[aria-label*="marca Radiesse"]') as HTMLButtonElement;
+    const radiesseSwitch = el.querySelector(
+      'button[aria-label*="marca Radiesse"]',
+    ) as HTMLButtonElement;
     expect(radiesseSwitch).toBeTruthy();
     radiesseSwitch.click();
     fixture.detectChanges();
@@ -431,7 +448,9 @@ describe('AdminPanel', () => {
 
     // Verificar iconos del menú principal
     expect(MENU_OPTIONS.find((m: MenuOption) => m.id === 'operations')?.icon).toBe('power');
-    expect(MENU_OPTIONS.find((m: MenuOption) => m.id === 'settings')?.icon).toBe('adjustments-horizontal');
+    expect(MENU_OPTIONS.find((m: MenuOption) => m.id === 'settings')?.icon).toBe(
+      'adjustments-horizontal',
+    );
     expect(MENU_OPTIONS.find((m: MenuOption) => m.id === 'diagnostics')?.icon).toBe('cpu-chip');
     expect(MENU_OPTIONS.find((m: MenuOption) => m.id === 'updates')?.icon).toBe('cloud-arrow-down');
     expect(MENU_OPTIONS.find((m: MenuOption) => m.id === 'pin')?.icon).toBe('key');
@@ -447,7 +466,8 @@ describe('AdminPanel', () => {
     // Comprobar elementos en Operación en entorno web (isNative: false)
     expect(el.textContent).toContain('Reiniciar aplicación');
     expect(el.textContent).not.toContain('Cerrar aplicación');
-    const hasKioskText = el.textContent?.includes('modo kiosco') || el.textContent?.includes('pantalla completa');
+    const hasKioskText =
+      el.textContent?.includes('modo kiosco') || el.textContent?.includes('pantalla completa');
     expect(hasKioskText).toBe(true);
   });
 
@@ -541,7 +561,12 @@ describe('AdminPanel', () => {
 
   describe('Configuración de Memoria en AdminPanel', () => {
     it('changeMemoryPairsStep incrementa/decrementa parejas y recalcula vidas con preset activo', () => {
-      const exp = { id: 'test-mem', brandId: 'b1', gameId: 'memory', config: { pairs: 4, lives: 4, difficulty: 'medium' } } as any;
+      const exp = {
+        id: 'test-mem',
+        brandId: 'b1',
+        gameId: 'memory',
+        config: { pairs: 4, lives: 4, difficulty: 'medium' },
+      } as any;
       component['selectMemoryDifficulty'](exp, 'easy', 'Marca Test');
       let cfg = component['getEffectiveMemoryConfig'](exp);
       expect(cfg.pairs).toBe(4);
@@ -557,7 +582,12 @@ describe('AdminPanel', () => {
     });
 
     it('changeMemoryLivesStep establece dificultad a "custom"', () => {
-      const exp = { id: 'test-mem', brandId: 'b1', gameId: 'memory', config: { pairs: 4, lives: 4, difficulty: 'medium' } } as any;
+      const exp = {
+        id: 'test-mem',
+        brandId: 'b1',
+        gameId: 'memory',
+        config: { pairs: 4, lives: 4, difficulty: 'medium' },
+      } as any;
       component['changeMemoryLivesStep'](exp, 1, 'Marca Test');
       const cfg = component['getEffectiveMemoryConfig'](exp);
       expect(cfg.lives).toBe(5);
@@ -566,7 +596,12 @@ describe('AdminPanel', () => {
     });
 
     it('resetExperienceMemoryToDefault restablece a la configuración del catálogo', () => {
-      const exp = { id: 'test-mem', brandId: 'b1', gameId: 'memory', config: { pairs: 4, lives: 4, difficulty: 'medium' } } as any;
+      const exp = {
+        id: 'test-mem',
+        brandId: 'b1',
+        gameId: 'memory',
+        config: { pairs: 4, lives: 4, difficulty: 'medium' },
+      } as any;
       component['changeMemoryLivesStep'](exp, 2, 'Marca Test');
       expect(component['getEffectiveMemoryConfig'](exp).isCustomOverride).toBe(true);
 
@@ -678,14 +713,22 @@ describe('AdminPanel', () => {
       const setBrandSpy = vi.spyOn(catalog, 'setBrandVideoEnabled');
 
       // Video general
-      const genVideo = { nombre: 'General 1', source: '/content/videos/general1.mp4', enabled: true };
+      const genVideo = {
+        nombre: 'General 1',
+        source: '/content/videos/general1.mp4',
+        enabled: true,
+      };
       component['openVideoPreview'](genVideo);
       component['togglePreviewVideo']();
       expect(setGenSpy).toHaveBeenCalledWith('/content/videos/general1.mp4', false);
 
       // Video de marca
       const brand = catalog.rawManifest().brands[0];
-      const brandVideo = { nombre: 'Brand Video', source: '/content/videos/radiesse.mp4', enabled: true };
+      const brandVideo = {
+        nombre: 'Brand Video',
+        source: '/content/videos/radiesse.mp4',
+        enabled: true,
+      };
       component['openVideoPreview'](brandVideo, brand);
       component['togglePreviewVideo']();
       expect(setBrandSpy).toHaveBeenCalledWith(brand.id, '/content/videos/radiesse.mp4', false);

@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag semver con prefijo v (ej. v0.1.0). Vacío = usar package.json.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install frontend deps
+        run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Fetch content videos (optional Release content-videos)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p resources/videos
+          if gh release view content-videos --repo juliansfreelance/merz-games >/dev/null 2>&1; then
+            gh release download content-videos --repo juliansfreelance/merz-games --dir resources/videos --clobber || true
+            echo "Downloaded content-videos release assets"
+          else
+            echo "No content-videos release; copy-videos usará masters locales si existen"
+          fi
+
+      - name: Copy attraction videos (strict)
+        shell: bash
+        run: COPY_VIDEOS_STRICT=1 npm run copy:videos
+
+      - name: Resolve release tag
+        id: meta
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            VER=$(node -p "require('./package.json').version")
+            echo "tag=v${VER}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ steps.meta.outputs.tag }}
+          releaseName: 'Merz Games ${{ steps.meta.outputs.tag }}'
+          releaseBody: |
+            Instaladores Windows (MSI + NSIS) y artefactos del updater (`latest.json` + `.sig`).
+
+            Canal contenido (JSON): raw `develop` → `content/manifests/content-manifest.json`.
+            Canal app: este Release → `latest.json`.
+          releaseDraft: false
+          prerelease: false
+          updaterJsonPreferNsis: true
+          uploadUpdaterJson: true

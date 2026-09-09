@@ -23,13 +23,7 @@ function game(
   return { id, name: id, version, minAppVersion: '0.1.0', enabled };
 }
 
-function experience(
-  id: string,
-  brandId: string,
-  gameId: string,
-  version: string,
-  enabled = true,
-) {
+function experience(id: string, brandId: string, gameId: string, version: string, enabled = true) {
   return { id, brandId, gameId, version, enabled, order: 1 };
 }
 
@@ -116,5 +110,35 @@ describe('compareCatalogs', () => {
       (entry) => entry.collection === 'brands' && entry.id === 'radiesse',
     );
     expect(radiesse?.kind).toBe('disabled');
+  });
+
+  it('añadir Belotero y belotero-triqui no altera Radiesse ni Ultherapy', () => {
+    const local = manifest({});
+    const remote = manifest({
+      version: '1.2.0',
+      brands: [item('radiesse', '1.0.0'), item('ultherapy', '1.0.0'), item('belotero', '0.1.0')],
+      experiences: [
+        experience('radiesse-memory', 'radiesse', 'memory', '1.0.0'),
+        experience('ultherapy-memory', 'ultherapy', 'memory', '1.0.0'),
+        experience('radiesse-triqui', 'radiesse', 'triqui', '1.0.0'),
+        experience('belotero-triqui', 'belotero', 'triqui', '0.1.0'),
+      ],
+    });
+
+    const byId = new Map(
+      compareCatalogs(local, remote).items.map((entry) => [
+        `${entry.collection}:${entry.id}`,
+        entry.kind,
+      ]),
+    );
+
+    expect(byId.get('brands:belotero')).toBe('added');
+    expect(byId.get('experiences:belotero-triqui')).toBe('added');
+    expect(byId.get('brands:radiesse')).toBe('unchanged');
+    expect(byId.get('brands:ultherapy')).toBe('unchanged');
+    expect(byId.get('experiences:radiesse-memory')).toBe('unchanged');
+    expect(byId.get('experiences:ultherapy-memory')).toBe('unchanged');
+    expect(byId.get('games:memory')).toBe('unchanged');
+    expect(byId.get('games:triqui')).toBe('unchanged');
   });
 });

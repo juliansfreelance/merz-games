@@ -158,16 +158,33 @@ function pushAssetRecord(
   }
 }
 
+export type CollectContentAssetOptions = {
+  /** Incluye clips de atracción (marcas + protector). No usar en splash. */
+  readonly includeAttractionVideos?: boolean;
+};
+
 /**
  * Recolecta URLs locales de imágenes y audio del manifest (marcas, motores,
- * experiencias y BGM) para precargarlas en el splash.
+ * experiencias y BGM). Con `includeAttractionVideos` también lista MP4 del
+ * protector (para `pendingAssets`; no para precarga del splash).
  */
-export function collectContentAssetUrls(manifest: ContentManifest): string[] {
+export function collectContentAssetUrls(
+  manifest: ContentManifest,
+  options: CollectContentAssetOptions = {},
+): string[] {
   const urls = new Set<string>();
+  const includeVideos = options.includeAttractionVideos === true;
 
   for (const brand of manifest.brands.filter((b) => b.enabled)) {
     pushAssetUrl(urls, brand.image);
     pushAssetUrl(urls, brand.logo);
+    if (includeVideos) {
+      pushAssetUrl(urls, brand.attractionVideo);
+      for (const video of brand.attractionVideos ?? []) {
+        if (video.enabled === false) continue;
+        pushAssetUrl(urls, video.source);
+      }
+    }
   }
 
   for (const game of manifest.games.filter((g) => g.enabled)) {
@@ -182,6 +199,12 @@ export function collectContentAssetUrls(manifest: ContentManifest): string[] {
   }
 
   pushAssetUrl(urls, manifest.app?.audio?.backgroundMusic);
+  if (includeVideos) {
+    for (const video of manifest.app?.protector?.attractionVideos ?? []) {
+      if (video.enabled === false) continue;
+      pushAssetUrl(urls, video.source);
+    }
+  }
   return [...urls];
 }
 

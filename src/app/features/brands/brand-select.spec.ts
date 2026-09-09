@@ -54,6 +54,6 @@ describe('BrandSelect Component', () => {
     catalog.setDevelopMode(true);
     fixture.detectChanges();
 
-    expect(catalog.brands().some((b) => b.id === 'radiesse2' && !!b.develop)).toBe(true);
+    expect(catalog.brands().some((b) => b.id === 'belotero' && !!b.develop)).toBe(true);
   });
 });

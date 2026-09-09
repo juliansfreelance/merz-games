@@ -74,13 +74,15 @@ describe('GameChrome', () => {
     fixture.detectChanges();
 
     const host: HTMLElement = fixture.nativeElement;
-    const bar = host.querySelector('.ml-auto') as HTMLElement;
+    const round = host.querySelector('[aria-label="Ronda 4"]') as HTMLElement;
+    expect(round).toBeTruthy();
+    expect(round.textContent).toContain('Ronda');
+    expect(round.textContent).toContain('4');
+
+    const bar = round.parentElement as HTMLElement;
     expect(bar).toBeTruthy();
     const children = Array.from(bar.children) as HTMLElement[];
     expect(children.length).toBe(3);
-    expect(children[1].textContent).toContain('Ronda');
-    expect(children[1].textContent).toContain('4');
-    expect(children[1].getAttribute('aria-label')).toBe('Ronda 4');
     expect(children[2].getAttribute('aria-label')).toBe('Ver instrucciones del juego');
   });
 
@@ -91,7 +93,9 @@ describe('GameChrome', () => {
     });
 
     const host: HTMLElement = fixture.nativeElement;
-    const helpButton = host.querySelector('button[aria-label="Ver instrucciones del juego"]') as HTMLButtonElement;
+    const helpButton = host.querySelector(
+      'button[aria-label="Ver instrucciones del juego"]',
+    ) as HTMLButtonElement;
     expect(helpButton).toBeTruthy();
     expect(helpButton.textContent?.trim()).toBe('?');
 

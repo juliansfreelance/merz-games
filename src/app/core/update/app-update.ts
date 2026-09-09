@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { PlatformService } from '../platform/platform.service';
-import { APP_UPDATE_PLACEHOLDER_MESSAGE } from './update.constants';
+import { APP_UPDATE_ERROR_MESSAGE } from './update.constants';
 
 export interface AppUpdateCheck {
   readonly available: boolean;
@@ -17,9 +17,10 @@ export interface AppUpdateInstallResult {
 
 /**
  * Canal de actualización del ejecutable (Tauri Updater).
- * En navegador no consulta GitHub; si pubkey/endpoint son placeholder, el check
- * falla con un mensaje honesto.
+ * En navegador no consulta GitHub. En nativo usa el plugin firmado
+ * (`plugins.updater` + GitHub Release `latest.json`).
  */
+
 @Injectable({ providedIn: 'root' })
 export class AppUpdate {
   private readonly platform = inject(PlatformService);
@@ -44,7 +45,7 @@ export class AppUpdate {
     } catch {
       return {
         available: false,
-        errorMessage: APP_UPDATE_PLACEHOLDER_MESSAGE,
+        errorMessage: APP_UPDATE_ERROR_MESSAGE,
       };
     }
   }
@@ -71,7 +72,7 @@ export class AppUpdate {
       return {
         ok: false,
         installed: false,
-        errorMessage: APP_UPDATE_PLACEHOLDER_MESSAGE,
+        errorMessage: APP_UPDATE_ERROR_MESSAGE,
       };
     }
   }

@@ -54,6 +54,15 @@ skills-lock.json
 
 # Tauri
 /src-tauri/target/
+.tauri/
+*.key
+*.key.pub
+~/.tauri/
 
 # Videos
 /public/content/videos/
+
+# Local env / secrets
+.env
+.env.*
+!.env.example

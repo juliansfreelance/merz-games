@@ -1,10 +1,7 @@
 import { Injectable } from '@angular/core';
 import { CatalogService, collectContentAssetUrls } from '../catalog/catalog';
 import { ContentManifest } from '../catalog/content-manifest.model';
-import {
-  CONTENT_MANIFEST_URL,
-  CONTENT_OFFLINE_MESSAGE,
-} from './update.constants';
+import { CONTENT_MANIFEST_URL, CONTENT_OFFLINE_MESSAGE } from './update.constants';
 
 export type ContentFetchKind = 'ok' | 'offline' | 'error';
 
@@ -71,12 +68,10 @@ export async function fetchContentManifest(
   }
 }
 
-export function pendingContentAssets(
-  local: ContentManifest,
-  remote: ContentManifest,
-): string[] {
-  const localUrls = new Set(collectContentAssetUrls(local));
-  return collectContentAssetUrls(remote).filter((url) => !localUrls.has(url));
+export function pendingContentAssets(local: ContentManifest, remote: ContentManifest): string[] {
+  const opts = { includeAttractionVideos: true } as const;
+  const localUrls = new Set(collectContentAssetUrls(local, opts));
+  return collectContentAssetUrls(remote, opts).filter((url) => !localUrls.has(url));
 }
 
 @Injectable({ providedIn: 'root' })
