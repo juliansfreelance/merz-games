@@ -36,6 +36,8 @@ describe('GameHost', () => {
         config: id === 'memory' ? { pairs: 4 } : {},
         assets: {},
       }),
+      isExperienceDevelop: (exp: { develop?: boolean } | string) =>
+        typeof exp === 'object' && exp?.develop === true,
     };
 
     const mockSession = {
@@ -138,7 +140,7 @@ describe('GameHost', () => {
     expect(el.querySelector('[role="dialog"]')).toBeTruthy();
   });
 
-  it('renderiza el indicador de turno en board-header-left cuando session.triquiTurn está activo', () => {
+  it('renderiza el indicador de turno en board-slot-top cuando session.triquiTurn está activo', () => {
     const { fixture, mockSession } = setup('radiesse-triqui');
     mockSession.triquiTurn.set({
       state: 'player',
@@ -148,8 +150,67 @@ describe('GameHost', () => {
     fixture.detectChanges();
 
     const el = fixture.nativeElement as HTMLElement;
-    const headerLeft = el.querySelector('[board-header-left]');
-    expect(headerLeft).toBeTruthy();
-    expect(headerLeft?.textContent).toContain('Tu turno');
+    const slotTop = el.querySelector('[board-slot-top]');
+    expect(slotTop).toBeTruthy();
+    expect(slotTop?.textContent).toContain('Tu turno');
+    expect(el.querySelector('.board-slot [board-slot-top]')).toBeTruthy();
+  });
+
+  it('al pulsar volver durante la partida muestra el diálogo de confirmación de salida sin salir de inmediato', () => {
+    const { fixture, mockSession } = setup('radiesse-memory');
+    const component = fixture.componentInstance;
+
+    // Pulsar volver
+    component.onRequestBack();
+    fixture.detectChanges();
+
+    expect(component['showExitConfirm']()).toBe(true);
+    expect(mockSession.leavePlay).not.toHaveBeenCalled();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('app-game-exit-confirm-dialog')).toBeTruthy();
+  });
+
+  it('al confirmar la salida en el diálogo abandona la partida y llama a session.leavePlay()', () => {
+    const { fixture, mockSession } = setup('radiesse-memory');
+    const component = fixture.componentInstance;
+
+    component.onRequestBack();
+    fixture.detectChanges();
+
+    component.onConfirmExit();
+    fixture.detectChanges();
+
+    expect(component['showExitConfirm']()).toBe(false);
+    expect(mockSession.leavePlay).toHaveBeenCalled();
+  });
+
+  it('al cancelar la salida en el diálogo lo oculta y no llama a session.leavePlay()', () => {
+    const { fixture, mockSession } = setup('radiesse-memory');
+    const component = fixture.componentInstance;
+
+    component.onRequestBack();
+    fixture.detectChanges();
+
+    component.onCancelExit();
+    fixture.detectChanges();
+
+    expect(component['showExitConfirm']()).toBe(false);
+    expect(mockSession.leavePlay).not.toHaveBeenCalled();
+  });
+
+  it('si la partida ya terminó con resultado, pulsar volver sale directamente sin diálogo', () => {
+    const { fixture, mockSession } = setup('radiesse-memory');
+    const component = fixture.componentInstance;
+
+    mockSession.playResult.set('win');
+    fixture.detectChanges();
+
+    component.onRequestBack();
+    fixture.detectChanges();
+
+    expect(component['showExitConfirm']()).toBe(false);
+    expect(mockSession.leavePlay).toHaveBeenCalled();
   });
 });
+

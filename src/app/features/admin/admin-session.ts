@@ -1,6 +1,7 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { PlatformService } from '../../core/platform/platform.service';
-import { persistPinHash, verifyPin } from './pin';
+import { CatalogService } from '../../core/catalog/catalog';
+import { getPinHint, persistPinHash, persistPinHint, resetAdminPin, verifyPin } from './pin';
 
 /**
  * Sesión de administración en memoria (no se persiste).
@@ -9,12 +10,14 @@ import { persistPinHash, verifyPin } from './pin';
 @Injectable({ providedIn: 'root' })
 export class AdminSession {
   private readonly platform = inject(PlatformService);
+  private readonly catalog = inject(CatalogService);
   private readonly _authenticated = signal(false);
 
   readonly authenticated = this._authenticated.asReadonly();
 
   async login(pin: string): Promise<boolean> {
-    const ok = await verifyPin(this.platform, pin);
+    const defaultPin = this.catalog.defaultAdminPin();
+    const ok = await verifyPin(this.platform, pin, defaultPin);
     this._authenticated.set(ok);
     return ok;
   }
@@ -23,10 +26,22 @@ export class AdminSession {
     this._authenticated.set(false);
   }
 
-  async changePin(current: string, next: string): Promise<boolean> {
-    const ok = await verifyPin(this.platform, current);
+  async changePin(current: string, next: string, hint?: string): Promise<boolean> {
+    const defaultPin = this.catalog.defaultAdminPin();
+    const ok = await verifyPin(this.platform, current, defaultPin);
     if (!ok) return false;
     await persistPinHash(this.platform, next);
+    if (hint !== undefined) {
+      persistPinHint(this.platform, hint);
+    }
     return true;
+  }
+
+  getPinHint(): string {
+    return getPinHint(this.platform);
+  }
+
+  resetPinToDefault(): void {
+    resetAdminPin(this.platform);
   }
 }

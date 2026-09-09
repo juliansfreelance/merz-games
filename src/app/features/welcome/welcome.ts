@@ -15,7 +15,7 @@ import { KioskDisclaimer } from '../shared/kiosk-disclaimer';
     style: 'touch-action: pan-y; -webkit-overflow-scrolling: touch;',
   },
   template: `
-    <div class="flex flex-col items-center justify-between flex-1 min-h-full w-full px-6 sm:px-12 lg:px-16 py-6 sm:py-8 text-white select-none gap-6">
+    <div class="flex flex-col items-center justify-between flex-1 min-h-full w-full max-w-7xl mx-auto px-6 sm:px-12 lg:px-16 py-6 sm:py-8 text-white select-none gap-6">
 
       <!-- Encabezado y cuerpo central -->
       <div class="flex-1 flex flex-col items-center justify-center text-center gap-6 sm:gap-8 kiosk:gap-12 max-w-2xl kiosk:max-w-4xl my-auto w-full px-2">
@@ -56,7 +56,7 @@ import { KioskDisclaimer } from '../shared/kiosk-disclaimer';
           </div>
 
           <!-- Badge y Título de Campaña (igual a pantalla brands) -->
-          <div class="inline-flex flex-col items-center justify-center gap-1.5 sm:gap-2 pt-1 sm:pt-2">
+          <div class="inline-flex flex-col items-center justify-center gap-3 sm:gap-4 kiosk:gap-5 pt-1 sm:pt-2">
             <span class="w-full flex items-center justify-center px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm kiosk:text-base font-extrabold font-['Montserrat'] tracking-[0.35em] sm:tracking-[0.4em] uppercase bg-white/10 text-white border border-white/20 backdrop-blur-md shadow-md select-none">
               HOY TU PIEL
             </span>

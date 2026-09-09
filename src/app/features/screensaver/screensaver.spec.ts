@@ -60,6 +60,7 @@ describe('Screensaver Component', () => {
 
     mockCatalog = {
       brands: brandsSignal,
+      rawManifest: signal<any>({ app: { protector: { attractionVideos: [] } } }),
     };
 
     mockMediaPlayer = {
@@ -113,13 +114,14 @@ describe('Screensaver Component', () => {
       expect(mockMediaPlayer.pauseBgm).not.toHaveBeenCalled();
     });
 
-    it('contiene logotipos institucionales y de marcas activas', () => {
+    it('contiene el logotipo Merz Aesthetics y el slogan HOY TU PIEL TAMBIÉN GANA', () => {
       setup('classic');
 
-      const logos = component.logos();
-      expect(logos).toContain('/content/images/MerzAestheticsLogo.svg');
-      expect(logos).toContain('/content/images/brands/RadiesseLogo.svg');
-      expect(logos).toContain('/content/images/brands/UltherapyLogo.svg');
+      const el = fixture.nativeElement as HTMLElement;
+      const img = el.querySelector('img');
+      expect(img?.getAttribute('src')).toBe('/content/images/MerzAestheticsLogo.svg');
+      expect(el.textContent).toContain('HOY TU PIEL');
+      expect(el.textContent).toContain('TAMBIÉN GANA');
     });
   });
 

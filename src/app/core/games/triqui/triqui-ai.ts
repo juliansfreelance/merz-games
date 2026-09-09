@@ -76,20 +76,27 @@ export const MEDIUM_CENTER_RATE = 0.50;
 
 // ─── Estrategia Media ─────────────────────────────────────────────────────────
 
-function getMediumMove(board: BoardState, available: CellIndex[], rng: () => number): CellIndex {
-  // 1. ¿Puede ganar la IA ('O') en este turno? (80% de acierto)
-  const winMove = findWinningMove(board, 'O');
+function getMediumMove(
+  board: BoardState,
+  available: CellIndex[],
+  rng: () => number,
+  aiMark: Mark = 'O',
+): CellIndex {
+  const humanMark: Mark = aiMark === 'O' ? 'X' : 'O';
+
+  // 1. ¿Puede ganar la IA en este turno? (80% de acierto)
+  const winMove = findWinningMove(board, aiMark);
   if (winMove !== null && rng() < MEDIUM_WIN_RATE) {
     return winMove;
   }
 
-  // 2. ¿Puede ganar el paciente ('X') en el siguiente turno? Bloquear con tasa humana (~55%)
-  const blockMove = findWinningMove(board, 'X');
+  // 2. ¿Puede ganar el jugador en el siguiente turno? Bloquear con tasa humana (~65%)
+  const blockMove = findWinningMove(board, humanMark);
   if (blockMove !== null && rng() < MEDIUM_BLOCK_RATE) {
     return blockMove;
   }
 
-  // 3. Preferencia del centro: 50% de las veces si está libre (permite al paciente tomar el centro)
+  // 3. Preferencia del centro: 50% de las veces si está libre
   if (board[4] === null && rng() < MEDIUM_CENTER_RATE) {
     return 4;
   }
@@ -127,10 +134,12 @@ function minimax(
   isMaximizing: boolean,
   alpha: number,
   beta: number,
+  aiMark: Mark = 'O',
+  humanMark: Mark = 'X',
 ): number {
   const winner = checkWinner(board);
-  if (winner === 'O') return 10 - depth;
-  if (winner === 'X') return depth - 10;
+  if (winner === aiMark) return 10 - depth;
+  if (winner === humanMark) return depth - 10;
 
   const available = getAvailableCells(board);
   if (available.length === 0) return 0; // Empate
@@ -138,8 +147,8 @@ function minimax(
   if (isMaximizing) {
     let maxEval = -Infinity;
     for (const cell of available) {
-      board[cell] = 'O';
-      const evaluation = minimax(board, depth + 1, false, alpha, beta);
+      board[cell] = aiMark;
+      const evaluation = minimax(board, depth + 1, false, alpha, beta, aiMark, humanMark);
       board[cell] = null;
       maxEval = Math.max(maxEval, evaluation);
       alpha = Math.max(alpha, evaluation);
@@ -149,8 +158,8 @@ function minimax(
   } else {
     let minEval = Infinity;
     for (const cell of available) {
-      board[cell] = 'X';
-      const evaluation = minimax(board, depth + 1, true, alpha, beta);
+      board[cell] = humanMark;
+      const evaluation = minimax(board, depth + 1, true, alpha, beta, aiMark, humanMark);
       board[cell] = null;
       minEval = Math.min(minEval, evaluation);
       beta = Math.min(beta, evaluation);
@@ -160,19 +169,25 @@ function minimax(
   }
 }
 
-function getHardMove(board: BoardState, available: CellIndex[], rng: () => number): CellIndex {
+function getHardMove(
+  board: BoardState,
+  available: CellIndex[],
+  rng: () => number,
+  aiMark: Mark = 'O',
+): CellIndex {
   // Optimización de apertura: si el tablero está vacío (la IA empieza), jugar el centro
   if (available.length === 9) {
     return 4;
   }
 
+  const humanMark: Mark = aiMark === 'O' ? 'X' : 'O';
   const mutableBoard = [...board];
   let bestScore = -Infinity;
   let bestMoves: CellIndex[] = [];
 
   for (const cell of available) {
-    mutableBoard[cell] = 'O';
-    const score = minimax(mutableBoard, 0, false, -Infinity, Infinity);
+    mutableBoard[cell] = aiMark;
+    const score = minimax(mutableBoard, 0, false, -Infinity, Infinity, aiMark, humanMark);
     mutableBoard[cell] = null;
 
     if (score > bestScore) {
@@ -196,12 +211,14 @@ function getHardMove(board: BoardState, available: CellIndex[], rng: () => numbe
  * @param board Estado actual del tablero (9 celdas).
  * @param difficulty 'easy' | 'medium' | 'hard'.
  * @param rng Función generadora de números aleatorios inyectable (default: Math.random).
+ * @param aiMark Marca con la que juega la IA ('O' o 'X'). Default: 'O'.
  * @returns El índice de la celda elegida (0 a 8).
  */
 export function calculateAiMove(
   board: BoardState,
   difficulty: Difficulty,
   rng: () => number = Math.random,
+  aiMark: Mark = 'O',
 ): CellIndex {
   const available = getAvailableCells(board);
   if (available.length === 0) {
@@ -212,8 +229,8 @@ export function calculateAiMove(
     case 'easy':
       return getEasyMove(available, rng);
     case 'medium':
-      return getMediumMove(board, available, rng);
+      return getMediumMove(board, available, rng, aiMark);
     case 'hard':
-      return getHardMove(board, available, rng);
+      return getHardMove(board, available, rng, aiMark);
   }
 }

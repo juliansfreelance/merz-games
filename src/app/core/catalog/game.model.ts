@@ -15,7 +15,7 @@ export type GameAssets = { [key: string]: string | string[] | undefined };
  */
 export interface Game {
   id: string;
-  name: string;
+  name?: string;
   version: string;
   minAppVersion: string;
   enabled: boolean;

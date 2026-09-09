@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { HeroIcon } from '../shared/hero-icon';
 import { UiSfx } from '../shared/ui-sfx';
+import { Mark } from '../../core/games/triqui/triqui.model';
 
 /** Espera para que el tablero se vea antes del tutorial automático. */
 export const TUTORIAL_AUTO_REVEAL_MS = 420;
@@ -31,18 +32,19 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
   template: `
     @if (visible()) {
       <div
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
-        style="background: rgba(3, 7, 18, 0.52); backdrop-filter: blur(16px);"
+        class="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+        style="background: rgba(3, 7, 18, 0.65); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);"
         role="dialog"
         aria-modal="true"
         aria-label="Instrucciones del juego Triqui"
         animate.enter="tutorial-overlay-enter"
-        (click)="stopPropagation($event)"
+        (click)="dismiss()"
       >
         <div
-          class="relative w-full max-w-lg bg-neutral-900/80 border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col items-center gap-6 text-center select-none"
+          class="relative w-full max-w-lg bg-neutral-900/90 border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col items-center gap-6 text-center select-none backdrop-blur-xl"
           [style.box-shadow]="'0 0 50px -10px ' + glowColor() + '33'"
           animate.enter="tutorial-card-enter"
+          (click)="stopPropagation($event)"
         >
           <!-- Botón de cerrar con Heroicons outline x-mark -->
           <button
@@ -57,7 +59,7 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
 
           <!-- Título del Tutorial -->
           <div class="space-y-1">
-            <span class="text-xs uppercase tracking-[0.25em] font-extrabold text-neutral-400">
+            <span class="text-xs uppercase tracking-[0.25em] font-extrabold text-white/80">
               Tutorial de Juego
             </span>
             <h2 class="text-xl sm:text-2xl font-black font-['Montserrat'] tracking-tight text-white uppercase">
@@ -71,17 +73,17 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
               <!-- Celdas de demostración -->
               <!-- Fila 0 -->
               <div class="demo-cell border border-white/15 bg-white/[0.04] rounded-xl flex items-center justify-center p-1.5">
-                @if (markXUrl()) {
-                  <img [src]="markXUrl()" alt="X" class="w-7 h-7 object-contain drop-shadow" />
+                @if (playerMarkUrl()) {
+                  <img [src]="playerMarkUrl()" [alt]="playerSymbolText()" class="w-7 h-7 object-contain drop-shadow" />
                 } @else {
-                  <span class="text-cyan-400 font-bold text-xl">✕</span>
+                  <span class="font-bold text-xl" [class]="playerSymbol() === 'X' ? 'text-cyan-400' : 'text-amber-200'">{{ playerSymbolText() }}</span>
                 }
               </div>
               <div class="demo-cell border border-white/15 bg-white/[0.04] rounded-xl flex items-center justify-center p-1.5">
-                @if (markOUrl()) {
-                  <img [src]="markOUrl()" alt="O" class="w-7 h-7 object-contain drop-shadow" />
+                @if (aiMarkUrl()) {
+                  <img [src]="aiMarkUrl()" [alt]="aiSymbolText()" class="w-7 h-7 object-contain drop-shadow" />
                 } @else {
-                  <span class="text-amber-200 font-bold text-xl">○</span>
+                  <span class="font-bold text-xl" [class]="playerSymbol() === 'X' ? 'text-amber-200' : 'text-cyan-400'">{{ aiSymbolText() }}</span>
                 }
               </div>
               <div class="demo-cell border border-white/15 bg-white/[0.04] rounded-xl flex items-center justify-center text-neutral-600 font-bold text-xs">
@@ -92,17 +94,17 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
                 ·
               </div>
               <div class="demo-cell border border-white/15 bg-white/[0.04] rounded-xl flex items-center justify-center p-1.5">
-                @if (markXUrl()) {
-                  <img [src]="markXUrl()" alt="X" class="w-7 h-7 object-contain drop-shadow" />
+                @if (playerMarkUrl()) {
+                  <img [src]="playerMarkUrl()" [alt]="playerSymbolText()" class="w-7 h-7 object-contain drop-shadow" />
                 } @else {
-                  <span class="text-cyan-400 font-bold text-xl">✕</span>
+                  <span class="font-bold text-xl" [class]="playerSymbol() === 'X' ? 'text-cyan-400' : 'text-amber-200'">{{ playerSymbolText() }}</span>
                 }
               </div>
               <div class="demo-cell border border-white/15 bg-white/[0.04] rounded-xl flex items-center justify-center p-1.5">
-                @if (markOUrl()) {
-                  <img [src]="markOUrl()" alt="O" class="w-7 h-7 object-contain drop-shadow" />
+                @if (aiMarkUrl()) {
+                  <img [src]="aiMarkUrl()" [alt]="aiSymbolText()" class="w-7 h-7 object-contain drop-shadow" />
                 } @else {
-                  <span class="text-amber-200 font-bold text-xl">○</span>
+                  <span class="font-bold text-xl" [class]="playerSymbol() === 'X' ? 'text-amber-200' : 'text-cyan-400'">{{ aiSymbolText() }}</span>
                 }
               </div>
               <!-- Fila 2: Celda 8 ganadora animada -->
@@ -117,11 +119,11 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
                 [style.border]="'1px solid ' + glowColor() + '88'"
                 [style.background]="glowColor() + '15'"
               >
-                @if (markXUrl()) {
-                  <img [src]="markXUrl()" alt="X" class="demo-winning-x w-7 h-7 object-contain drop-shadow" />
+                @if (playerMarkUrl()) {
+                  <img [src]="playerMarkUrl()" [alt]="playerSymbolText()" class="demo-winning-x w-7 h-7 object-contain drop-shadow" />
                 } @else {
-                  <span class="demo-winning-x text-cyan-400 font-bold text-xl">
-                    ✕
+                  <span class="demo-winning-x font-bold text-xl" [class]="playerSymbol() === 'X' ? 'text-cyan-400' : 'text-amber-200'">
+                    {{ playerSymbolText() }}
                   </span>
                 }
               </div>
@@ -144,22 +146,26 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
 
           <!-- Reglas Detalladas -->
           <div class="w-full space-y-3 text-left bg-white/[0.04] border border-white/10 rounded-2xl p-4 sm:p-5">
-            <!-- Regla 1: Fichas y alineación -->
+            <!-- Regla 1: Marca y alineación -->
             <div class="flex items-start gap-3">
-              <div class="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center shrink-0 text-xs font-bold text-white mt-0.5">
+              <div class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0 text-xs font-bold text-white mt-0.5">
                 1
               </div>
-              <p class="text-xs sm:text-sm text-neutral-200 leading-relaxed">
-                Tú eres la marca
+              <p class="text-xs sm:text-sm text-white leading-relaxed">
+                Tú juegas con la marca
                 <span class="inline-flex items-center align-middle gap-1 mx-1 px-2 py-0.5 rounded-lg bg-white/10 border border-white/15">
-                  @if (markXUrl()) {
-                    <img [src]="markXUrl()" alt="X" class="w-4 h-4 object-contain inline" />
+                  @if (playerMarkUrl()) {
+                    <img [src]="playerMarkUrl()" [alt]="playerSymbolText()" class="w-4 h-4 object-contain inline" />
+                  } @else {
+                    <span class="font-bold text-xs text-white">{{ playerSymbolText() }}</span>
                   }
                 </span>
-                y la computadora es la marca
+                y la computadora juega con la marca
                 <span class="inline-flex items-center align-middle gap-1 mx-1 px-2 py-0.5 rounded-lg bg-white/10 border border-white/15">
-                  @if (markOUrl()) {
-                    <img [src]="markOUrl()" alt="O" class="w-4 h-4 object-contain inline" />
+                  @if (aiMarkUrl()) {
+                    <img [src]="aiMarkUrl()" [alt]="aiSymbolText()" class="w-4 h-4 object-contain inline" />
+                  } @else {
+                    <span class="font-bold text-xs text-white">{{ aiSymbolText() }}</span>
                   }
                 </span>.
                 Alinea 3 marcas en línea horizontal, vertical o diagonal para ganar la ronda.
@@ -168,23 +174,23 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
 
             <!-- Regla 2: Vidas -->
             <div class="flex items-start gap-3">
-              <div class="w-7 h-7 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 text-xs font-bold mt-0.5">
+              <div class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0 text-xs font-bold text-white mt-0.5">
                 2
               </div>
-              <div class="text-xs sm:text-sm leading-relaxed">
-                <span class="font-bold text-rose-400">Atención a tus vidas:</span>
-                <span class="text-neutral-200 ml-1">
-                  Si la computadora te gana la ronda, <strong class="text-white">perderás una vida</strong>. Los empates <strong class="text-emerald-400">no descuentan vidas</strong>.
+              <div class="text-xs sm:text-sm text-white leading-relaxed">
+                <span class="font-bold text-white">Atención a tus vidas:</span>
+                <span class="text-white ml-1">
+                  Si la computadora te gana la ronda, <strong class="font-bold text-white">perderás una vida</strong>. Los empates <strong class="font-bold text-white">no descuentan vidas</strong>.
                 </span>
               </div>
             </div>
 
             <!-- Regla 3: Objetivo -->
             <div class="flex items-start gap-3">
-              <div class="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 text-xs font-bold mt-0.5">
+              <div class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0 text-xs font-bold text-white mt-0.5">
                 3
               </div>
-              <p class="text-xs sm:text-sm text-neutral-200 leading-relaxed">
+              <p class="text-xs sm:text-sm text-white leading-relaxed">
                 Supera a la computadora antes de agotar tus 3 oportunidades para ganar tu premio.
               </p>
             </div>
@@ -336,6 +342,23 @@ export class TriquiTutorial {
   readonly blurTint = input<string | undefined>(undefined);
   readonly markXUrl = input<string>('');
   readonly markOUrl = input<string>('');
+  readonly playerSymbol = input<Mark>('X');
+
+  protected readonly playerMarkUrl = computed<string>(() =>
+    this.playerSymbol() === 'X' ? this.markXUrl() : this.markOUrl(),
+  );
+
+  protected readonly aiMarkUrl = computed<string>(() =>
+    this.playerSymbol() === 'X' ? this.markOUrl() : this.markXUrl(),
+  );
+
+  protected readonly playerSymbolText = computed<string>(() =>
+    this.playerSymbol() === 'X' ? '✕' : '○',
+  );
+
+  protected readonly aiSymbolText = computed<string>(() =>
+    this.playerSymbol() === 'X' ? '○' : '✕',
+  );
 
   /** Color de resplandor para box-shadow y detalles de acento: blurTint institucional o accentColor */
   protected readonly glowColor = computed<string>(() => this.blurTint() || this.accentColor() || '#00E5FF');

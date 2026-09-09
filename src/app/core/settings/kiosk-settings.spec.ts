@@ -31,9 +31,9 @@ function buildSettings(initialStorage: Record<string, string> = {}) {
 describe('KioskSettings', () => {
   beforeEach(() => TestBed.resetTestingModule());
 
-  it('debe inicializar con "classic" por defecto', () => {
+  it('debe inicializar con el modo por defecto del manifest ("video")', () => {
     const { settings } = buildSettings();
-    expect(settings.screensaverMode()).toBe<ScreensaverMode>('classic');
+    expect(settings.screensaverMode()).toBe<ScreensaverMode>('video');
   });
 
   it('debe recuperar "video" si estaba persistido', () => {
@@ -101,7 +101,7 @@ describe('KioskSettings', () => {
   it('JSON corrupto en storage debe usar defaults sin lanzar error', () => {
     const initial = { [SETTINGS_KEY]: '{invalid-json' };
     const { settings } = buildSettings(initial);
-    expect(settings.screensaverMode()).toBe<ScreensaverMode>('classic');
+    expect(settings.screensaverMode()).toBe<ScreensaverMode>('video');
     expect(settings.soundEnabled()).toBe(true);
     expect(settings.memoryPairs()).toBeNull();
   });
@@ -246,6 +246,20 @@ describe('KioskSettings', () => {
     expect(settings.getExperienceMemoryConfig('ultherapy-memory')).toBeNull();
   });
 
+  it('clearExperienceOverridesForGame elimina solo overrides del motor indicado', () => {
+    const { settings } = buildSettings();
+
+    settings.setExperienceMemoryConfig('radiesse-memory', { pairs: 5, lives: 4, difficulty: 'easy' });
+    settings.setExperienceMemoryConfig('ultherapy-memory', { pairs: 6, lives: 5, difficulty: 'hard' });
+    settings.setExperienceTriquiDifficulty('radiesse-triqui', 'hard');
+
+    settings.clearExperienceOverridesForGame('memory');
+
+    expect(settings.getExperienceMemoryConfig('radiesse-memory')).toBeNull();
+    expect(settings.getExperienceMemoryConfig('ultherapy-memory')).toBeNull();
+    expect(settings.getExperienceTriquiDifficulty('radiesse-triqui')).toBe('hard');
+  });
+
   it('resetToDefault restablece todos los ajustes y borra overrides por experiencia', () => {
     const { settings, store } = buildSettings();
 
@@ -254,13 +268,13 @@ describe('KioskSettings', () => {
     settings.setTriquiDifficulty('hard');
     settings.setTriquiFirstPlayer('alternate');
     settings.setSoundEnabled(false);
-    settings.setScreensaverMode('video');
+    settings.setScreensaverMode('classic');
     settings.setExperienceMemoryPairs('radiesse-memory', 4);
 
     expect(settings.memoryPairs()).toBe(5);
     expect(settings.triquiDifficulty()).toBe('hard');
     expect(settings.soundEnabled()).toBe(false);
-    expect(settings.screensaverMode()).toBe('video');
+    expect(settings.screensaverMode()).toBe('classic');
     expect(settings.getExperienceMemoryPairs('radiesse-memory')).toBe(4);
 
     // Restaurar por defecto
@@ -270,7 +284,7 @@ describe('KioskSettings', () => {
     expect(settings.triquiDifficulty()).toBeNull();
     expect(settings.triquiFirstPlayer()).toBeNull();
     expect(settings.soundEnabled()).toBe(true);
-    expect(settings.screensaverMode()).toBe('classic');
+    expect(settings.screensaverMode()).toBe('video');
     expect(settings.getExperienceMemoryPairs('radiesse-memory')).toBeNull();
   });
 
@@ -368,6 +382,113 @@ describe('KioskSettings', () => {
       expect(settings.videoVolume()).toBe(0.5);
       expect(settings.screensaverVideoOrder()).toBe('sequential');
       expect(settings.screensaverIdleMs()).toBe(180_000);
+    });
+  });
+
+  describe('Ajustes de Audio por Sesión', () => {
+    it('inicia sin overrides de sesión y refleja los valores persistentes', () => {
+      const { settings } = buildSettings();
+      expect(settings.hasSessionAudioOverrides()).toBe(false);
+      expect(settings.soundEnabled()).toBe(true);
+      expect(settings.bgmVolume()).toBe(0.35);
+      expect(settings.sfxVolume()).toBe(0.7);
+    });
+
+    it('setSessionSoundEnabled modifica el valor efectivo sin persistir en storage', () => {
+      const store: Record<string, string> = {};
+      const mockPlatform = {
+        appVersion: signal('0.1.0'),
+        storageGet: (key: string) => store[key] ?? null,
+        storageSet: (key: string, value: string) => {
+          store[key] = value;
+        },
+      };
+
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [
+          KioskSettings,
+          AppLogger,
+          { provide: PlatformService, useValue: mockPlatform },
+        ],
+      });
+      const settings = TestBed.inject(KioskSettings);
+      TestBed.flushEffects();
+
+      settings.setSessionSoundEnabled(false);
+      expect(settings.soundEnabled()).toBe(false);
+      expect(settings.persistentSoundEnabled()).toBe(true);
+      expect(settings.hasSessionAudioOverrides()).toBe(true);
+
+      // El storage persistente NO debe haber cambiado a false
+      const stored = JSON.parse(store[SETTINGS_KEY]);
+      expect(stored.soundEnabled).toBe(true);
+    });
+
+    it('setSessionBgmVolume y setSessionSfxVolume modifican valores en memoria', () => {
+      const { settings } = buildSettings();
+      settings.setSessionBgmVolume(0.7);
+      settings.setSessionSfxVolume(0.2);
+
+      expect(settings.bgmVolume()).toBe(0.7);
+      expect(settings.sfxVolume()).toBe(0.2);
+      expect(settings.persistentBgmVolume()).toBe(0.35);
+      expect(settings.persistentSfxVolume()).toBe(0.7);
+      expect(settings.hasSessionAudioOverrides()).toBe(true);
+    });
+
+    it('clearSessionAudioOverrides restaura los valores configurados', () => {
+      const { settings } = buildSettings();
+      settings.setSessionSoundEnabled(false);
+      settings.setSessionBgmVolume(0.9);
+      settings.setSessionSfxVolume(0.1);
+
+      expect(settings.hasSessionAudioOverrides()).toBe(true);
+      expect(settings.soundEnabled()).toBe(false);
+
+      settings.clearSessionAudioOverrides();
+
+      expect(settings.hasSessionAudioOverrides()).toBe(false);
+      expect(settings.soundEnabled()).toBe(true);
+      expect(settings.bgmVolume()).toBe(0.35);
+      expect(settings.sfxVolume()).toBe(0.7);
+    });
+
+    it('setSoundEnabled persistente limpia los overrides de sesión', () => {
+      const { settings } = buildSettings();
+      settings.setSessionSoundEnabled(false);
+      expect(settings.soundEnabled()).toBe(false);
+
+      settings.setSoundEnabled(true);
+      expect(settings.hasSessionAudioOverrides()).toBe(false);
+      expect(settings.soundEnabled()).toBe(true);
+      expect(settings.persistentSoundEnabled()).toBe(true);
+    });
+  });
+
+  describe('triquiPlayerSymbol en KioskSettings', () => {
+    it('permite configurar y persistir "random" por experiencia', () => {
+      const { settings } = buildSettings();
+      expect(settings.getExperienceTriquiPlayerSymbol('radiesse-triqui')).toBeNull();
+
+      settings.setExperienceTriquiPlayerSymbol('radiesse-triqui', 'random');
+      expect(settings.getExperienceTriquiPlayerSymbol('radiesse-triqui')).toBe('random');
+
+      settings.setExperienceTriquiPlayerSymbol('radiesse-triqui', 'O');
+      expect(settings.getExperienceTriquiPlayerSymbol('radiesse-triqui')).toBe('O');
+
+      settings.setExperienceTriquiPlayerSymbol('radiesse-triqui', null);
+      expect(settings.getExperienceTriquiPlayerSymbol('radiesse-triqui')).toBeNull();
+    });
+
+    it('recupera triquiPlayerSymbol = "random" desde storage', () => {
+      const initial = {
+        [SETTINGS_KEY]: JSON.stringify({
+          triquiPlayerSymbol: 'random',
+        }),
+      };
+      const { settings } = buildSettings(initial);
+      expect(settings.triquiPlayerSymbol()).toBe('random');
     });
   });
 });

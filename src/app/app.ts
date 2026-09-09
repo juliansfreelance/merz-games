@@ -1,4 +1,4 @@
-import { Component, computed, DestroyRef, effect, inject } from '@angular/core';
+import { Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map, startWith } from 'rxjs/operators';
@@ -7,9 +7,11 @@ import { CatalogService } from './core/catalog/catalog';
 import { MediaPlayer } from './core/media/media-player';
 import { FloatingGradient } from './features/shared/floating-gradient';
 import { Atmosphere } from './core/catalog/content-manifest.model';
-import { UI_SFX } from './features/shared/ui-sfx';
+import { UI_SFX, UiSfx } from './features/shared/ui-sfx';
 import { IdleWatchdog } from './core/kiosk/idle-watchdog';
 import { Screensaver } from './features/screensaver/screensaver';
+import { HeroIcon } from './features/shared/hero-icon';
+import { QuickSettingsDialog } from './features/shared/quick-settings-dialog';
 
 /** Volumen de BGM por defecto si el manifest no especifica uno. */
 const DEFAULT_BGM_VOLUME = 0.35;
@@ -18,7 +20,7 @@ const DEFAULT_BGM_VOLUME = 0.35;
 const ADMIN_LONG_PRESS_MS = 2000;
 
 @Component({
-  imports: [RouterOutlet, FloatingGradient, Screensaver],
+  imports: [RouterOutlet, FloatingGradient, Screensaver, HeroIcon, UiSfx, QuickSettingsDialog],
   selector: 'app-root',
   styleUrl: './app.css',
   templateUrl: './app.html',
@@ -39,6 +41,7 @@ export class App {
 
   protected readonly appVersion = this.platformService.appVersion;
   protected readonly isScreensaverActive = this.watchdog.isActive;
+  protected readonly isQuickSettingsOpen = signal<boolean>(false);
 
   private readonly currentUrl = toSignal(
     this.router.events.pipe(
@@ -48,6 +51,22 @@ export class App {
     ),
     { initialValue: this.router.url },
   );
+
+  /** Indica si la ruta activa pertenece al panel o login de administración (/admin). */
+  protected readonly isAdminRoute = computed<boolean>(() => {
+    return this.currentUrl().startsWith('/admin');
+  });
+
+  /**
+   * Determina si el botón flotante de ajustes rápidos debe mostrarse:
+   * En toda la app EXCEPTO en login (/admin/login), panel de control (/admin) y splash inicial (/).
+   */
+  protected readonly showQuickSettings = computed<boolean>(() => {
+    const url = this.currentUrl();
+    if (this.isAdminRoute()) return false;
+    if (url === '' || url === '/') return false;
+    return true;
+  });
 
   /**
    * Resuelve la atmósfera viva según la ruta activa y el catálogo.
@@ -126,12 +145,10 @@ export class App {
     // La reproducción NO arranca aquí: espera el primer gesto (onFirstGesture).
     effect(() => {
       const manifest = this.catalog.rawManifest();
-      const audio = manifest?.audio;
-      if (audio?.backgroundMusic) {
-        this.mediaPlayer.setBgm(
-          audio.backgroundMusic,
-          audio.volume ?? DEFAULT_BGM_VOLUME,
-        );
+      const bgm = manifest?.app?.audio?.backgroundMusic;
+      const volume = manifest?.app?.audio?.bgmVolume ?? DEFAULT_BGM_VOLUME;
+      if (bgm) {
+        this.mediaPlayer.setBgm(bgm, volume);
       }
     });
   }
@@ -141,6 +158,14 @@ export class App {
    */
   protected onDismissScreensaver(): void {
     this.watchdog.dismiss();
+  }
+
+  protected openQuickSettings(): void {
+    this.isQuickSettingsOpen.set(true);
+  }
+
+  protected closeQuickSettings(): void {
+    this.isQuickSettingsOpen.set(false);
   }
 
   /**

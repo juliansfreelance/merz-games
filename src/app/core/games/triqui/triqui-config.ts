@@ -8,7 +8,7 @@
  */
 
 import { ExperienceConfig } from '../../catalog/game-experience.model';
-import { Difficulty, FirstPlayer } from './triqui.model';
+import { Difficulty, FirstPlayer, Mark, PlayerSymbolChoice } from './triqui.model';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -18,9 +18,14 @@ export const TRIQUI_DIFFICULTY_DEFAULT: Difficulty = 'medium';
 /** Estrategia de primer jugador por defecto. */
 export const TRIQUI_FIRST_PLAYER_DEFAULT: FirstPlayer = 'patient';
 
+/** Ficha / Figura por defecto del jugador humano ('X', 'O' o 'random'). */
+export const TRIQUI_PLAYER_SYMBOL_DEFAULT: PlayerSymbolChoice = 'random';
+
 export const VALID_DIFFICULTIES: readonly Difficulty[] = ['easy', 'medium', 'hard'];
 
 export const VALID_FIRST_PLAYERS: readonly FirstPlayer[] = ['patient', 'alternate', 'random'];
+
+export const VALID_PLAYER_SYMBOLS: readonly PlayerSymbolChoice[] = ['X', 'O', 'random'];
 
 // ─── Tipos de Resolución ──────────────────────────────────────────────────────
 
@@ -33,6 +38,11 @@ export interface ResolvedDifficulty {
 
 export interface ResolvedFirstPlayer {
   readonly firstPlayer: FirstPlayer;
+  readonly source: TriquiConfigSource;
+}
+
+export interface ResolvedPlayerSymbol {
+  readonly playerSymbol: PlayerSymbolChoice;
   readonly source: TriquiConfigSource;
 }
 
@@ -76,6 +86,26 @@ export function validateFirstPlayer(value: unknown): FirstPlayer | null {
     return null;
   }
   return value as FirstPlayer;
+}
+
+/**
+ * Valida un valor candidato para la ficha/figura del jugador ('X', 'O' o 'random').
+ * Si el valor no es válido, emite warning y devuelve null.
+ */
+export function validatePlayerSymbol(value: unknown): PlayerSymbolChoice | null {
+  if (typeof value !== 'string') {
+    console.warn(
+      `TriquiConfig: valor de figura inválido (tipo "${typeof value}"): ${String(value)}. Se ignora.`,
+    );
+    return null;
+  }
+  if (!VALID_PLAYER_SYMBOLS.includes(value as PlayerSymbolChoice)) {
+    console.warn(
+      `TriquiConfig: valor de figura desconocido "${value}". Se descarta y continúa la cascada.`,
+    );
+    return null;
+  }
+  return value as PlayerSymbolChoice;
 }
 
 // ─── Cascadas de Resolución ───────────────────────────────────────────────────
@@ -142,4 +172,36 @@ export function resolveTriquiFirstPlayer(sources: {
   }
 
   return { firstPlayer: TRIQUI_FIRST_PLAYER_DEFAULT, source: 'default' };
+}
+
+/**
+ * Resuelve la figura / símbolo del jugador en Triqui ('X', 'O' o 'random') según la cascada:
+ * 1. KioskSettings.triquiPlayerSymbol (override de equipo en panel)
+ * 2. experience.config.playerSymbol (ajuste por marca)
+ * 3. game.config.playerSymbol (configuración maestra del motor)
+ * 4. TRIQUI_PLAYER_SYMBOL_DEFAULT ('random')
+ */
+export function resolveTriquiPlayerSymbol(sources: {
+  readonly kioskOverride: PlayerSymbolChoice | null;
+  readonly experienceConfig?: ExperienceConfig;
+  readonly gameConfig?: ExperienceConfig;
+}): ResolvedPlayerSymbol {
+  const { kioskOverride, experienceConfig, gameConfig } = sources;
+
+  if (kioskOverride !== null) {
+    const valid = validatePlayerSymbol(kioskOverride);
+    if (valid !== null) return { playerSymbol: valid, source: 'kiosk' };
+  }
+
+  if (experienceConfig !== undefined && 'playerSymbol' in experienceConfig) {
+    const valid = validatePlayerSymbol(experienceConfig['playerSymbol']);
+    if (valid !== null) return { playerSymbol: valid, source: 'experience' };
+  }
+
+  if (gameConfig !== undefined && 'playerSymbol' in gameConfig) {
+    const valid = validatePlayerSymbol(gameConfig['playerSymbol']);
+    if (valid !== null) return { playerSymbol: valid, source: 'game' };
+  }
+
+  return { playerSymbol: TRIQUI_PLAYER_SYMBOL_DEFAULT, source: 'default' };
 }

@@ -19,19 +19,40 @@ describe('PlatformService', () => {
     expect(service.appVersion()).toBe('0.1.0');
   });
 
-  it('restart / exit / leaveKiosk / enterKiosk se degradan en navegador', async () => {
-    const restart = await service.restart();
-    const exit = await service.exit();
-    const leave = await service.leaveKiosk();
-    const enter = await service.enterKiosk();
+  it('restart en navegador recarga la pagina con window.location.reload', async () => {
+    const reloadSpy = vi.fn();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { reload: reloadSpy },
+    });
 
-    expect(restart.ok).toBe(false);
+    const restart = await service.restart();
+    expect(restart.ok).toBe(true);
+    expect(reloadSpy).toHaveBeenCalled();
+  });
+
+  it('exit en navegador no aplica y reporta mensaje explicativo', async () => {
+    const exit = await service.exit();
     expect(exit.ok).toBe(false);
-    expect(leave.ok).toBe(false);
-    expect(enter.ok).toBe(false);
-    expect(restart.message).toBe('Solo en la app de escritorio');
-    expect(exit.message).toBe('Solo en la app de escritorio');
-    expect(leave.message).toBe('Solo en la app de escritorio');
-    expect(enter.message).toBe('Solo en la app de escritorio');
+    expect(exit.message).toContain('solo está disponible en la app de escritorio');
+  });
+
+  it('enterKiosk y leaveKiosk en navegador gestionan el modo y fullscreen', async () => {
+    const requestFsSpy = vi.fn().mockResolvedValue(undefined);
+    const exitFsSpy = vi.fn().mockResolvedValue(undefined);
+
+    document.documentElement.requestFullscreen = requestFsSpy;
+    document.exitFullscreen = exitFsSpy;
+
+    const enter = await service.enterKiosk();
+    expect(enter.ok).toBe(true);
+    expect(service.isKiosk()).toBe(true);
+
+    const leave = await service.leaveKiosk();
+    expect(leave.ok).toBe(true);
+    expect(service.isKiosk()).toBe(false);
+
+    await service.toggleKiosk();
+    expect(service.isKiosk()).toBe(true);
   });
 });

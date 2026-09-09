@@ -11,32 +11,43 @@
       playsinline
       (ended)="onVideoEnded()"
       (error)="onVideoError()"
-      class="w-full h-full object-cover pointer-events-none"
+      class="w-full h-full object-contain pointer-events-none"
     ></video>
   </div>
 } @else {
-  <!-- Modo Clásico (o Dwell intercalado ≥ 20 s en modo video): Logos institucionales y marcas en movimiento suave -->
-  <div class="relative w-full h-full flex flex-col items-center justify-center px-8 overflow-hidden">
+  <!-- Modo Clásico (o Dwell intercalado en modo video): Bouncing Logo Merz Aesthetics + Slogan -->
+  <div #screensaverContainer class="relative w-full h-full overflow-hidden bg-black/95">
     
     <!-- Aura ambiental sutil de fondo -->
     <div
-      class="absolute size-[600px] rounded-full bg-gradient-to-br from-indigo-900/20 via-purple-900/10 to-transparent blur-3xl pointer-events-none animate-pulse-glow"
+      class="absolute size-[700px] rounded-full bg-gradient-to-br from-indigo-900/20 via-purple-900/10 to-transparent blur-3xl pointer-events-none animate-pulse-glow top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
     ></div>
 
-    <!-- Contenedor flotante del logotipo activo -->
-    <div class="relative z-10 flex flex-col items-center justify-center p-8 animate-gentle-float">
+    <!-- Elemento flotante rebotador (DVD bounce) con Logo Merz Aesthetics y Slogan -->
+    <div
+      #bounceBox
+      class="absolute top-0 left-0 z-10 flex flex-col items-center justify-center gap-6 sm:gap-8 kiosk:gap-10 p-4 select-none pointer-events-none will-change-transform"
+    >
       <img
-        [src]="currentLogo()"
-        alt="Merz Games"
-        class="max-w-[340px] sm:max-w-[420px] max-h-[160px] sm:max-h-[200px] w-auto h-auto object-contain filter drop-shadow-[0_10px_30px_rgba(255,255,255,0.06)] animate-logo-cycle"
+        src="/content/images/MerzAestheticsLogo.svg"
+        alt="Merz Aesthetics"
+        class="w-[260px] sm:w-[340px] md:w-[420px] kiosk:w-[520px] h-auto object-contain filter drop-shadow-[0_10px_30px_rgba(255,255,255,0.12)]"
       />
-    </div>
-
-    <!-- Mensaje sutil de interacción táctil -->
-    <div class="absolute bottom-16 sm:bottom-20 z-10 flex flex-col items-center gap-2 pointer-events-none opacity-60">
-      <p class="text-xs sm:text-sm kiosk:text-base font-semibold uppercase tracking-[0.25em] text-neutral-400 font-mono text-center">
-        Toca la pantalla para comenzar
-      </p>
+      <div class="inline-flex flex-col items-center justify-center gap-3.5 sm:gap-4.5 kiosk:gap-6">
+        <span class="px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm kiosk:text-base font-extrabold font-['Montserrat'] tracking-[0.35em] sm:tracking-[0.4em] uppercase bg-white/10 text-white border border-white/20 backdrop-blur-md shadow-md select-none">
+          HOY TU PIEL
+        </span>
+        <h2 class="text-xl sm:text-2xl lg:text-3xl kiosk:text-4xl font-extrabold font-['Montserrat'] uppercase text-white tracking-tight text-center whitespace-nowrap">
+          TAMBIÉN GANA
+        </h2>
+      </div>
     </div>
   </div>
 }
+
+<!-- Mensaje sutil de interacción táctil superpuesto permanentemente (tanto en videos como en modo clásico) -->
+<div class="absolute bottom-12 sm:bottom-16 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 pointer-events-none drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
+  <p class="text-xs sm:text-sm kiosk:text-base font-semibold uppercase tracking-[0.25em] text-neutral-200 font-mono text-center whitespace-nowrap px-4 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 animate-pulse select-none">
+    Toca la pantalla para comenzar
+  </p>
+</div>

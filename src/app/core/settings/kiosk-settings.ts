@@ -1,7 +1,8 @@
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { PlatformService } from '../platform/platform.service';
 import { AppLogger } from '../logging/app-error';
-import { Difficulty, FirstPlayer } from '../games/triqui/triqui.model';
+import { CatalogService } from '../catalog/catalog';
+import { Difficulty, FirstPlayer, Mark, PlayerSymbolChoice } from '../games/triqui/triqui.model';
 import { MemoryConfig, MemoryConfigOverride, MemoryDifficulty } from '../games/memory/memory.model';
 
 /** Clave de localStorage para los ajustes del kiosco. */
@@ -43,7 +44,6 @@ interface KioskSettingsData {
   /**
    * Override operativo del número de parejas para el motor de Memoria.
    * null = sin override; la cascada arranca en el nivel de experiencia/motor.
-   * El panel para cambiar este valor es Fase 7.
    */
   memoryPairs: number | null;
   /**
@@ -56,6 +56,11 @@ interface KioskSettingsData {
    * null = sin override; la cascada arranca en el nivel de experiencia/motor.
    */
   triquiFirstPlayer: FirstPlayer | null;
+  /**
+   * Override operativo de la figura del jugador ('X', 'O' o 'random') para Triqui.
+   * null = sin override; la cascada arranca en el nivel de experiencia/motor.
+   */
+  triquiPlayerSymbol: PlayerSymbolChoice | null;
   /** Overrides específicos por experiencia (clave = experienceId). */
   experienceOverrides?: Record<string, ExperienceSettingsOverride>;
 }
@@ -66,6 +71,7 @@ export interface ExperienceSettingsOverride {
   memoryDifficulty?: MemoryDifficulty | null;
   triquiDifficulty?: Difficulty | null;
   triquiFirstPlayer?: FirstPlayer | null;
+  triquiPlayerSymbol?: PlayerSymbolChoice | null;
 }
 
 const DEFAULT_SETTINGS: KioskSettingsData = {
@@ -74,11 +80,12 @@ const DEFAULT_SETTINGS: KioskSettingsData = {
   screensaverIdleMs: SCREENSAVER_IDLE_DEFAULT_MS,
   videoVolume: DEFAULT_VIDEO_VOLUME,
   soundEnabled: true,
-  bgmVolume: 0.4,
+  bgmVolume: 0.35,
   sfxVolume: 0.8,
   memoryPairs: null,
   triquiDifficulty: null,
   triquiFirstPlayer: null,
+  triquiPlayerSymbol: null,
   experienceOverrides: {},
 };
 
@@ -102,6 +109,7 @@ const DEFAULT_SETTINGS: KioskSettingsData = {
 export class KioskSettings {
   private readonly platform = inject(PlatformService);
   private readonly logger = inject(AppLogger);
+  private readonly catalog = inject(CatalogService);
 
   private readonly _data = signal<KioskSettingsData>(this._loadSettings());
 
@@ -123,17 +131,35 @@ export class KioskSettings {
     () => this._data().videoVolume ?? DEFAULT_SETTINGS.videoVolume,
   );
 
+  // ─── Overrides volátiles por sesión (solo memoria, no se persisten) ─────────
+  private readonly _sessionSoundEnabled = signal<boolean | null>(null);
+  private readonly _sessionBgmVolume = signal<number | null>(null);
+  private readonly _sessionSfxVolume = signal<number | null>(null);
+
+  /** Valores configurados/persistidos en storage (panel de control / manifest). */
+  readonly persistentSoundEnabled = computed(() => this._data().soundEnabled);
+  readonly persistentBgmVolume = computed(() => this._data().bgmVolume ?? DEFAULT_SETTINGS.bgmVolume);
+  readonly persistentSfxVolume = computed(() => this._data().sfxVolume ?? DEFAULT_SETTINGS.sfxVolume);
+
   /**
-   * Audio habilitado/deshabilitado a nivel de kiosco.
-   * Con false no suena ni BGM ni SFX.
+   * Audio habilitado/deshabilitado a nivel efectivo de sesión.
+   * Si existe un ajuste temporal de sesión, lo prioriza; si no, toma el configurado.
    */
-  readonly soundEnabled = computed(() => this._data().soundEnabled);
+  readonly soundEnabled = computed(() => this._sessionSoundEnabled() ?? this.persistentSoundEnabled());
 
-  /** Volumen de música de fondo (0 a 1). */
-  readonly bgmVolume = computed(() => this._data().bgmVolume ?? DEFAULT_SETTINGS.bgmVolume);
+  /** Volumen de música de fondo efectivo de la sesión (0 a 1). */
+  readonly bgmVolume = computed(() => this._sessionBgmVolume() ?? this.persistentBgmVolume());
 
-  /** Volumen de efectos de sonido (0 a 1). */
-  readonly sfxVolume = computed(() => this._data().sfxVolume ?? DEFAULT_SETTINGS.sfxVolume);
+  /** Volumen de efectos de sonido efectivo de la sesión (0 a 1). */
+  readonly sfxVolume = computed(() => this._sessionSfxVolume() ?? this.persistentSfxVolume());
+
+  /** Indica si la sesión actual tiene algún ajuste de audio temporal activo. */
+  readonly hasSessionAudioOverrides = computed(
+    () =>
+      this._sessionSoundEnabled() !== null ||
+      this._sessionBgmVolume() !== null ||
+      this._sessionSfxVolume() !== null,
+  );
 
   /**
    * Override operativo del número de parejas para el motor de Memoria.
@@ -153,6 +179,12 @@ export class KioskSettings {
    * null = sin override (gobierna catálogo).
    */
   readonly triquiFirstPlayer = computed(() => this._data().triquiFirstPlayer);
+
+  /**
+   * Override operativo de la figura del jugador ('X' u 'O') para Triqui.
+   * null = sin override (gobierna catálogo).
+   */
+  readonly triquiPlayerSymbol = computed(() => this._data().triquiPlayerSymbol);
 
   constructor() {
     // Persistir cada vez que cualquier ajuste cambie (efecto secundario real).
@@ -200,20 +232,62 @@ export class KioskSettings {
   }
 
   setSoundEnabled(enabled: boolean): void {
+    this._sessionSoundEnabled.set(null);
     this._patch({ soundEnabled: enabled });
-    this.logger.info('KioskSettings', `Sonido ${enabled ? 'activado' : 'desactivado'}.`);
+    this.logger.info('KioskSettings', `Sonido persistente ${enabled ? 'activado' : 'desactivado'}.`);
   }
 
   setBgmVolume(volume: number): void {
+    this._sessionBgmVolume.set(null);
     const clamped = Math.max(0, Math.min(1, volume));
     this._patch({ bgmVolume: clamped });
-    this.logger.info('KioskSettings', `Volumen BGM cambiado a: ${clamped}`);
+    this.logger.info('KioskSettings', `Volumen BGM persistente cambiado a: ${clamped}`);
   }
 
   setSfxVolume(volume: number): void {
+    this._sessionSfxVolume.set(null);
     const clamped = Math.max(0, Math.min(1, volume));
     this._patch({ sfxVolume: clamped });
-    this.logger.info('KioskSettings', `Volumen SFX cambiado a: ${clamped}`);
+    this.logger.info('KioskSettings', `Volumen SFX persistente cambiado a: ${clamped}`);
+  }
+
+  // ─── Control de Audio por Sesión (solo en memoria) ──────────────────────────
+
+  /**
+   * Modifica el estado de audio solo para la sesión activa (en memoria).
+   * No se persiste en localStorage. Al recargar o reiniciar vuelve al valor del panel de control.
+   */
+  setSessionSoundEnabled(enabled: boolean): void {
+    this._sessionSoundEnabled.set(enabled);
+    this.logger.info('KioskSettings', `Sonido de sesión: ${enabled ? 'activado' : 'silenciado'}.`);
+  }
+
+  /**
+   * Modifica el volumen de BGM solo para la sesión activa (en memoria).
+   */
+  setSessionBgmVolume(volume: number): void {
+    const clamped = Math.max(0, Math.min(1, volume));
+    this._sessionBgmVolume.set(clamped);
+    this.logger.info('KioskSettings', `Volumen BGM de sesión: ${clamped}`);
+  }
+
+  /**
+   * Modifica el volumen de SFX solo para la sesión activa (en memoria).
+   */
+  setSessionSfxVolume(volume: number): void {
+    const clamped = Math.max(0, Math.min(1, volume));
+    this._sessionSfxVolume.set(clamped);
+    this.logger.info('KioskSettings', `Volumen SFX de sesión: ${clamped}`);
+  }
+
+  /**
+   * Restablece todos los ajustes de audio de sesión a los valores configurados en el panel/catálogo.
+   */
+  clearSessionAudioOverrides(): void {
+    this._sessionSoundEnabled.set(null);
+    this._sessionBgmVolume.set(null);
+    this._sessionSfxVolume.set(null);
+    this.logger.info('KioskSettings', 'Ajustes de audio de sesión restablecidos a los valores del sistema.');
   }
 
   /**
@@ -383,12 +457,133 @@ export class KioskSettings {
   }
 
   /**
-   * Restablece todos los ajustes operativos locales a sus valores por defecto (DEFAULT_SETTINGS).
+   * Obtiene la figura del jugador de Triqui ('X', 'O' o 'random') para una experiencia específica,
+   * o el override global si no hay override por experiencia.
+   */
+  getExperienceTriquiPlayerSymbol(experienceId: string): PlayerSymbolChoice | null {
+    const overrides = this._data().experienceOverrides;
+    if (overrides && overrides[experienceId]?.triquiPlayerSymbol !== undefined) {
+      return overrides[experienceId].triquiPlayerSymbol!;
+    }
+    return this._data().triquiPlayerSymbol;
+  }
+
+  /**
+   * Establece la figura del jugador de Triqui ('X', 'O' o 'random') para una experiencia específica.
+   */
+  setExperienceTriquiPlayerSymbol(experienceId: string, symbol: PlayerSymbolChoice | null): void {
+    const current = this._data();
+    const prevOverrides = current.experienceOverrides ?? {};
+    const expPrev = prevOverrides[experienceId] ?? {};
+    const updatedOverrides = {
+      ...prevOverrides,
+      [experienceId]: {
+        ...expPrev,
+        triquiPlayerSymbol: symbol,
+      },
+    };
+    this._patch({ experienceOverrides: updatedOverrides });
+    this.logger.info('KioskSettings', `Exp "${experienceId}" triquiPlayerSymbol override: ${symbol ?? 'default'}`);
+  }
+
+  /**
+   * Obtiene los valores por defecto iniciales de los ajustes basados en la sección app del manifest activo.
+   */
+  getManifestDefaultSettings(): KioskSettingsData {
+    const manifest = typeof this.catalog?.rawManifest === 'function' ? this.catalog.rawManifest() : undefined;
+    const appAudio = manifest?.app?.audio;
+    const appProtector = manifest?.app?.protector;
+
+    return {
+      screensaverMode: appProtector?.mode ?? DEFAULT_SETTINGS.screensaverMode,
+      screensaverVideoOrder: appProtector?.videoOrder ?? DEFAULT_SETTINGS.screensaverVideoOrder,
+      screensaverIdleMs: appProtector?.idleMs ?? DEFAULT_SETTINGS.screensaverIdleMs,
+      videoVolume: appAudio?.videoVolume ?? DEFAULT_SETTINGS.videoVolume,
+      soundEnabled: appAudio?.soundEnabled ?? DEFAULT_SETTINGS.soundEnabled,
+      bgmVolume: appAudio?.bgmVolume ?? DEFAULT_SETTINGS.bgmVolume,
+      sfxVolume: appAudio?.sfxVolume ?? DEFAULT_SETTINGS.sfxVolume,
+      memoryPairs: null,
+      triquiDifficulty: null,
+      triquiFirstPlayer: null,
+      triquiPlayerSymbol: null,
+      experienceOverrides: {},
+    };
+  }
+
+  /** Restablece únicamente los ajustes de audio general a sus valores por defecto. */
+  resetAudioToDefault(): void {
+    const defaults = this.getManifestDefaultSettings();
+    this._patch({
+      soundEnabled: defaults.soundEnabled,
+      bgmVolume: defaults.bgmVolume,
+      sfxVolume: defaults.sfxVolume,
+    });
+    this.logger.info('KioskSettings', 'Ajustes de audio restaurados a los valores por defecto.');
+  }
+
+  /** Restablece únicamente los ajustes del protector de pantalla y video a sus valores por defecto. */
+  resetScreensaverToDefault(): void {
+    const defaults = this.getManifestDefaultSettings();
+    this._patch({
+      screensaverMode: defaults.screensaverMode,
+      screensaverVideoOrder: defaults.screensaverVideoOrder,
+      screensaverIdleMs: defaults.screensaverIdleMs,
+      videoVolume: defaults.videoVolume,
+    });
+    this.logger.info('KioskSettings', 'Ajustes del protector restaurados a los valores por defecto.');
+  }
+
+  /** Restablece los ajustes generales (audio y protector) a sus valores por defecto. */
+  resetGeneralToDefault(): void {
+    const defaults = this.getManifestDefaultSettings();
+    this._patch({
+      soundEnabled: defaults.soundEnabled,
+      bgmVolume: defaults.bgmVolume,
+      sfxVolume: defaults.sfxVolume,
+      screensaverMode: defaults.screensaverMode,
+      screensaverVideoOrder: defaults.screensaverVideoOrder,
+      screensaverIdleMs: defaults.screensaverIdleMs,
+      videoVolume: defaults.videoVolume,
+    });
+    this.logger.info('KioskSettings', 'Ajustes generales restaurados a los valores por defecto.');
+  }
+
+  /**
+   * Elimina los overrides de partida de todas las experiencias asociadas a un motor de juego.
+   * Usado al pasar de modo individual a global (se pierde la config por marca).
+   */
+  clearExperienceOverridesForGame(gameId: string): void {
+    const experienceIds = new Set(
+      this.catalog
+        .rawManifest()
+        .experiences.filter((exp) => exp.gameId === gameId)
+        .map((exp) => exp.id),
+    );
+    if (experienceIds.size === 0) return;
+
+    const current = this._data();
+    const prev = current.experienceOverrides ?? {};
+    const updated: Record<string, ExperienceSettingsOverride> = {};
+    for (const [id, override] of Object.entries(prev)) {
+      if (!experienceIds.has(id)) {
+        updated[id] = override;
+      }
+    }
+    this._patch({ experienceOverrides: updated });
+    this.logger.info(
+      'KioskSettings',
+      `Overrides de experiencias del juego "${gameId}" eliminados (${experienceIds.size}).`,
+    );
+  }
+
+  /**
+   * Restablece todos los ajustes operativos locales a sus valores por defecto definidos en el manifest.
    * Elimina todos los overrides de juegos y experiencias para que vuelvan a seguir el catálogo.
    */
   resetToDefault(): void {
+    const defaults = this.getManifestDefaultSettings();
     this._data.set({
-      ...DEFAULT_SETTINGS,
+      ...defaults,
       experienceOverrides: {},
     });
     try {
@@ -396,7 +591,7 @@ export class KioskSettings {
     } catch {
       this.logger.warn('KioskSettings', 'No se pudo persistir los ajustes tras restaurar.');
     }
-    this.logger.info('KioskSettings', 'Ajustes de kiosco restaurados a los valores por defecto.');
+    this.logger.info('KioskSettings', 'Ajustes de kiosco restaurados a los valores por defecto del manifest.');
   }
 
   // ─── Interno ─────────────────────────────────────────────────────────────────
@@ -406,8 +601,9 @@ export class KioskSettings {
   }
 
   private _loadSettings(): KioskSettingsData {
+    const defaults = this.getManifestDefaultSettings();
     const raw = this.platform.storageGet(SETTINGS_STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_SETTINGS };
+    if (!raw) return { ...defaults };
 
     try {
       const parsed = JSON.parse(raw) as Partial<KioskSettingsData>;
@@ -415,22 +611,22 @@ export class KioskSettings {
       const screensaverMode: ScreensaverMode =
         parsed.screensaverMode === 'classic' || parsed.screensaverMode === 'video'
           ? parsed.screensaverMode
-          : DEFAULT_SETTINGS.screensaverMode;
+          : defaults.screensaverMode;
 
       const soundEnabled: boolean =
         typeof parsed.soundEnabled === 'boolean'
           ? parsed.soundEnabled
-          : DEFAULT_SETTINGS.soundEnabled;
+          : defaults.soundEnabled;
 
       const bgmVolume: number =
         typeof parsed.bgmVolume === 'number' && !isNaN(parsed.bgmVolume)
           ? Math.max(0, Math.min(1, parsed.bgmVolume))
-          : DEFAULT_SETTINGS.bgmVolume;
+          : defaults.bgmVolume;
 
       const sfxVolume: number =
         typeof parsed.sfxVolume === 'number' && !isNaN(parsed.sfxVolume)
           ? Math.max(0, Math.min(1, parsed.sfxVolume))
-          : DEFAULT_SETTINGS.sfxVolume;
+          : defaults.sfxVolume;
 
       const memoryPairs: number | null =
         parsed.memoryPairs === null
@@ -440,7 +636,7 @@ export class KioskSettings {
             parsed.memoryPairs >= 2 &&
             parsed.memoryPairs <= 6
           ? parsed.memoryPairs
-          : DEFAULT_SETTINGS.memoryPairs;
+          : defaults.memoryPairs;
 
       const triquiDifficulty: Difficulty | null =
         parsed.triquiDifficulty === 'easy' ||
@@ -459,7 +655,7 @@ export class KioskSettings {
       const screensaverVideoOrder: ScreensaverVideoOrder =
         parsed.screensaverVideoOrder === 'random' || parsed.screensaverVideoOrder === 'sequential'
           ? parsed.screensaverVideoOrder
-          : DEFAULT_SETTINGS.screensaverVideoOrder;
+          : defaults.screensaverVideoOrder;
 
       const screensaverIdleMs: number =
         typeof parsed.screensaverIdleMs === 'number' &&
@@ -467,12 +663,19 @@ export class KioskSettings {
         parsed.screensaverIdleMs >= SCREENSAVER_IDLE_MIN_MS &&
         parsed.screensaverIdleMs <= SCREENSAVER_IDLE_MAX_MS
           ? Math.round(parsed.screensaverIdleMs)
-          : DEFAULT_SETTINGS.screensaverIdleMs;
+          : defaults.screensaverIdleMs;
 
       const videoVolume: number =
         typeof parsed.videoVolume === 'number' && !isNaN(parsed.videoVolume)
           ? Math.max(0, Math.min(1, parsed.videoVolume))
-          : DEFAULT_SETTINGS.videoVolume;
+          : defaults.videoVolume;
+
+      const triquiPlayerSymbol: PlayerSymbolChoice | null =
+        parsed.triquiPlayerSymbol === 'X' ||
+        parsed.triquiPlayerSymbol === 'O' ||
+        parsed.triquiPlayerSymbol === 'random'
+          ? parsed.triquiPlayerSymbol
+          : null;
 
       const experienceOverrides: Record<string, ExperienceSettingsOverride> =
         typeof parsed.experienceOverrides === 'object' && parsed.experienceOverrides !== null
@@ -490,11 +693,12 @@ export class KioskSettings {
         memoryPairs,
         triquiDifficulty,
         triquiFirstPlayer,
+        triquiPlayerSymbol,
         experienceOverrides,
       };
     } catch {
       this.logger.warn('KioskSettings', 'Ajustes persistidos corruptos, usando defaults.');
-      return { ...DEFAULT_SETTINGS };
+      return { ...defaults };
     }
   }
 }

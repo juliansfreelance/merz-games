@@ -28,9 +28,16 @@ export class PlatformService {
   private readonly _isNative = detectNative();
   private readonly _platformKind: PlatformKind = this._isNative ? 'tauri' : 'browser';
   private readonly _appVersion = signal<string>('0.1.0');
+  private readonly _isKiosk = signal<boolean>(true);
 
   constructor() {
     this.initializeVersion();
+    if (!this._isNative && typeof document !== 'undefined') {
+      this._isKiosk.set(!!document.fullscreenElement);
+      document.addEventListener('fullscreenchange', () => {
+        this._isKiosk.set(!!document.fullscreenElement);
+      });
+    }
   }
 
   get isNative(): boolean {
@@ -43,6 +50,11 @@ export class PlatformService {
 
   get appVersion(): Signal<string> {
     return this._appVersion.asReadonly();
+  }
+
+  /** Indica si la aplicación está en modo kiosco (pantalla completa sin decoraciones). */
+  get isKiosk(): Signal<boolean> {
+    return this._isKiosk.asReadonly();
   }
 
   /**
@@ -80,24 +92,96 @@ export class PlatformService {
     }
   }
 
-  /** Reinicia la aplicación. En navegador no aplica. */
+  /**
+   * Elimina una clave del almacén persistente local.
+   */
+  storageRemove(key: string): void {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(key);
+      }
+    } catch {
+      // Storage deshabilitado: continuar.
+    }
+  }
+
+  /** Reinicia la aplicación. En navegador recarga la página. */
   async restart(): Promise<KioskCommandResult> {
+    if (!this._isNative) {
+      if (typeof window !== 'undefined') {
+        window.location.reload();
+        return { ok: true };
+      }
+      return { ok: false, message: 'No se puede reiniciar en este entorno.' };
+    }
     return this.invokeKioskCommand('restart_app');
   }
 
   /** Cierra la aplicación. En navegador no aplica. */
   async exit(): Promise<KioskCommandResult> {
+    if (!this._isNative) {
+      return { ok: false, message: 'Cerrar la aplicación solo está disponible en la app de escritorio.' };
+    }
     return this.invokeKioskCommand('exit_app');
   }
 
-  /** Quita fullscreen y restaura decoraciones de ventana. En navegador no aplica. */
+  /** Quita fullscreen y restaura decoraciones de ventana. En navegador sale de fullscreen. */
   async leaveKiosk(): Promise<KioskCommandResult> {
-    return this.invokeKioskCommand('leave_kiosk');
+    if (!this._isNative) {
+      if (typeof document !== 'undefined' && document.exitFullscreen) {
+        try {
+          if (document.fullscreenElement) {
+            await document.exitFullscreen();
+          }
+          this._isKiosk.set(false);
+          return { ok: true };
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : String(error);
+          return { ok: false, message: detail || 'No se pudo salir de pantalla completa.' };
+        }
+      }
+      this._isKiosk.set(false);
+      return { ok: true };
+    }
+    const result = await this.invokeKioskCommand('leave_kiosk');
+    if (result.ok) {
+      this._isKiosk.set(false);
+    }
+    return result;
   }
 
-  /** Pone la ventana a pantalla completa y quita decoraciones (modo kiosco). En navegador no aplica. */
+  /** Pone la ventana a pantalla completa y quita decoraciones. En navegador activa fullscreen. */
   async enterKiosk(): Promise<KioskCommandResult> {
-    return this.invokeKioskCommand('enter_kiosk');
+    if (!this._isNative) {
+      if (typeof document !== 'undefined' && document.documentElement?.requestFullscreen) {
+        try {
+          if (!document.fullscreenElement) {
+            await document.documentElement.requestFullscreen();
+          }
+          this._isKiosk.set(true);
+          return { ok: true };
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : String(error);
+          return { ok: false, message: detail || 'No se pudo activar pantalla completa.' };
+        }
+      }
+      this._isKiosk.set(true);
+      return { ok: true };
+    }
+    const result = await this.invokeKioskCommand('enter_kiosk');
+    if (result.ok) {
+      this._isKiosk.set(true);
+    }
+    return result;
+  }
+
+  /** Alterna entre el modo kiosco (pantalla completa) y modo ventana. */
+  async toggleKiosk(): Promise<KioskCommandResult> {
+    if (this._isKiosk()) {
+      return this.leaveKiosk();
+    } else {
+      return this.enterKiosk();
+    }
   }
 
   private async invokeKioskCommand(command: string): Promise<KioskCommandResult> {

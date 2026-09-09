@@ -58,9 +58,10 @@ describe('Content Catalog Manifest Contract', () => {
   });
 
   it('should include institutional atmosphere and brand atmospheres', () => {
-    expect(manifest.atmosphere).toBeDefined();
-    expect(manifest.atmosphere?.baseColor).toBe('#0b0914');
-    expect(manifest.atmosphere?.blobs.length).toBeGreaterThan(0);
+    const homeAtmosphere = manifest.app?.theme?.home ?? manifest.atmosphere;
+    expect(homeAtmosphere).toBeDefined();
+    expect(homeAtmosphere?.baseColor).toBe('#000000');
+    expect(homeAtmosphere?.blobs.length).toBeGreaterThan(0);
 
     const radiesse = manifest.brands.find((b) => b.id === 'radiesse');
     expect(radiesse?.atmosphere).toBeDefined();
@@ -89,15 +90,21 @@ describe('Content Catalog Manifest Contract', () => {
     expect(ultherapy?.enabled).toBe(true);
   });
 
-  it('debe definir attractionVideo para radiesse y ultherapy pero no para merz', () => {
+  it('debe definir attractionVideos para radiesse y ultherapy pero no para merz', () => {
     const radiesse = manifest.brands.find((b) => b.id === 'radiesse');
-    expect(radiesse?.attractionVideo).toBe('/content/videos/radiesse.mp4');
+    expect(radiesse?.attractionVideos).toBeDefined();
+    expect(radiesse?.attractionVideos?.length).toBe(2);
+    expect(radiesse?.attractionVideos?.[0].source).toBe('/content/videos/radiesse.mp4');
+    expect(radiesse?.attractionVideos?.[0].enabled).toBe(true);
 
     const ultherapy = manifest.brands.find((b) => b.id === 'ultherapy');
-    expect(ultherapy?.attractionVideo).toBe('/content/videos/ultherapy.mp4');
+    expect(ultherapy?.attractionVideos).toBeDefined();
+    expect(ultherapy?.attractionVideos?.length).toBe(2);
+    expect(ultherapy?.attractionVideos?.[0].source).toBe('/content/videos/ultherapy.mp4');
+    expect(ultherapy?.attractionVideos?.[0].enabled).toBe(true);
 
     const merz = manifest.brands.find((b) => b.id === 'merz');
-    expect(merz?.attractionVideo).toBeUndefined();
+    expect(merz?.attractionVideos).toBeUndefined();
   });
 
   it('should include memory and triqui games', () => {
@@ -192,7 +199,7 @@ describe('CatalogService — Atmósfera y Cards', () => {
     const { catalog } = buildCatalog();
     const atmosphere = catalog.defaultAtmosphere();
     expect(atmosphere).toBeDefined();
-    expect(atmosphere.baseColor).toBe('#0b0914');
+    expect(atmosphere.baseColor).toBe('#000000');
     expect(atmosphere.blobs.length).toBe(5);
   });
 
@@ -219,8 +226,8 @@ describe('CatalogService — Atmósfera y Cards', () => {
   it('adminAtmosphere() resuelve la atmósfera técnica del panel administrativo', () => {
     const { catalog } = buildCatalog();
     const adminAtmo = catalog.adminAtmosphere();
-    expect(adminAtmo.baseColor).toBe('#050814');
-    expect(adminAtmo.blurTint).toBe('#3b82f6');
+    expect(adminAtmo.baseColor).toBe('#000000');
+    expect(adminAtmo.blurTint).toBe('#008083');
     expect(adminAtmo.blobs.length).toBe(5);
   });
 
@@ -251,7 +258,7 @@ describe('CatalogService — Atmósfera y Cards', () => {
     const exp = catalog.getExperienceById('radiesse-memory')!;
     const card = catalog.cardForExperience(exp);
     expect(card.id).toBe('radiesse-memory');
-    expect(card.title).toBe(exp.title);
+    expect(card.title).toBe(exp.name ?? exp.title);
     expect(card.image).toBeDefined();
   });
 
@@ -362,14 +369,74 @@ describe('CatalogService — Atmósfera y Cards', () => {
 describe('CatalogService', () => {
   beforeEach(() => TestBed.resetTestingModule());
 
-  it('should expose enabled brands sorted by order', () => {
+  it('should expose enabled brands without beta when developMode is off', () => {
     const { catalog } = buildCatalog();
+    expect(catalog.developMode()).toBe(false);
+    const brands = catalog.brands();
+    expect(brands.length).toBeGreaterThan(0);
+    brands.forEach((b) => {
+      expect(b.enabled).toBe(true);
+      expect(b.develop).toBeFalsy();
+    });
+  });
+
+  it('with developMode on exposes enabled brands with activas before beta, then by order', () => {
+    const { catalog } = buildCatalog();
+    catalog.setDevelopMode(true);
     const brands = catalog.brands();
     expect(brands.length).toBeGreaterThan(0);
     brands.forEach((b) => expect(b.enabled).toBe(true));
-    for (let i = 1; i < brands.length; i++) {
-      expect(brands[i - 1].order).toBeLessThanOrEqual(brands[i].order);
+
+    let sawBeta = false;
+    for (const brand of brands) {
+      if (brand.develop) {
+        sawBeta = true;
+      } else {
+        expect(sawBeta).toBe(false);
+      }
     }
+
+    const actives = brands.filter((b) => !b.develop);
+    const betas = brands.filter((b) => !!b.develop);
+    expect(betas.length).toBeGreaterThan(0);
+    for (let i = 1; i < actives.length; i++) {
+      expect(actives[i - 1].order).toBeLessThanOrEqual(actives[i].order);
+    }
+    for (let i = 1; i < betas.length; i++) {
+      expect(betas[i - 1].order).toBeLessThanOrEqual(betas[i].order);
+    }
+  });
+
+  it('reorderBrands actualiza el order relativo dentro del grupo', () => {
+    const { catalog } = buildCatalog();
+    const actives = catalog.brands().filter((b) => !b.develop);
+    expect(actives.length).toBeGreaterThanOrEqual(2);
+
+    const reversed = actives.map((b) => b.id).reverse();
+    catalog.reorderBrands(reversed);
+
+    const nextActives = catalog.brands().filter((b) => !b.develop);
+    expect(nextActives.map((b) => b.id)).toEqual(reversed);
+    expect(nextActives[0].order).toBe(1);
+    expect(nextActives[1].order).toBe(2);
+  });
+
+  it('reorderExperiences actualiza el order relativo de experiencias', () => {
+    const { catalog } = buildCatalog();
+    const radiesseExps = catalog
+      .rawManifest()
+      .experiences.filter((e) => e.brandId === 'radiesse' && e.enabled && !e.develop);
+    expect(radiesseExps.length).toBeGreaterThanOrEqual(2);
+
+    const sorted = radiesseExps.slice().sort((a, b) => a.order - b.order);
+    const reversed = sorted.map((e) => e.id).reverse();
+    catalog.reorderExperiences(reversed);
+
+    const next = catalog
+      .rawManifest()
+      .experiences.filter((e) => reversed.includes(e.id))
+      .sort((a, b) => a.order - b.order);
+    expect(next.map((e) => e.id)).toEqual(reversed);
   });
 
   it('should exclude disabled brands', () => {
@@ -578,13 +645,13 @@ describe('CatalogService — persistencia', () => {
     expect(brandIds).toContain('extra');
   });
 
-  it('hydrateManifestFromSeed hidrata attractionVideo en un manifest persistido', () => {
-    // Simular un manifest persistido versión 0.6.0 donde las marcas no traían attractionVideo
+  it('hydrateManifestFromSeed hidrata attractionVideos en un manifest persistido', () => {
+    // Simular un manifest persistido donde las marcas no traían attractionVideos
     const persistedWithoutVideo: ContentManifest = {
       ...(manifestSeed as ContentManifest),
       brands: (manifestSeed as ContentManifest).brands.map((b) => {
         const copy = { ...b };
-        delete copy.attractionVideo;
+        delete copy.attractionVideos;
         return copy;
       }),
     };
@@ -594,10 +661,16 @@ describe('CatalogService — persistencia', () => {
     });
 
     const radiesse = catalog.brands().find((b) => b.id === 'radiesse');
-    expect(radiesse?.attractionVideo).toBe('/content/videos/radiesse.mp4');
+    expect(radiesse?.attractionVideos?.length).toBe(2);
+    expect(radiesse?.attractionVideos?.[0].source).toBe('/content/videos/radiesse.mp4');
 
     const ultherapy = catalog.brands().find((b) => b.id === 'ultherapy');
-    expect(ultherapy?.attractionVideo).toBe('/content/videos/ultherapy.mp4');
+    expect(ultherapy?.attractionVideos?.length).toBe(2);
+    expect(ultherapy?.attractionVideos?.[0].source).toBe('/content/videos/ultherapy.mp4');
+
+    const general = catalog.rawManifest()?.app?.protector?.attractionVideos;
+    expect(general?.length).toBe(1);
+    expect(general?.[0].source).toBe('/content/videos/general1.mp4');
   });
 
   it('loadManifest() con manifest inválido debe rechazarlo y conservar el actual', () => {
@@ -714,22 +787,55 @@ describe('UpdateModel', () => {
     expect(catalog.rawManifest().brands.find((b) => b.id === 'radiesse')?.enabled).toBe(true);
   });
 
+  it('setExperiencesMode y resetGameExperiencesToDefault actualizan el manifest', () => {
+    const { catalog } = buildCatalog();
+    expect(catalog.experiencesMode()).toBe('global');
+
+    catalog.setExperienceEnabled('radiesse-memory', false);
+    catalog.setExperiencesMode('individual');
+    expect(catalog.experiencesMode()).toBe('individual');
+    expect(catalog.rawManifest().app?.experiencesMode).toBe('individual');
+
+    catalog.resetGameExperiencesToDefault('memory');
+    expect(catalog.rawManifest().experiences.find((e) => e.id === 'radiesse-memory')?.enabled).toBe(true);
+
+    catalog.setExperiencesMode('global');
+    expect(catalog.experiencesMode()).toBe('global');
+  });
+
+  it('setDevelopMode controla la visibilidad de marcas y experiencias beta', () => {
+    const { catalog } = buildCatalog();
+    expect(catalog.developMode()).toBe(false);
+    expect(catalog.brands().some((b) => b.id === 'radiesse2')).toBe(false);
+    expect(catalog.experiences().some((e) => e.id === 'radiesse2-memory')).toBe(false);
+
+    catalog.setDevelopMode(true);
+    expect(catalog.developMode()).toBe(true);
+    expect(catalog.rawManifest().app?.developMode).toBe(true);
+    expect(catalog.brands().some((b) => b.id === 'radiesse2')).toBe(true);
+    expect(catalog.experiences().some((e) => e.id === 'radiesse2-memory')).toBe(true);
+
+    catalog.setDevelopMode(false);
+    expect(catalog.developMode()).toBe(false);
+    expect(catalog.brands().some((b) => b.id === 'radiesse2')).toBe(false);
+  });
+
   it('detecta marcas, motores y experiencias en desarrollo correctamente', () => {
     const { catalog } = buildCatalog();
 
-    // Triqui está configurado con develop: true en el motor
-    expect(catalog.isGameDevelop('triqui')).toBe(true);
+    // Triqui y memory tienen develop: false por defecto en el manifest
+    expect(catalog.isGameDevelop('triqui')).toBe(false);
     expect(catalog.isGameDevelop('memory')).toBe(false);
 
-    // Merz está configurada con develop: true en la marca
-    expect(catalog.isBrandDevelop('merz')).toBe(true);
+    // Una marca con develop: true está en desarrollo
+    expect(catalog.isBrandDevelop({ id: 'dev-brand', name: 'Dev', version: '1.0.0', enabled: true, order: 1, develop: true })).toBe(true);
     expect(catalog.isBrandDevelop('radiesse')).toBe(false);
 
-    // radiesse-triqui está en desarrollo porque el motor triqui es develop
-    expect(catalog.isExperienceDevelop('radiesse-triqui')).toBe(true);
+    // Una experiencia con develop: true directo está en desarrollo
+    expect(catalog.isExperienceDevelop({ id: 'test-triqui', brandId: 'radiesse', gameId: 'triqui', version: '1.0.0', enabled: true, order: 1, title: '', description: '', image: '', develop: true })).toBe(true);
 
-    // merz-memory está en desarrollo porque la marca merz es develop
-    expect(catalog.isExperienceDevelop('merz-memory')).toBe(true);
+    // Una experiencia con develop: true directo está en desarrollo
+    expect(catalog.isExperienceDevelop({ id: 'test-exp', brandId: 'radiesse', gameId: 'memory', version: '1.0.0', enabled: true, order: 2, title: '', description: '', image: '', develop: true })).toBe(true);
 
     // radiesse-memory NO está en desarrollo
     expect(catalog.isExperienceDevelop('radiesse-memory')).toBe(false);
@@ -739,9 +845,9 @@ describe('UpdateModel', () => {
     if (merzBrand) {
       expect(catalog.cardForBrand(merzBrand).develop).toBe(true);
     }
-    const radiesseTriqui = catalog.rawManifest().experiences.find((e) => e.id === 'radiesse-triqui');
-    if (radiesseTriqui) {
-      expect(catalog.cardForExperience(radiesseTriqui).develop).toBe(true);
+    const radiesseMemory = catalog.rawManifest().experiences.find((e) => e.id === 'radiesse-memory');
+    if (radiesseMemory) {
+      expect(catalog.cardForExperience(radiesseMemory).develop).toBe(false);
     }
   });
 
@@ -762,5 +868,27 @@ describe('UpdateModel', () => {
     expect(store[MANIFEST_KEY]).toBeTruthy();
     const stored = JSON.parse(store[MANIFEST_KEY]);
     expect(stored.brands.find((b: any) => b.id === 'radiesse').enabled).toBe(true);
+  });
+
+  it('setBrandVideoEnabled y setGeneralVideoEnabled actualizan y persisten enabled', () => {
+    const { catalog, store } = buildCatalog();
+
+    // Deshabilitar video de Radiesse
+    catalog.setBrandVideoEnabled('radiesse', '/content/videos/radiesse.mp4', false);
+    const radiesseVideos = catalog.getBrandById('radiesse')?.attractionVideos;
+    expect(radiesseVideos?.find((v) => v.source === '/content/videos/radiesse.mp4')?.enabled).toBe(false);
+    expect(radiesseVideos?.find((v) => v.source === '/content/videos/radiesse2.mp4')?.enabled).toBe(true);
+
+    // Deshabilitar video general
+    catalog.setGeneralVideoEnabled('/content/videos/general1.mp4', false);
+    const genVideos = catalog.rawManifest()?.app?.protector?.attractionVideos;
+    expect(genVideos?.find((v) => v.source === '/content/videos/general1.mp4')?.enabled).toBe(false);
+
+    // Restaurar videos por defecto
+    catalog.resetVideosToDefault();
+    const restoredRadiesse = catalog.getBrandById('radiesse')?.attractionVideos;
+    expect(restoredRadiesse?.find((v) => v.source === '/content/videos/radiesse.mp4')?.enabled).toBe(true);
+    const restoredGen = catalog.rawManifest()?.app?.protector?.attractionVideos;
+    expect(restoredGen?.find((v) => v.source === '/content/videos/general1.mp4')?.enabled).toBe(true);
   });
 });

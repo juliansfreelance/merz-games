@@ -19,14 +19,14 @@ import { LivesIndicator } from './lives-indicator';
     class: 'flex flex-col flex-1 w-full min-h-full',
   },
   template: `
-    <div class="w-full flex-1 min-h-full flex flex-col justify-between p-3 sm:p-4 lg:p-6 text-white select-none gap-4 sm:gap-6">
+    <div class="w-full flex-1 min-h-full flex flex-col justify-between p-3 sm:p-4 lg:p-6 text-white select-none gap-4 sm:gap-6 max-w-7xl mx-auto">
 
       <!-- ================================================================= -->
       <!-- 1. ENCABEZADO CENTRADO A UNA SOLA COLUMNA                         -->
       <!-- ================================================================= -->
       <header class="w-full shrink-0 flex flex-col items-center justify-center text-center space-y-2 sm:space-y-2.5 kiosk:space-y-3 pt-1">
 
-        <div class="inline-flex flex-col items-center justify-center gap-1.5 sm:gap-2">
+        <div class="inline-flex flex-col items-center justify-center gap-3 sm:gap-4 kiosk:gap-5">
           <!-- Badge superior de campaña -->
           <span class="w-full flex items-center justify-center px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm kiosk:text-base font-extrabold font-['Montserrat'] tracking-[0.35em] sm:tracking-[0.4em] uppercase bg-white/10 text-white border border-white/20 backdrop-blur-md shadow-md select-none">
             HOY TU PIEL
@@ -39,9 +39,22 @@ import { LivesIndicator } from './lives-indicator';
         </div>
 
         <!-- Badge con nombre del juego en mayúsculas -->
-        <div class="inline-flex items-center gap-2 px-4 py-1.5 sm:px-6 sm:py-2 rounded-full text-xs sm:text-sm font-extrabold font-['Montserrat'] tracking-wider uppercase bg-white/10 text-neutral-200 border border-white/15 backdrop-blur-md shadow-sm [&>span>sup]:text-[0.6em] [&>span>sup]:top-[-0.4em] [&>span>sup]:font-normal">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+        <div
+          class="inline-flex items-center gap-2 px-4 py-1.5 sm:px-6 sm:py-2 rounded-full text-xs sm:text-sm font-extrabold font-['Montserrat'] tracking-wider uppercase backdrop-blur-md shadow-sm [&>span>sup]:text-[0.6em] [&>span>sup]:top-[-0.4em] [&>span>sup]:font-normal"
+          [class]="develop()
+            ? 'bg-amber-500/15 text-amber-100 border border-amber-400/35'
+            : 'bg-white/10 text-neutral-200 border border-white/15'"
+        >
+          <span
+            class="w-2 h-2 rounded-full animate-pulse shrink-0"
+            [class]="develop() ? 'bg-amber-400' : 'bg-emerald-400'"
+          ></span>
           <span [innerHTML]="gameTitle()"></span>
+          @if (develop()) {
+            <span class="px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-extrabold tracking-wider uppercase bg-amber-500/25 text-amber-300 border border-amber-400/40">
+              Beta
+            </span>
+          }
         </div>
 
       </header>
@@ -51,29 +64,44 @@ import { LivesIndicator } from './lives-indicator';
       <!-- ================================================================= -->
       <div class="flex-1 w-full flex flex-col landscape:flex-row justify-between items-center landscape:items-stretch gap-4 sm:gap-6">
 
-        <!-- COLUMNA 1: DESCRIPCIÓN -->
-        <aside class="flex flex-col justify-center shrink-0 w-full landscape:w-80 landscape:lg:w-96 text-center landscape:text-left gap-3 py-1">
+        <!-- COLUMNA 1: DESCRIPCIÓN Y TARJETA DE INFORMACIÓN DE INTENTOS -->
+        <aside class="flex flex-col justify-center shrink-0 w-full landscape:w-80 landscape:lg:w-96 text-center landscape:text-left gap-4 py-1">
           <div
             class="text-xs sm:text-sm lg:text-base text-neutral-300 max-w-2xl landscape:max-w-none mx-auto landscape:mx-0 leading-relaxed font-normal [&>strong]:font-bold [&>strong]:text-white px-1"
             [innerHTML]="introText()"
           ></div>
+
+          <!-- TARJETA DE INFORMACIÓN DE INTENTOS CON BORDE DISCONTINUO (DASHED) SUTIL -->
+          @if (infoText()) {
+            <div
+              class="w-full max-w-2xl landscape:max-w-none mx-auto landscape:mx-0 p-4 sm:p-4.5 rounded-3xl border-2 border-dashed flex items-center gap-3.5 sm:gap-4.5 bg-black/15 text-left shadow-md shadow-black/10"
+              [style.borderColor]="activeBlurTint() + '55'"
+            >
+              <!-- Icono information-circle libre sin borde exterior -->
+              <app-hero-icon
+                name="information-circle"
+                class="text-3xl sm:text-4xl shrink-0"
+                [style.color]="activeBlurTint()"
+              />
+
+              <!-- Texto de oportunidades dinámico -->
+              <p class="text-xs sm:text-sm text-neutral-100 font-medium leading-relaxed flex-1">
+                {{ infoText() }}
+              </p>
+            </div>
+          }
         </aside>
 
         <!-- COLUMNA 2: ÁREA DE JUEGO (INTENTOS EN HORIZONTAL + TABLERO) -->
         <main class="flex-1 min-w-0 flex flex-col justify-between items-center relative w-full gap-3">
 
-          <!-- Barra superior del área de juego: Indicador de turno a la izquierda (fuera del slot) + Intentos a la derecha -->
-          <div class="flex w-full items-center justify-between shrink-0 gap-3 min-h-[44px]">
-            <!-- Izquierda: slot para indicador de turno fuera del slot del juego -->
-            <div class="flex items-center min-w-0">
-              <ng-content select="[board-header-left]" />
-            </div>
-
-            <!-- Derecha: Intentos / Vidas + ayuda al lado, fuera del contenedor -->
-            <div class="flex items-center gap-3 ml-auto">
+          <!-- Barra superior del área de juego: Intentos / Ronda / Ayuda -->
+          <div class="flex w-full items-center justify-end shrink-0 gap-3 min-h-11">
+            <!-- Intentos / Vidas + ayuda, fuera del contenedor del tablero -->
+            <div class="flex items-center gap-3">
               <div class="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-4 sm:px-5 py-2 backdrop-blur-md">
                 <span class="text-xs uppercase tracking-widest text-neutral-300 font-bold">
-                  Intentos restantes
+                  Intentos
                 </span>
                 <app-lives-indicator
                   [remainingLives]="remainingLives()"
@@ -107,8 +135,24 @@ import { LivesIndicator } from './lives-indicator';
             </div>
           </div>
 
-          <!-- Slot de Tablero de Juego (con altura mínima garantizada para no comprimir las cartas) -->
-          <div class="board-slot flex-1 w-full min-h-[340px] sm:min-h-[380px] flex items-center justify-center relative rounded-3xl border border-white/10 bg-white/[0.03] p-3 sm:p-5">
+          <!-- Slot de Tablero de Juego (con borde y glow neón directo cuando es juego de Memoria) -->
+          <div
+            class="board-slot flex-1 w-full min-h-85 sm:min-h-95 flex items-center justify-center relative rounded-3xl p-3 sm:p-5 transition-all duration-300 overflow-hidden"
+            [class.border]="!isMemoryGame()"
+            [class.border-white\/10]="!isMemoryGame()"
+            [class.bg-white\/\[0\.03\]]="!isMemoryGame()"
+            [class.shadow-2xl]="isMemoryGame()"
+            [style.background]="isMemoryGame() ? 'rgba(0, 0, 0, 0.15)' : null"
+            [style.border]="isMemoryGame() ? ('3.5px solid ' + activeBlurTint()) : null"
+            [style.box-shadow]="isMemoryGame() ? ('0 0 35px -5px ' + activeBlurTint() + '44, inset 0 0 25px rgba(0,0,0,0.6)') : null"
+          >
+            @if (isMemoryGame()) {
+              <div class="absolute inset-0 rounded-3xl pointer-events-none backdrop-blur-xl -z-10"></div>
+            }
+            <!-- Indicador de turno (u otro badge) anclado al borde superior del slot -->
+            <div class="absolute top-0 left-1/2 -translate-x-1/2 z-20 pointer-events-none *:pointer-events-auto">
+              <ng-content select="[board-slot-top]" />
+            </div>
             <ng-content />
           </div>
 
@@ -148,11 +192,37 @@ export class GameChrome {
   readonly maxLives = input<number>(3);
   /** Ronda de la sesión (triqui). Si es null, el contador no se muestra. */
   readonly roundNumber = input<number | null>(null);
+  readonly blurTint = input<string | undefined>(undefined);
+  readonly customInfoText = input<string | undefined>(undefined);
+  /** Experiencia en fase beta / desarrollo. */
+  readonly develop = input<boolean>(false);
 
   readonly back = output<void>();
   readonly help = output<void>();
 
   protected readonly cleanBrandName = computed(() => {
     return (this.brandName() || '').replace(/<[^>]*>/g, '').trim();
+  });
+
+  protected readonly isMemoryGame = computed<boolean>(() => {
+    const title = (this.gameTitle() || '').toLowerCase();
+    return title.includes('pareja') || title.includes('memoria');
+  });
+
+  protected readonly activeBlurTint = computed(() => {
+    return this.blurTint() || '#00E5FF';
+  });
+
+  protected readonly infoText = computed(() => {
+    if (this.customInfoText()) return this.customInfoText();
+    const max = this.maxLives();
+    const title = (this.gameTitle() || '').toLowerCase();
+    if (title.includes('pareja') || title.includes('memoria')) {
+      return `Tienes ${max} oportunidades para encontrar todas las parejas. Si fallas un intento, pierdes una oportunidad.`;
+    }
+    if (title.includes('triqui') || title.includes('línea')) {
+      return `Tienes ${max} oportunidades para formar tres en línea. Si la computadora te gana la ronda, pierdes una oportunidad.`;
+    }
+    return `Tienes ${max} oportunidades para superar la prueba. Si fallas un intento, pierdes una oportunidad.`;
   });
 }

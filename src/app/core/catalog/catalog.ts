@@ -8,7 +8,12 @@ import {
 } from '@angular/core';
 import { PlatformService } from '../platform/platform.service';
 import { AppLogger } from '../logging/app-error';
-import { Atmosphere, ContentManifest } from './content-manifest.model';
+import {
+  Atmosphere,
+  ContentManifest,
+  ExperiencesMode,
+  resolveAppCoverConfig,
+} from './content-manifest.model';
 import { Brand } from './brand.model';
 import { Game } from './game.model';
 import { GameExperience } from './game-experience.model';
@@ -16,6 +21,7 @@ import { GameExperience } from './game-experience.model';
 export type { Brand } from './brand.model';
 export type { Game } from './game.model';
 export type { GameExperience } from './game-experience.model';
+export type { ExperiencesMode } from './content-manifest.model';
 import manifestSeed from '../../../../content/manifests/content-manifest.json';
 
 const seed = manifestSeed as unknown as ContentManifest;
@@ -175,22 +181,69 @@ export function collectContentAssetUrls(manifest: ContentManifest): string[] {
     pushAssetRecord(urls, exp.assets);
   }
 
-  pushAssetUrl(urls, manifest.audio?.backgroundMusic);
+  pushAssetUrl(urls, manifest.app?.audio?.backgroundMusic);
   return [...urls];
 }
 
 /** Overlay de contenido embebido sobre un manifest persistido (assets, copy, atmósfera). */
 function hydrateManifestFromSeed(candidate: ContentManifest): void {
+  if (seed.app) {
+    candidate.app = {
+      ...seed.app,
+      ...candidate.app,
+      theme: {
+        ...seed.app?.theme,
+        ...candidate.app?.theme,
+        home: candidate.app?.theme?.home ?? seed.app?.theme?.home,
+        panel: {
+          ...seed.app?.theme?.panel,
+          ...candidate.app?.theme?.panel,
+        },
+      },
+      audio: {
+        ...seed.app?.audio,
+        ...candidate.app?.audio,
+      },
+      protector: {
+        ...seed.app?.protector,
+        ...candidate.app?.protector,
+        attractionVideos: (() => {
+          const seedVideos = seed.app?.protector?.attractionVideos;
+          if (!seedVideos) return candidate.app?.protector?.attractionVideos;
+          const candidateVideos = candidate.app?.protector?.attractionVideos ?? [];
+          return seedVideos.map((seedV) => {
+            const existing = candidateVideos.find((cv) => cv.source === seedV.source);
+            return existing ? { ...seedV, enabled: existing.enabled } : { ...seedV };
+          });
+        })(),
+      },
+      security: {
+        ...seed.app?.security,
+        ...candidate.app?.security,
+      },
+      cover: {
+        ...seed.app?.cover,
+        ...candidate.app?.cover,
+      },
+      experiencesMode:
+        candidate.app?.experiencesMode === 'global' ||
+        candidate.app?.experiencesMode === 'individual'
+          ? candidate.app.experiencesMode
+          : seed.app?.experiencesMode,
+      developMode:
+        typeof candidate.app?.developMode === 'boolean'
+          ? candidate.app.developMode
+          : seed.app?.developMode,
+    };
+  }
   if (seed.atmosphere) {
     candidate.atmosphere = seed.atmosphere;
-  }
-  if (seed.audio) {
-    candidate.audio = seed.audio;
   }
 
   for (const brand of candidate.brands ?? []) {
     const seedBrand = seed.brands?.find((b) => b.id === brand.id);
     if (!seedBrand) continue;
+    if (seedBrand.develop !== undefined) brand.develop = seedBrand.develop;
     if (seedBrand.atmosphere) brand.atmosphere = seedBrand.atmosphere;
     if (seedBrand.disclaimer) brand.disclaimer = seedBrand.disclaimer;
     if (seedBrand.image) brand.image = seedBrand.image;
@@ -198,12 +251,21 @@ function hydrateManifestFromSeed(candidate: ContentManifest): void {
     if (seedBrand.description) brand.description = seedBrand.description;
     if (seedBrand.name) brand.name = seedBrand.name;
     if (seedBrand.attractionVideo) brand.attractionVideo = seedBrand.attractionVideo;
+    if (seedBrand.attractionVideos) {
+      const candidateVideos = brand.attractionVideos ?? [];
+      brand.attractionVideos = seedBrand.attractionVideos.map((seedV) => {
+        const existing = candidateVideos.find((cv) => cv.source === seedV.source);
+        return existing ? { ...seedV, enabled: existing.enabled } : { ...seedV };
+      });
+    }
   }
 
   for (const exp of candidate.experiences ?? []) {
     const seedExp = seed.experiences?.find((e) => e.id === exp.id);
     if (!seedExp) continue;
+    if (seedExp.develop !== undefined) exp.develop = seedExp.develop;
     if (seedExp.image) exp.image = seedExp.image;
+    if (seedExp.name) exp.name = seedExp.name;
     if (seedExp.title) exp.title = seedExp.title;
     if (seedExp.description) exp.description = seedExp.description;
     if (seedExp.assets) exp.assets = seedExp.assets;
@@ -214,6 +276,7 @@ function hydrateManifestFromSeed(candidate: ContentManifest): void {
   for (const game of candidate.games ?? []) {
     const seedGame = seed.games?.find((g) => g.id === game.id);
     if (!seedGame) continue;
+    if (seedGame.develop !== undefined) game.develop = seedGame.develop;
     if (seedGame.assets) game.assets = seedGame.assets;
     if (seedGame.config) game.config = seedGame.config;
     if (seedGame.image) game.image = seedGame.image;
@@ -242,33 +305,79 @@ export class CatalogService {
   /** Manifest activo en memoria. Arranca con la semilla. */
   private readonly manifest = signal<ContentManifest>(seed);
 
-  /** Exposición del manifest completo (solo lectura). Necesario para leer campos raíz como `audio`. */
+  /** Exposición del manifest completo (solo lectura). */
   readonly rawManifest = this.manifest.asReadonly();
+
+  /**
+   * Modo de ajustes de experiencias (`app.experiencesMode`).
+   * Default: `global` si el manifest no lo define.
+   */
+  readonly experiencesMode = computed<ExperiencesMode>(() =>
+    this.manifest().app?.experiencesMode === 'individual' ? 'individual' : 'global',
+  );
+
+  /**
+   * Modo desarrollo / beta (`app.developMode`).
+   * Default: `false` — el contenido marcado como beta queda oculto en el kiosco y el panel.
+   */
+  readonly developMode = computed<boolean>(
+    () => this.manifest().app?.developMode === true,
+  );
+
+  /** Configuración resuelta del Cover Flow (`app.cover` + defaults). */
+  readonly coverConfig = computed(() =>
+    resolveAppCoverConfig(this.manifest().app?.cover),
+  );
 
   // ─── Signals públicos de catálogo ───────────────────────────────────────────
 
   /** Atmósfera institucional activa del manifest (con fallback a semilla y DEFAULT_ATMOSPHERE). */
   readonly defaultAtmosphere = computed<Atmosphere>(() => {
     return (
+      this.manifest().app?.theme?.home ??
       this.manifest().atmosphere ??
+      seed.app?.theme?.home ??
       seed.atmosphere ??
       DEFAULT_ATMOSPHERE
     );
   });
 
-  /** Marcas habilitadas, ordenadas por `order`. */
-  readonly brands = computed<Brand[]>(() =>
-    this.manifest()
-      .brands.filter((b) => b.enabled)
-      .sort((a, b) => a.order - b.order),
-  );
+  /** Color primario de acento del panel administrativo (#fdc700 por defecto). */
+  readonly panelPrimaryColor = computed<string>(() => {
+    return (
+      this.manifest().app?.theme?.panel?.primaryColor ??
+      seed.app?.theme?.panel?.primaryColor ??
+      '#fdc700'
+    );
+  });
 
-  /**
-   * Experiencias habilitadas con relaciones válidas y `minAppVersion` compatible.
-   */
+  /** Color secundario de acento del panel administrativo (#ff637e por defecto). */
+  readonly panelSecondaryColor = computed<string>(() => {
+    return (
+      this.manifest().app?.theme?.panel?.secondaryColor ??
+      seed.app?.theme?.panel?.secondaryColor ??
+      '#ff637e'
+    );
+  });
+
+  /** Marcas habilitadas visibles: sin beta salvo `developMode`; activas primero, luego beta; por `order`. */
+  readonly brands = computed<Brand[]>(() => {
+    const showBeta = this.developMode();
+    return this.manifest()
+      .brands.filter((b) => b.enabled && (showBeta || !b.develop))
+      .sort((a, b) => {
+        const groupA = a.develop ? 1 : 0;
+        const groupB = b.develop ? 1 : 0;
+        if (groupA !== groupB) return groupA - groupB;
+        return a.order - b.order;
+      });
+  });
+
+  /** Experiencias habilitadas con relaciones válidas, `minAppVersion` compatible y filtro beta. */
   readonly experiences = computed<GameExperience[]>(() => {
     const manifest = this.manifest();
     const appVersion = this.platform.appVersion();
+    const showBeta = this.developMode();
 
     const brandMap = new Map<string, Brand>(
       manifest.brands.map((b) => [b.id, b]),
@@ -285,9 +394,17 @@ export class CatalogService {
         const game = gameMap.get(exp.gameId);
         if (!game?.enabled) return false;
         if (!semverGte(appVersion, game.minAppVersion)) return false;
+        const isBeta =
+          exp.develop === true || brand.develop === true || game.develop === true;
+        if (isBeta && !showBeta) return false;
         return true;
       })
-      .sort((a, b) => a.order - b.order);
+      .sort((a, b) => {
+        const groupA = a.develop ? 1 : 0;
+        const groupB = b.develop ? 1 : 0;
+        if (groupA !== groupB) return groupA - groupB;
+        return a.order - b.order;
+      });
   });
 
   /**
@@ -338,9 +455,16 @@ export class CatalogService {
 
   // ─── API de consulta ────────────────────────────────────────────────────────
 
-  /** Experiencias válidas filtradas por brandId. */
+  /** Experiencias válidas filtradas por brandId (activas primero, luego beta; por `order`). */
   experiencesForBrand(brandId: string): GameExperience[] {
-    return this.experiences().filter((exp) => exp.brandId === brandId);
+    return this.experiences()
+      .filter((exp) => exp.brandId === brandId)
+      .sort((a, b) => {
+        const groupA = a.develop ? 1 : 0;
+        const groupB = b.develop ? 1 : 0;
+        if (groupA !== groupB) return groupA - groupB;
+        return a.order - b.order;
+      });
   }
 
   getBrandById(id: string): Brand | undefined {
@@ -428,7 +552,11 @@ export class CatalogService {
    * Resuelve la atmósfera técnica para el panel y login administrativo.
    */
   adminAtmosphere(): Atmosphere {
-    return ADMIN_ATMOSPHERE;
+    return (
+      this.manifest().app?.theme?.panel?.atmosphere ??
+      (seed as ContentManifest).app?.theme?.panel?.atmosphere ??
+      ADMIN_ATMOSPHERE
+    );
   }
 
   /**
@@ -463,7 +591,55 @@ export class CatalogService {
    * Retorna el disclaimer general de la actividad.
    */
   activityDisclaimer(): string {
-    return DEFAULT_ACTIVITY_DISCLAIMER;
+    return (
+      this.manifest().app?.disclaimer ??
+      (seed as ContentManifest).app?.disclaimer ??
+      DEFAULT_ACTIVITY_DISCLAIMER
+    );
+  }
+
+  /**
+   * Retorna el PIN por defecto para acceso administrativo si no existe un hash persistido.
+   */
+  defaultAdminPin(): string {
+    return (
+      this.manifest().app?.security?.defaultPin ??
+      (seed as ContentManifest).app?.security?.defaultPin ??
+      '2580'
+    );
+  }
+
+  /**
+   * Retorna el PIN de superadministrador para funciones beta / en desarrollo.
+   */
+  betaSuperadminPin(): string {
+    return (
+      this.manifest().app?.security?.betaSuperadminPin ??
+      (seed as ContentManifest).app?.security?.betaSuperadminPin ??
+      '210726'
+    );
+  }
+
+  /**
+   * Retorna el PIN de superadministrador para restablecer el PIN del usuario al valor por defecto.
+   */
+  resetSuperadminPin(): string {
+    return (
+      this.manifest().app?.security?.resetSuperadminPin ??
+      (seed as ContentManifest).app?.security?.resetSuperadminPin ??
+      '998877'
+    );
+  }
+
+  /**
+   * Retorna la frase de recordación por defecto del superadministrador.
+   */
+  superadminHint(): string {
+    return (
+      this.manifest().app?.security?.superadminHint ??
+      (seed as ContentManifest).app?.security?.superadminHint ??
+      'Validación de ingeniería · Hito: Lo mejor 2026 (DD/MM/AA · T.)'
+    );
   }
 
   /**
@@ -498,7 +674,7 @@ export class CatalogService {
       (g) => g.id === exp.gameId,
     );
 
-    const title = exp.title ?? seedExp?.title ?? game?.name ?? seedGame?.name ?? exp.id;
+    const title = exp.name ?? exp.title ?? seedExp?.name ?? seedExp?.title ?? game?.name ?? seedGame?.name ?? exp.id;
     const description =
       exp.description ??
       seedExp?.description ??
@@ -564,6 +740,59 @@ export class CatalogService {
   }
 
   /**
+   * Cambia el modo de ajustes de experiencias (`global` | `individual`) en el manifest activo.
+   */
+  setExperiencesMode(mode: ExperiencesMode): void {
+    const next: ExperiencesMode = mode === 'global' ? 'global' : 'individual';
+    const current = this.manifest();
+    this.manifest.set({
+      ...current,
+      app: {
+        ...current.app,
+        experiencesMode: next,
+      },
+    });
+    this.logger.info('CatalogService', `experiencesMode: ${next}`);
+  }
+
+  /**
+   * Activa o desactiva el modo desarrollo / beta (`app.developMode`) en el manifest activo.
+   */
+  setDevelopMode(enabled: boolean): void {
+    const next = enabled === true;
+    const current = this.manifest();
+    this.manifest.set({
+      ...current,
+      app: {
+        ...current.app,
+        developMode: next,
+      },
+    });
+    this.logger.info('CatalogService', `developMode: ${next}`);
+  }
+
+  /**
+   * Restablece `enabled` de todas las experiencias de un juego a los valores del catálogo semilla.
+   */
+  resetGameExperiencesToDefault(gameId: string): void {
+    const current = this.manifest();
+    const seedExperiences = manifestSeed.experiences as GameExperience[];
+    const updated = {
+      ...current,
+      experiences: current.experiences.map((exp) => {
+        if (exp.gameId !== gameId) return exp;
+        const seedExp = seedExperiences.find((s) => s.id === exp.id);
+        return seedExp ? { ...exp, enabled: seedExp.enabled } : exp;
+      }),
+    };
+    this.manifest.set(updated);
+    this.logger.info(
+      'CatalogService',
+      `Experiencias del juego "${gameId}" restauradas a enabled del catálogo.`,
+    );
+  }
+
+  /**
    * Habilita o deshabilita una experiencia específica en el catálogo y persiste el cambio.
    */
   setExperienceEnabled(experienceId: string, enabled: boolean): void {
@@ -579,6 +808,25 @@ export class CatalogService {
   }
 
   /**
+   * Reasigna `order` (1..n) a las experiencias indicadas según el orden del array.
+   */
+  reorderExperiences(orderedIds: readonly string[]): void {
+    if (orderedIds.length === 0) return;
+    const orderMap = new Map(orderedIds.map((id, index) => [id, index + 1]));
+    const current = this.manifest();
+    this.manifest.set({
+      ...current,
+      experiences: current.experiences.map((exp) =>
+        orderMap.has(exp.id) ? { ...exp, order: orderMap.get(exp.id)! } : exp,
+      ),
+    });
+    this.logger.info(
+      'CatalogService',
+      `Orden de experiencias actualizado: ${orderedIds.join(' → ')}`,
+    );
+  }
+
+  /**
    * Habilita o deshabilita una marca específica en el catálogo y persiste el cambio.
    */
   setBrandEnabled(brandId: string, enabled: boolean): void {
@@ -591,6 +839,144 @@ export class CatalogService {
     };
     this.manifest.set(updated);
     this.logger.info('CatalogService', `Marca "${brandId}" enabled: ${enabled}`);
+  }
+
+  /**
+   * Reasigna `order` (1..n) a las marcas indicadas según el orden del array.
+   * Usado para arrastrar dentro de Activas o Beta en el panel.
+   */
+  reorderBrands(orderedIds: readonly string[]): void {
+    if (orderedIds.length === 0) return;
+    const orderMap = new Map(orderedIds.map((id, index) => [id, index + 1]));
+    const current = this.manifest();
+    this.manifest.set({
+      ...current,
+      brands: current.brands.map((b) =>
+        orderMap.has(b.id) ? { ...b, order: orderMap.get(b.id)! } : b,
+      ),
+    });
+    this.logger.info(
+      'CatalogService',
+      `Orden de marcas actualizado: ${orderedIds.join(' → ')}`,
+    );
+  }
+
+  /**
+   * Restablece marcas y experiencias (enabled, order, develop) a content-manifest.json.
+   */
+  resetBrandsToDefault(): void {
+    const current = this.manifest();
+    const seedBrands = manifestSeed.brands;
+    const seedExperiences = manifestSeed.experiences as GameExperience[];
+    const updated = {
+      ...current,
+      brands: current.brands.map((b) => {
+        const seedB = seedBrands.find((sb) => sb.id === b.id);
+        return seedB
+          ? { ...b, enabled: seedB.enabled, order: seedB.order, develop: seedB.develop }
+          : b;
+      }),
+      experiences: current.experiences.map((exp) => {
+        const seedExp = seedExperiences.find((s) => s.id === exp.id);
+        return seedExp
+          ? {
+              ...exp,
+              enabled: seedExp.enabled,
+              order: seedExp.order,
+              develop: seedExp.develop,
+            }
+          : exp;
+      }),
+    };
+    this.manifest.set(updated);
+    try {
+      this.platform.storageSet(MANIFEST_STORAGE_KEY, JSON.stringify(updated));
+    } catch {
+      this.logger.warn('CatalogService', 'No se pudo persistir las marcas tras restaurar.');
+    }
+    this.logger.info(
+      'CatalogService',
+      'Marcas y experiencias restauradas a los valores por defecto.',
+    );
+  }
+
+  /**
+   * Habilita o deshabilita un video de atracción de una marca específica.
+   */
+  setBrandVideoEnabled(brandId: string, videoSource: string, enabled: boolean): void {
+    const current = this.manifest();
+    const updated = {
+      ...current,
+      brands: current.brands.map((b) => {
+        if (b.id !== brandId || !b.attractionVideos) return b;
+        return {
+          ...b,
+          attractionVideos: b.attractionVideos.map((v) =>
+            v.source === videoSource ? { ...v, enabled } : v,
+          ),
+        };
+      }),
+    };
+    this.manifest.set(updated);
+    this.logger.info('CatalogService', `Video "${videoSource}" de marca "${brandId}" enabled: ${enabled}`);
+  }
+
+  /**
+   * Habilita o deshabilita un video de atracción institucional/general del protector.
+   */
+  setGeneralVideoEnabled(videoSource: string, enabled: boolean): void {
+    const current = this.manifest();
+    const currentVideos = current.app?.protector?.attractionVideos ?? [];
+    const updated = {
+      ...current,
+      app: {
+        ...current.app,
+        protector: {
+          ...current.app?.protector,
+          attractionVideos: currentVideos.map((v) =>
+            v.source === videoSource ? { ...v, enabled } : v,
+          ),
+        },
+      },
+    };
+    this.manifest.set(updated);
+    this.logger.info('CatalogService', `Video general "${videoSource}" enabled: ${enabled}`);
+  }
+
+  /**
+   * Restablece el estado de habilitación de todos los videos de atracción (generales y de marcas)
+   * a sus valores por defecto definidos en content-manifest.json.
+   */
+  resetVideosToDefault(): void {
+    const current = this.manifest();
+    const seedProtectorVideos = manifestSeed.app?.protector?.attractionVideos;
+    const seedBrands = manifestSeed.brands;
+
+    const updated = {
+      ...current,
+      app: {
+        ...current.app,
+        protector: {
+          ...current.app?.protector,
+          attractionVideos: seedProtectorVideos ? JSON.parse(JSON.stringify(seedProtectorVideos)) : undefined,
+        },
+      },
+      brands: current.brands.map((b) => {
+        const seedB = seedBrands.find((sb) => sb.id === b.id);
+        if (!seedB || !seedB.attractionVideos) return b;
+        return {
+          ...b,
+          attractionVideos: JSON.parse(JSON.stringify(seedB.attractionVideos)),
+        };
+      }),
+    };
+    this.manifest.set(updated);
+    try {
+      this.platform.storageSet(MANIFEST_STORAGE_KEY, JSON.stringify(updated));
+    } catch {
+      this.logger.warn('CatalogService', 'No se pudo persistir los videos tras restaurar.');
+    }
+    this.logger.info('CatalogService', 'Videos de atracción restaurados a los valores por defecto.');
   }
 
   /**

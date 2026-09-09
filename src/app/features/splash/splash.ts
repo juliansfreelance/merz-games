@@ -9,13 +9,22 @@ import { Router } from '@angular/router';
 import { CatalogService } from '../../core/catalog/catalog';
 import { AppInitService } from '../../core/lifecycle/app-init.service';
 import { MediaPlayer } from '../../core/media/media-player';
+import { ImageCacheService } from '../../core/media/image-cache.service';
 import { playUiSfx, UI_SFX } from '../shared/ui-sfx';
 
-/** Logos institucionales que no viven en el manifest. */
+/** Logos institucionales y recursos globales que no viven en el manifest. */
 const CORE_IMAGE_URLS = [
   '/content/images/merzGamesIcono.png',
   '/content/images/merzGamesLogotipo.png',
   '/content/images/MerzAestheticsLogo.svg',
+  // Textura de fondo de CatalogCard (fake backdrop)
+  '/content/images/texture.jpg',
+  // Iconos de resultado y advertencia
+  '/content/images/experiences/result/win.png',
+  '/content/images/experiences/result/die.png',
+  '/content/images/experiences/result/lose.png',
+  '/content/images/experiences/result/draw.png',
+  '/content/images/experiences/result/warning.png',
 ];
 
 /** Pesos de Montserrat usados en welcome, chrome y resultados. */
@@ -80,21 +89,21 @@ const MIN_SPLASH_MS = 1_200;
           <img
             src="/content/images/MerzAestheticsLogo.svg"
             alt="Merz Aesthetics"
-            class="w-full max-w-[240px] sm:max-w-[300px] kiosk:max-w-[380px] h-auto object-contain drop-shadow-md select-none pointer-events-none"
+            class="w-full max-w-60 sm:max-w-75 kiosk:max-w-95 h-auto object-contain drop-shadow-md select-none pointer-events-none"
           />
         </div>
 
         <!-- Barra de Progreso del Loader -->
-        <div class="w-full max-w-[260px] sm:max-w-[320px] kiosk:max-w-[400px] flex flex-col items-center gap-3 pt-2">
-          <div class="w-full h-2 sm:h-2.5 bg-white/10 rounded-full overflow-hidden border border-white/15 backdrop-blur-md p-[2px] shadow-inner">
+        <div class="w-full max-w-65 sm:max-w-[320px] kiosk:max-w-100 flex flex-col items-center gap-3 pt-2">
+          <div class="w-full h-2 sm:h-2.5 bg-white/10 rounded-full overflow-hidden border border-white/15 backdrop-blur-md p-0.5 shadow-inner">
             <div
-              class="h-full rounded-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-indigo-500 shadow-[0_0_14px_rgba(0,229,255,0.85)] transition-all duration-300 ease-out"
+              class="h-full rounded-full bg-linear-to-r from-emerald-400 via-cyan-400 to-indigo-500 shadow-[0_0_14px_rgba(0,229,255,0.85)] transition-all duration-300 ease-out"
               [style.width.%]="progress()"
             ></div>
           </div>
 
           <div class="flex items-center justify-between w-full text-xs sm:text-sm text-neutral-300 font-medium tracking-wider px-1">
-            <span class="truncate max-w-[200px] sm:max-w-[240px] text-left">{{ statusMessage() }}</span>
+            <span class="truncate max-w-50 sm:max-w-60 text-left">{{ statusMessage() }}</span>
             <span class="tabular-nums text-white font-extrabold">{{ progress() }}%</span>
           </div>
         </div>
@@ -109,6 +118,7 @@ export class Splash implements OnInit {
   private readonly catalog = inject(CatalogService);
   private readonly appInit = inject(AppInitService);
   private readonly media = inject(MediaPlayer);
+  private readonly imageCache = inject(ImageCacheService);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly progress = signal(0);
@@ -229,39 +239,7 @@ export class Splash implements OnInit {
   }
 
   private preloadImage(url: string): Promise<void> {
-    return this.withTimeout(
-      new Promise<void>((resolve) => {
-        if (typeof window === 'undefined') {
-          resolve();
-          return;
-        }
-
-        const img = new Image();
-        let settled = false;
-        const finish = (): void => {
-          if (settled) return;
-          settled = true;
-          if (typeof img.decode === 'function' && img.naturalWidth > 0) {
-            void img.decode().then(resolve, resolve);
-            return;
-          }
-          resolve();
-        };
-
-        img.onload = finish;
-        img.onerror = () => {
-          if (settled) return;
-          settled = true;
-          resolve();
-        };
-        img.src = url;
-
-        if (img.complete) {
-          finish();
-        }
-      }),
-      ASSET_LOAD_TIMEOUT_MS,
-    );
+    return this.imageCache.preload(url, ASSET_LOAD_TIMEOUT_MS);
   }
 
   private withTimeout(task: Promise<unknown>, ms: number): Promise<void> {

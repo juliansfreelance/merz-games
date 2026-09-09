@@ -1,4 +1,5 @@
 import {
+  AfterViewInit,
   Component,
   computed,
   DestroyRef,
@@ -20,17 +21,14 @@ import {
 /** Tiempo mínimo de animación clásica entre videos en modo video (mínimo 20 s). */
 export const CLASSIC_DWELL_MS = 20_000;
 
-/** Tiempo de transición entre logotipos en modo clásico. */
-export const LOGO_CYCLE_MS = 6_000;
-
 /**
  * Componente de protector de pantalla (Screensaver).
  *
  * Soporta dos modos gobernados por KioskSettings:
- * 1. **Modo Clásico:** Pantalla tenue con logotipos institucionales y de marcas
- *    en movimiento flotante y alternancia continua. Cero elementos de video.
+ * 1. **Modo Clásico:** Pantalla con logo Merz Aesthetics y slogan "HOY TU PIEL TAMBIÉN GANA"
+ *    rebotando por todo el ancho y alto de la pantalla continuamente.
  * 2. **Modo Videos:** Ciclo estricto:
- *    clásico (≥ 20 s) → clip N → clásico (≥ 20 s) → clip N+1 → ...
+ *    clásico rebotador (≥ 20 s) → clip N → clásico rebotador (≥ 20 s) → clip N+1 → ...
  *    Inicia siempre en clásico. Cada clip se reproduce completo (`loop = false`).
  *    El BGM se pausa durante la reproducción del clip y se reanuda en los descansos clásicos.
  *
@@ -46,7 +44,7 @@ export const LOGO_CYCLE_MS = 6_000;
     '(pointerdown)': 'onDismiss()',
   },
 })
-export class Screensaver {
+export class Screensaver implements AfterViewInit {
   private readonly settings = inject(KioskSettings);
   private readonly catalog = inject(CatalogService);
   private readonly mediaPlayer = inject(MediaPlayer);
@@ -55,13 +53,20 @@ export class Screensaver {
   /** Emite cuando el usuario toca la pantalla para salir del protector. */
   readonly dismiss = output<void>();
 
-  /** Referencia al elemento de video cuando está presente en la plantilla. */
+  /** Referencias a los elementos del DOM. */
   private readonly videoElement = viewChild<ElementRef<HTMLVideoElement>>('screensaverVideo');
+  private readonly bounceElement = viewChild<ElementRef<HTMLDivElement>>('bounceBox');
+  private readonly containerElement = viewChild<ElementRef<HTMLDivElement>>('screensaverContainer');
 
   readonly mode = this.settings.screensaverMode;
 
-  /** Lista de clips habilitados del catálogo. */
-  readonly playlist = computed(() => buildScreensaverPlaylist(this.catalog.brands()));
+  /** Lista de clips habilitados del catálogo (marcas y videos generales). */
+  readonly playlist = computed(() =>
+    buildScreensaverPlaylist(
+      this.catalog.brands(),
+      this.catalog.rawManifest?.()?.app?.protector?.attractionVideos,
+    ),
+  );
 
   /** Clip actualmente seleccionado para reproducción. */
   readonly currentClip = signal<ScreensaverPlaylistItem | null>(null);
@@ -74,36 +79,15 @@ export class Screensaver {
     this.mediaPlayer.effectiveVideoVolume(this.settings.videoVolume()),
   );
 
-  /** Colección de logotipos a alternar en modo clásico. */
-  readonly logos = computed<readonly string[]>(() => {
-    const brandLogos = this.catalog
-      .brands()
-      .filter((b) => b.enabled && b.logo)
-      .map((b) => b.logo!);
-
-    return [
-      '/content/images/MerzAestheticsLogo.svg',
-      '/content/images/merzGamesLogotipo.png',
-      ...brandLogos,
-    ];
-  });
-
-  /** Índice del logotipo actualmente visible. */
-  readonly currentLogoIndex = signal<number>(0);
-
-  /** Logotipo actualmente visible. */
-  readonly currentLogo = computed(() => {
-    const list = this.logos();
-    if (list.length === 0) return '/content/images/MerzAestheticsLogo.svg';
-    return list[this.currentLogoIndex() % list.length];
-  });
-
   private dwellTimer: ReturnType<typeof setTimeout> | null = null;
-  private logoTimer: ReturnType<typeof setTimeout> | null = null;
+  private animFrameId: number | null = null;
+  private posX = 0;
+  private posY = 0;
+  private velX = 140;
+  private velY = 110;
+  private lastTimestamp = 0;
 
   constructor() {
-    this.startLogoCycle();
-
     if (this.mode() === 'video') {
       this.startClassicDwell();
     }
@@ -111,6 +95,12 @@ export class Screensaver {
     this.destroyRef.onDestroy(() => {
       this.stopVideoAndTimers();
     });
+  }
+
+  ngAfterViewInit(): void {
+    if (!this.isShowingVideo()) {
+      this.startBouncing();
+    }
   }
 
   protected onDismiss(): void {
@@ -123,8 +113,84 @@ export class Screensaver {
   }
 
   protected onVideoError(): void {
-    // Si el video falla (archivo faltante, error de códec, etc.), saltamos a clásico
     this.finishVideoAndReturnToClassic();
+  }
+
+  // ─── Rebote continuo (DVD Bounce) ─────────────────────────────────────────
+
+  private startBouncing(): void {
+    this.stopBouncing();
+
+    setTimeout(() => {
+      const container = this.containerElement()?.nativeElement;
+      const box = this.bounceElement()?.nativeElement;
+      if (!container || !box) return;
+
+      const W = container.clientWidth || 1080;
+      const H = container.clientHeight || 1920;
+      const w = box.offsetWidth || 340;
+      const h = box.offsetHeight || 180;
+
+      const maxX = Math.max(0, W - w);
+      const maxY = Math.max(0, H - h);
+
+      // Posición inicial aleatoria dentro de los límites
+      this.posX = Math.random() * maxX;
+      this.posY = Math.random() * maxY;
+
+      // Velocidad y dirección inicial
+      const speed = 140;
+      const angle = (Math.random() * 0.4 + 0.3) * Math.PI;
+      this.velX = speed * Math.cos(angle) * (Math.random() > 0.5 ? 1 : -1);
+      this.velY = speed * Math.sin(angle) * (Math.random() > 0.5 ? 1 : -1);
+
+      this.lastTimestamp = performance.now();
+
+      const updateFrame = (now: number) => {
+        const dt = Math.min((now - this.lastTimestamp) / 1000, 0.1);
+        this.lastTimestamp = now;
+
+        const currentW = container.clientWidth || 1080;
+        const currentH = container.clientHeight || 1920;
+        const currentw = box.offsetWidth || 340;
+        const currenth = box.offsetHeight || 180;
+
+        const boundsX = Math.max(0, currentW - currentw);
+        const boundsY = Math.max(0, currentH - currenth);
+
+        this.posX += this.velX * dt;
+        this.posY += this.velY * dt;
+
+        if (this.posX <= 0) {
+          this.posX = 0;
+          this.velX = Math.abs(this.velX);
+        } else if (this.posX >= boundsX) {
+          this.posX = boundsX;
+          this.velX = -Math.abs(this.velX);
+        }
+
+        if (this.posY <= 0) {
+          this.posY = 0;
+          this.velY = Math.abs(this.velY);
+        } else if (this.posY >= boundsY) {
+          this.posY = boundsY;
+          this.velY = -Math.abs(this.velY);
+        }
+
+        box.style.transform = `translate3d(${this.posX.toFixed(1)}px, ${this.posY.toFixed(1)}px, 0)`;
+
+        this.animFrameId = requestAnimationFrame(updateFrame);
+      };
+
+      this.animFrameId = requestAnimationFrame(updateFrame);
+    }, 0);
+  }
+
+  private stopBouncing(): void {
+    if (this.animFrameId !== null) {
+      cancelAnimationFrame(this.animFrameId);
+      this.animFrameId = null;
+    }
   }
 
   // ─── Gestión del ciclo de video ──────────────────────────────────────────
@@ -140,27 +206,25 @@ export class Screensaver {
   private advanceToNextClip(): void {
     const list = this.playlist();
     if (list.length === 0) {
-      // Sin videos en la playlist: permanecer en clásico
       return;
     }
 
     const next = getNextPlaylistItem(
       list,
       this.settings.screensaverVideoOrder(),
-      this.currentClip()?.brandId,
+      this.currentClip()?.videoUrl ?? this.currentClip()?.brandId,
     );
 
     if (!next) {
       return;
     }
 
-    // Pausar BGM para no solapar audio
+    this.stopBouncing();
     this.mediaPlayer.pauseBgm();
 
     this.currentClip.set(next);
     this.isShowingVideo.set(true);
 
-    // Si el elemento ya existe, asegurar play
     setTimeout(() => {
       const el = this.videoElement()?.nativeElement;
       if (el) {
@@ -177,19 +241,11 @@ export class Screensaver {
     this.isShowingVideo.set(false);
     this.mediaPlayer.resumeBgm();
 
+    this.startBouncing();
+
     if (this.mode() === 'video') {
       this.startClassicDwell();
     }
-  }
-
-  private startLogoCycle(): void {
-    this.clearLogoTimer();
-    this.logoTimer = setInterval(() => {
-      const total = this.logos().length;
-      if (total > 1) {
-        this.currentLogoIndex.update((i) => (i + 1) % total);
-      }
-    }, LOGO_CYCLE_MS);
   }
 
   private clearDwellTimer(): void {
@@ -199,16 +255,9 @@ export class Screensaver {
     }
   }
 
-  private clearLogoTimer(): void {
-    if (this.logoTimer !== null) {
-      clearInterval(this.logoTimer);
-      this.logoTimer = null;
-    }
-  }
-
   private stopVideoAndTimers(): void {
     this.clearDwellTimer();
-    this.clearLogoTimer();
+    this.stopBouncing();
 
     const el = this.videoElement()?.nativeElement;
     if (el) {

@@ -5,6 +5,7 @@ import {
   effect,
   ElementRef,
   inject,
+  signal,
   Type,
   untracked,
 } from '@angular/core';
@@ -20,6 +21,7 @@ import { GameExperience } from '../../core/catalog/game-experience.model';
 import { UnavailableScreen } from '../shared/unavailable-screen';
 import { GameChrome } from '../shared/game-chrome';
 import { ResultScreen } from '../result/result-screen';
+import { GameExitConfirmDialog } from '../shared/game-exit-confirm-dialog';
 import { MemoryPlay } from './memory-play';
 import { TriquiPlay } from './triqui-play';
 
@@ -44,7 +46,7 @@ const GAME_COMPONENT_BY_ID: Readonly<Record<string, Type<unknown>>> = {
  */
 @Component({
   selector: 'app-game-host',
-  imports: [NgComponentOutlet, UnavailableScreen, GameChrome, ResultScreen],
+  imports: [NgComponentOutlet, UnavailableScreen, GameChrome, ResultScreen, GameExitConfirmDialog],
   host: {
     class: 'flex flex-col flex-1 w-full h-full min-h-0 overflow-y-auto',
     style: 'touch-action: pan-y; -webkit-overflow-scrolling: touch;',
@@ -60,14 +62,20 @@ const GAME_COMPONENT_BY_ID: Readonly<Record<string, Type<unknown>>> = {
         [remainingLives]="session.remainingLives()"
         [maxLives]="session.maxLives()"
         [roundNumber]="roundCounter()"
-        (back)="goBackToGames()"
+        [blurTint]="brand()?.atmosphere?.blurTint"
+        [develop]="isDevelop()"
+        (back)="onRequestBack()"
         (help)="session.requestTutorial()"
       >
-        <!-- Indicador de turno alineado a la izquierda fuera del slot del juego -->
+        <!-- Indicador de turno: pestaña superior centrada dentro del board-slot -->
         @if (session.triquiTurn(); as turn) {
-          <div board-header-left class="flex items-center">
+          <div board-slot-top class="flex items-center justify-center">
             @if (turn.state === 'ai') {
-              <div class="flex items-center gap-2 sm:gap-2.5 bg-white/5 border border-white/10 rounded-2xl px-4 sm:px-5 py-2 backdrop-blur-md shadow-md text-xs sm:text-sm">
+              <div
+                class="flex items-center gap-2 sm:gap-2.5 bg-white/10 border border-t-0 border-white/15 rounded-none rounded-b-2xl px-4 sm:px-5 py-2 backdrop-blur-md shadow-md text-xs sm:text-sm"
+                role="status"
+                aria-live="polite"
+              >
                 <div class="relative w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center shrink-0">
                   @if (turn.markOUrl) {
                     <img [src]="turn.markOUrl" alt="O" class="w-4 h-4 sm:w-5 sm:h-5 object-contain drop-shadow animate-pulse" />
@@ -75,11 +83,15 @@ const GAME_COMPONENT_BY_ID: Readonly<Record<string, Type<unknown>>> = {
                     <span class="text-sm sm:text-base font-bold text-amber-300 animate-pulse">○</span>
                   }
                 </div>
+                <span class="text-white font-bold tracking-wide">IA Analizando jugada</span>
                 <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-                <span class="text-amber-200 font-medium">Analizando jugada…</span>
               </div>
             } @else if (turn.state === 'player') {
-              <div class="flex items-center gap-2 sm:gap-2.5 bg-white/5 border border-white/10 rounded-2xl px-4 sm:px-5 py-2 backdrop-blur-md shadow-md text-xs sm:text-sm">
+              <div
+                class="flex items-center gap-2 sm:gap-2.5 bg-white/10 border border-t-0 border-white/15 rounded-none rounded-b-2xl px-4 sm:px-5 py-2 backdrop-blur-md shadow-md text-xs sm:text-sm"
+                role="status"
+                aria-live="polite"
+              >
                 <div class="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center shrink-0">
                   @if (turn.markXUrl) {
                     <img [src]="turn.markXUrl" alt="X" class="w-4 h-4 sm:w-5 sm:h-5 object-contain drop-shadow" />
@@ -108,7 +120,21 @@ const GAME_COMPONENT_BY_ID: Readonly<Record<string, Type<unknown>>> = {
           [result]="result"
           [experienceId]="experienceId()"
           [brandName]="brandName()"
-          [gameName]="game()?.name ?? ''"
+          [gameName]="gameTitle()"
+          [develop]="isDevelop()"
+        />
+      }
+      @if (showExitConfirm()) {
+        <app-game-exit-confirm-dialog
+          [iconUrl]="exitConfirmConfig()?.icon || '/content/images/experiences/result/warning.png'"
+          [title]="exitConfirmConfig()?.title || '¿ABANDONAR LA PARTIDA?'"
+          [message]="exitConfirmConfig()?.message || 'Si regresas a la selección de juegos, perderás tu progreso actual en esta sesión.<br><strong>¿Deseas salir o continuar jugando?</strong>'"
+          [confirmLabel]="exitConfirmConfig()?.confirmButtonText || 'Sí, salir'"
+          [cancelLabel]="exitConfirmConfig()?.cancelButtonText || 'Continuar jugando'"
+          [brandName]="brandName()"
+          [gameName]="gameTitle()"
+          (confirmed)="onConfirmExit()"
+          (cancelled)="onCancelExit()"
         />
       }
     } @else {
@@ -128,6 +154,11 @@ export class GameHost {
   private readonly hostEl = inject(ElementRef<HTMLElement>);
   private startedExperienceId = '';
   private leaving = false;
+  protected readonly showExitConfirm = signal<boolean>(false);
+
+  protected readonly exitConfirmConfig = computed(() => {
+    return this.experience()?.exitConfirm;
+  });
 
   protected readonly experienceId = toSignal(
     this.route.paramMap.pipe(map((p) => p.get('experienceId') ?? '')),
@@ -156,7 +187,12 @@ export class GameHost {
   protected readonly gameTitle = computed(() => {
     const exp = this.experience();
     if (!exp) return 'Experiencia de Juego';
-    return exp.title ?? this.game()?.name ?? 'Juego Merz';
+    return exp.name ?? exp.title ?? this.game()?.name ?? 'Juego Merz';
+  });
+
+  protected readonly isDevelop = computed(() => {
+    const exp = this.experience();
+    return exp ? this.catalog.isExperienceDevelop(exp) : false;
   });
 
   protected readonly brandName = computed(() => {
@@ -202,6 +238,7 @@ export class GameHost {
       // Configuración y activos del motor (nivel game.config / game.assets en la cascada)
       gameConfig: game?.config ?? {},
       gameAssets: game?.assets ?? {},
+      ...(exp.turnNotice !== undefined ? { turnNotice: exp.turnNotice } : {}),
     };
   });
 
@@ -232,6 +269,23 @@ export class GameHost {
       this.cancelHostAnimations();
       this.session.leavePlay();
     });
+  }
+
+  onRequestBack(): void {
+    if (this.session.playResult() !== null) {
+      this.goBackToGames();
+      return;
+    }
+    this.showExitConfirm.set(true);
+  }
+
+  onConfirmExit(): void {
+    this.showExitConfirm.set(false);
+    this.goBackToGames();
+  }
+
+  onCancelExit(): void {
+    this.showExitConfirm.set(false);
   }
 
   goBackToGames(): void {

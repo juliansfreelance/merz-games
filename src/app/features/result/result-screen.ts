@@ -16,13 +16,7 @@ import { GameSession } from '../../core/session/game-session';
 import { KioskButton } from '../shared/kiosk-button';
 import { HeroIcon } from '../shared/hero-icon';
 import { MediaPlayer } from '../../core/media/media-player';
-
-interface ResultConfig {
-  icon: string;
-  title: string;
-  message: string;
-  accentClass: string;
-}
+import { ExperienceResultText } from '../../core/catalog/game-experience.model';
 
 const RESULT_SFX: Record<PlayResult, string> = {
   win: '/content/audio/sfx/game-win.mp3',
@@ -31,30 +25,33 @@ const RESULT_SFX: Record<PlayResult, string> = {
   'out-of-lives': '/content/audio/sfx/game-lose.mp3',
 };
 
-const RESULT_CONFIGS: Record<PlayResult, ResultConfig> = {
+const RESULT_ICONS: Record<PlayResult, string> = {
+  win: '/content/images/experiences/result/win.png',
+  lose: '/content/images/experiences/result/die.png',
+  'out-of-lives': '/content/images/experiences/result/lose.png',
+  draw: '/content/images/experiences/result/draw.png',
+};
+
+const DEFAULT_RESULT_TEXTS: Record<PlayResult, Required<ExperienceResultText>> = {
   win: {
-    icon: '🏆',
-    title: '¡Ganaste un premio!',
-    message: 'Felicitaciones por tu participación. Acércate al equipo de Merz Aesthetics para reclamar tu premio.',
-    accentClass: 'text-amber-300 drop-shadow-[0_0_16px_rgba(252,211,77,0.5)]',
+    title: '¡GANASTE!',
+    description: 'Completaste el reto con éxito.<br>Gracias por ser parte de esta experiencia Merz Aesthetics.',
+    note: 'Conquistaste el tablero y descubriste más sobre nuestros tratamientos.',
   },
   lose: {
-    icon: '🎯',
-    title: '¡Sigue intentándolo!',
-    message: 'Esta vez no fue, pero la próxima puede ser tuya. ¡Vuelve a intentarlo!',
-    accentClass: 'text-sky-300 drop-shadow-[0_0_16px_rgba(125,211,252,0.5)]',
+    title: 'PERDISTE ESTA RONDA',
+    description: 'La máquina ganó esta jugada.<br>Te quedan {lives} oportunidades.<br>Concéntrate y sigue jugando.',
+    note: 'Aún puedes recuperarte en la siguiente ronda.<br>Ajusta tu estrategia y vuelve a intentarlo.',
   },
   'out-of-lives': {
-    icon: '⏱️',
-    title: 'Sin más intentos',
-    message: 'Agotaste tus intentos para esta sesión. ¡Vuelve a jugar pronto!',
-    accentClass: 'text-neutral-300',
+    title: 'SIN MÁS INTENTOS',
+    description: 'Agotaste tus intentos en esta sesión.<br>Vuelve a intentarlo pronto y sigue descubriendo más del universo de la estética.',
+    note: 'Aún puedes volver a jugar o descubrir más experiencias Merz Aesthetics.',
   },
   draw: {
-    icon: '🤝',
-    title: '¡Empate!',
-    message: 'Esta ronda terminó en empate.',
-    accentClass: 'text-amber-200 drop-shadow-[0_0_16px_rgba(251,191,36,0.5)]',
+    title: '¡EMPATE!',
+    description: 'La ronda terminó en empate.<br>Te quedan {lives} oportunidades.<br>Pon atención y sigue jugando.',
+    note: 'Ninguno logró cerrar la jugada.<br>Prepárate para la siguiente ronda.',
   },
 };
 
@@ -63,51 +60,80 @@ const FIREWORKS_DURATION_MS = 15_000;
 
 /**
  * Overlay de resultado (victoria / derrota / sin vidas / empate).
- * Backdrop a pantalla completa con blur glass, igual que el tutorial de memoria.
- * Se superpone a `/play` sin navegar a otra ruta.
+ * Remaquetado para coincidir con los mocks de la marca y permitir textos customizables.
  */
 @Component({
   selector: 'app-result-screen',
   imports: [KioskButton, HeroIcon],
   template: `
     <div
-      class="result-overlay fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
-      style="background: rgba(3, 7, 18, 0.52); backdrop-filter: blur(16px);"
+      class="result-overlay result-overlay-enter fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+      style="background: rgba(3, 7, 18, 0.65); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);"
       role="dialog"
       aria-modal="true"
-      [attr.aria-label]="config().title"
+      [attr.aria-label]="titleText()"
       animate.enter="result-overlay-enter"
       (click)="stopPropagation($event)"
     >
       <div
-        class="result-card relative w-full max-w-lg bg-neutral-900/80 border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col items-center gap-6 text-center select-none"
+        class="result-card result-card-enter relative w-full max-w-lg bg-neutral-900/90 border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col items-center gap-5 text-center select-none backdrop-blur-xl"
         animate.enter="result-card-enter"
       >
-        <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-white/10 border border-white/20 backdrop-blur-md flex items-center justify-center shadow-2xl shadow-black/50">
-          <span class="text-4xl sm:text-5xl" role="img" [attr.aria-hidden]="true">
-            {{ config().icon }}
-          </span>
-        </div>
+        <!-- Logo Merz Aesthetics -->
+        <img
+          src="/content/images/MerzAestheticsLogo.svg"
+          alt="Merz Aesthetics Logo"
+          class="h-4 sm:h-5 w-auto mx-auto opacity-90 select-none pointer-events-none mb-1 sm:mb-2"
+        />
 
-        <div class="space-y-3 sm:space-y-4">
-          <h1
-            class="text-2xl sm:text-3xl font-extrabold font-['Montserrat'] tracking-tight uppercase"
-            [class]="config().accentClass"
-          >
-            {{ config().title }}
-          </h1>
-          <p class="text-neutral-300 text-sm sm:text-base leading-relaxed max-w-md mx-auto">
-            {{ displayMessage() }}
-          </p>
-        </div>
-
+        <!-- Marca / Juego (Salto de línea, marca destacada) -->
         @if (brandName()) {
-          <span class="inline-flex items-center gap-1.5 px-4 py-1.5 sm:px-6 sm:py-2 rounded-full text-xs sm:text-sm font-extrabold tracking-[0.2em] uppercase bg-white/10 text-neutral-200 border border-white/15 backdrop-blur-md [&>span>sup]:text-[0.6em] [&>span>sup]:top-[-0.4em] [&>span>sup]:font-normal">
-            <span [innerHTML]="brandName()"></span> · <span [innerHTML]="gameName()"></span>
-          </span>
+          <div class="flex flex-col items-center justify-center gap-1.5 uppercase tracking-widest select-none mb-2 sm:mb-4 [&>span>sup]:text-[0.6em] [&>span>sup]:top-[-0.4em]">
+            <span class="text-lg sm:text-xl font-black text-white" [innerHTML]="brandName()"></span>
+            @if (gameName()) {
+              <span class="inline-flex items-center justify-center gap-2 flex-wrap">
+                <span class="text-xs sm:text-sm font-semibold text-neutral-300" [innerHTML]="gameName()"></span>
+                @if (develop()) {
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider bg-amber-500/25 text-amber-300 border border-amber-400/40 normal-case">
+                    Beta
+                  </span>
+                }
+              </span>
+            }
+          </div>
         }
 
-        <div class="w-full space-y-2 sm:space-y-3 pt-1">
+        <!-- Imagen del Resultado (sin background, bordes ni efectos) -->
+        <img
+          [src]="iconUrl()"
+          [alt]="result()"
+          loading="eager"
+          decoding="async"
+          class="w-full h-36 sm:h-44 object-contain pointer-events-none select-none"
+        />
+
+        <!-- Título y Descripción -->
+        <div class="space-y-2 sm:space-y-3 w-full">
+          <h1
+            class="text-2xl sm:text-3xl font-extrabold font-['Montserrat'] tracking-tight text-white uppercase [&>strong]:font-black [&>sup]:text-[0.6em] [&>sup]:top-[-0.4em]"
+            [innerHTML]="titleText()"
+          ></h1>
+          <p
+            class="text-neutral-300 text-sm sm:text-base leading-relaxed max-w-md mx-auto [&>strong]:font-bold [&>strong]:text-white [&>sup]:text-[0.6em] [&>sup]:top-[-0.4em]"
+            [innerHTML]="descriptionText()"
+          ></p>
+        </div>
+
+        <!-- Nota / Texto adicional de resultado -->
+        @if (noteText()) {
+          <p
+            class="text-xs sm:text-sm text-neutral-400 max-w-md mx-auto leading-normal [&>strong]:font-semibold [&>strong]:text-neutral-200 [&>sup]:text-[0.6em] [&>sup]:top-[-0.4em]"
+            [innerHTML]="noteText()"
+          ></p>
+        }
+
+        <!-- Botones de Acción -->
+        <div class="w-full space-y-2.5 sm:space-y-3 pt-1">
           @if (result() === 'draw' || result() === 'lose') {
             <app-kiosk-button variant="primary" (click)="nextRound()">
               Siguiente ronda
@@ -116,14 +142,22 @@ const FIREWORKS_DURATION_MS = 15_000;
             <app-kiosk-button variant="primary" (click)="replay()">
               Volver a jugar
             </app-kiosk-button>
+            <app-kiosk-button variant="secondary" (click)="goToExperiences()">
+              Ver más juegos
+            </app-kiosk-button>
+            <app-kiosk-button variant="ghost" (click)="goToBrands()">
+              <app-hero-icon name="arrow-left" />
+              Cambiar de marca
+            </app-kiosk-button>
+          } @else {
+            <app-kiosk-button variant="primary" (click)="goToExperiences()">
+              Ver más juegos
+            </app-kiosk-button>
+            <app-kiosk-button variant="ghost" (click)="goToBrands()">
+              <app-hero-icon name="arrow-left" />
+              Cambiar de marca
+            </app-kiosk-button>
           }
-          <app-kiosk-button variant="secondary" (click)="goToExperiences()">
-            Ver más juegos
-          </app-kiosk-button>
-          <app-kiosk-button variant="ghost" (click)="goToBrands()">
-            <app-hero-icon name="arrow-left" />
-            Cambiar de marca
-          </app-kiosk-button>
         </div>
       </div>
     </div>
@@ -173,23 +207,37 @@ export class ResultScreen {
   readonly experienceId = input.required<string>();
   readonly brandName = input<string>('');
   readonly gameName = input<string>('');
+  /** Experiencia en fase beta / desarrollo. */
+  readonly develop = input<boolean>(false);
 
-  protected readonly config = computed<ResultConfig>(() => RESULT_CONFIGS[this.result()]);
+  protected readonly experience = computed(() =>
+    this.catalog.getExperienceById(this.experienceId()),
+  );
 
-  protected readonly displayMessage = computed<string>(() => {
-    const res = this.result();
+  protected readonly iconUrl = computed<string>(() => RESULT_ICONS[this.result()]);
+
+  private readonly customConfig = computed(() =>
+    this.experience()?.results?.[this.result()],
+  );
+
+  protected readonly titleText = computed<string>(() => {
+    return this.customConfig()?.title ?? DEFAULT_RESULT_TEXTS[this.result()].title;
+  });
+
+  protected readonly descriptionText = computed<string>(() => {
+    const raw = this.customConfig()?.description ?? DEFAULT_RESULT_TEXTS[this.result()].description;
     const lives = this.session.remainingLives();
-    if (res === 'draw') {
-      return lives === 1
-        ? 'Empate. Te queda 1 oportunidad. Pon atención.'
-        : `Empate. Te quedan ${lives} oportunidades. Pon atención.`;
+    if (lives === 1) {
+      return raw
+        .replace(/Te quedan\s*\{lives\}\s*oportunidades/gi, 'Te queda 1 oportunidad')
+        .replace(/\{lives\}\s*oportunidades/gi, '1 oportunidad')
+        .replace(/\{lives\}/g, '1');
     }
-    if (res === 'lose') {
-      return lives === 1
-        ? 'Perdiste. Te queda 1 oportunidad. Pon atención.'
-        : `Perdiste. Te quedan ${lives} oportunidades. Pon atención.`;
-    }
-    return this.config().message;
+    return raw.replace(/\{lives\}/g, lives.toString());
+  });
+
+  protected readonly noteText = computed<string>(() => {
+    return this.customConfig()?.note ?? DEFAULT_RESULT_TEXTS[this.result()].note;
   });
 
   private _fireworksTimer: ReturnType<typeof setInterval> | null = null;
@@ -226,7 +274,7 @@ export class ResultScreen {
   goToExperiences(): void {
     this._stopFireworks();
     this.session.leavePlay();
-    const exp = this.catalog.getExperienceById(this.experienceId());
+    const exp = this.experience();
     if (exp) {
       this.router.navigate(['/brands', exp.brandId, 'games']);
     } else {
@@ -309,3 +357,4 @@ export class ResultScreen {
     }
   }
 }
+

@@ -12,15 +12,18 @@ describe('App', () => {
   let mockPlatformService: {
     isNative: boolean;
     appVersion: ReturnType<typeof signal<string>>;
+    isKiosk: ReturnType<typeof signal<boolean>>;
     storageGet: (key: string) => string | null;
     storageSet: (key: string, value: string) => void;
     enterKiosk: () => Promise<any>;
+    toggleKiosk?: () => Promise<any>;
   };
 
   beforeEach(async () => {
     mockPlatformService = {
       isNative: false,
       appVersion: signal('0.1.0'),
+      isKiosk: signal(true),
       storageGet: () => null,
       storageSet: () => {},
       enterKiosk: vi.fn().mockResolvedValue({ ok: false }),
@@ -32,6 +35,8 @@ describe('App', () => {
         { provide: PlatformService, useValue: mockPlatformService },
         CatalogService,
         provideRouter([
+          { path: '', component: DummyAdmin },
+          { path: 'welcome', component: DummyAdmin },
           { path: 'admin/login', component: DummyAdmin },
         ]),
       ],
@@ -72,4 +77,50 @@ describe('App', () => {
 
     expect(app.currentAtmosphere()).toEqual(catalog.adminAtmosphere());
   });
+
+  it('no muestra el botón de ajustes rápidos en / ni en /admin/login, pero sí en /welcome', async () => {
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // En ruta raíz / (splash)
+    let btn = fixture.nativeElement.querySelector('button[aria-label="Ajustes rápidos de sonido y operación"]');
+    expect(btn).toBeNull();
+
+    // En /welcome
+    await router.navigateByUrl('/welcome');
+    fixture.detectChanges();
+    btn = fixture.nativeElement.querySelector('button[aria-label="Ajustes rápidos de sonido y operación"]');
+    expect(btn).toBeTruthy();
+
+    // En /admin/login
+    await router.navigateByUrl('/admin/login');
+    fixture.detectChanges();
+    btn = fixture.nativeElement.querySelector('button[aria-label="Ajustes rápidos de sonido y operación"]');
+    expect(btn).toBeNull();
+  });
+
+  it('al pulsar el botón de ajustes rápidos abre el diálogo y al cerrarlo lo oculta', async () => {
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/welcome');
+    fixture.detectChanges();
+
+    const btn = fixture.nativeElement.querySelector('button[aria-label="Ajustes rápidos de sonido y operación"]') as HTMLButtonElement;
+    expect(btn).toBeTruthy();
+
+    // Abrir diálogo
+    btn.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-quick-settings-dialog')).toBeTruthy();
+
+    // Cerrar diálogo
+    const closeBtn = fixture.nativeElement.querySelector('button[aria-label="Cerrar ventana de ajustes"]') as HTMLButtonElement;
+    expect(closeBtn).toBeTruthy();
+    closeBtn.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-quick-settings-dialog')).toBeNull();
+  });
 });
+

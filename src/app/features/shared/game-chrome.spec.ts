@@ -23,6 +23,15 @@ describe('GameChrome', () => {
     const host: HTMLElement = fixture.nativeElement;
     expect(host.textContent).toContain('Memoria Radiesse');
     expect(host.textContent).toContain('Radiesse');
+    expect(host.textContent).not.toContain('Beta');
+  });
+
+  it('muestra badge Beta junto al nombre del juego cuando develop es true', () => {
+    fixture.componentRef.setInput('develop', true);
+    fixture.detectChanges();
+
+    const host: HTMLElement = fixture.nativeElement;
+    expect(host.textContent).toContain('Beta');
   });
 
   it('debe renderizar el indicador de vidas con 3 corazones para 3 vidas', () => {

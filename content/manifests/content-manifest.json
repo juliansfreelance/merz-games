@@ -1,35 +1,114 @@
 {
   "version": "0.6.0",
-  "atmosphere": {
-    "baseColor": "#0b0914",
-    "blurTint": "#7c3aed",
-    "blobs": [
-      {
-        "from": "#d946ef",
-        "to": "#a855f7",
-        "opacity": 0.32
+  "app": {
+    "theme": {
+      "home": {
+        "baseColor": "#000000",
+        "blurTint": "#94a3b8",
+        "blobs": [
+          {
+            "from": "#e2e8f0",
+            "to": "#94a3b8",
+            "opacity": 0.22
+          },
+          {
+            "from": "#cbd5e1",
+            "to": "#64748b",
+            "opacity": 0.18
+          },
+          {
+            "from": "#94a3b8",
+            "to": "#475569",
+            "opacity": 0.20
+          },
+          {
+            "from": "#f8fafc",
+            "to": "#cbd5e1",
+            "opacity": 0.15
+          },
+          {
+            "from": "#64748b",
+            "to": "#334155",
+            "opacity": 0.22
+          }
+        ]
       },
-      {
-        "from": "#F3E5AB",
-        "to": "#B8860B",
-        "opacity": 0.28
-      },
-      {
-        "from": "#f43f5e",
-        "to": "#e11d48",
-        "opacity": 0.28
-      },
-      {
-        "from": "#10b981",
-        "to": "#059669",
-        "opacity": 0.3
-      },
-      {
-        "from": "#6366f1",
-        "to": "#3b82f6",
-        "opacity": 0.32
+      "panel": {
+        "primaryColor": "#f1e308",
+        "secondaryColor": "#c8005d",
+        "atmosphere": {
+          "baseColor": "#000000",
+          "blurTint": "#008083",
+          "blobs": [
+            {
+              "from": "#008083",
+              "to": "#005f61",
+              "opacity": 0.22
+            },
+            {
+              "from": "#0d9488",
+              "to": "#0f766e",
+              "opacity": 0.18
+            },
+            {
+              "from": "#047857",
+              "to": "#065f46",
+              "opacity": 0.20
+            },
+            {
+              "from": "#2dd4bf",
+              "to": "#0d9488",
+              "opacity": 0.14
+            },
+            {
+              "from": "#115e59",
+              "to": "#134e4a",
+              "opacity": 0.22
+            }
+          ]
+        }
       }
-    ]
+    },
+    "audio": {
+      "soundEnabled": true,
+      "bgmVolume": 0.35,
+      "sfxVolume": 0.7,
+      "videoVolume": 0.5,
+      "backgroundMusic": "/content/audio/bgm.mp3"
+    },
+    "protector": {
+      "mode": "video",
+      "idleMs": 180000,
+      "videoOrder": "sequential",
+      "attractionVideos": [
+        {
+          "nombre": "General 1",
+          "source": "/content/videos/general1.mp4",
+          "enabled": true
+        }
+      ]
+    },
+    "disclaimer": "Esta actividad corresponde a una dinámica de habilidad mental y no a un concurso, sorteo o juego de azar. La ejecución, administración y cumplimiento de la mecánica son responsabilidad exclusiva de cada clínica participante.",
+    "security": {
+      "defaultPin": "2580",
+      "betaSuperadminPin": "210726",
+      "resetSuperadminPin": "020825",
+      "superadminHint": "Beta, THI-JU (DD/MM/AA)"
+    },
+    "cover": {
+      "enableReflection": false,
+      "enableClickToSnap": true,
+      "enableScroll": true,
+      "enableAudio": true,
+      "reduceMotion": false,
+      "stackSpacing": 80,
+      "centerGap": 270,
+      "rotation": 50,
+      "initialIndex": 0,
+      "scrollThreshold": 50
+    },
+    "experiencesMode": "global",
+    "developMode": false
   },
   "brands": [
     {
@@ -40,7 +119,18 @@
       "order": 1,
       "image": "/content/images/brands/RadiesseBrand.png",
       "logo": "/content/images/brands/RadiesseLogo.svg",
-      "attractionVideo": "/content/videos/radiesse.mp4",
+      "attractionVideos": [
+        {
+          "nombre": "Radiesse Promocional 1",
+          "source": "/content/videos/radiesse.mp4",
+          "enabled": true
+        },
+        {
+          "nombre": "Radiesse Promocional 2",
+          "source": "/content/videos/radiesse2.mp4",
+          "enabled": true
+        }
+      ],
       "description": "Estimulador de colágeno para una piel firme, elástica y definida.",
       "disclaimer": "Para indicaciones, contraindicaciones, advertencias y precauciones, ver inserto del producto.<br>RADIESSE® CLÁSICO: Registro Sanitario INVIMA 2019DM-0004463-R1. RADIESSE® PLUS: Registro Sanitario INVIMA 2018DM-0017846.<br>RADIESSE es una marca comercial y/o marca registrada de Merz North America, Inc. en Colombia y/o en otros países.",
       "atmosphere": {
@@ -83,7 +173,18 @@
       "order": 2,
       "image": "/content/images/brands/UltherapyBrand.png",
       "logo": "/content/images/brands/UltherapyLogo.svg",
-      "attractionVideo": "/content/videos/ultherapy.mp4",
+      "attractionVideos": [
+        {
+          "nombre": "Ultherapy Promocional 1",
+          "source": "/content/videos/ultherapy.mp4",
+          "enabled": true
+        },
+        {
+          "nombre": "Ultherapy Promocional 2",
+          "source": "/content/videos/ultherapy2.mp4",
+          "enabled": true
+        }
+      ],
       "description": "Lifting no invasivo con ultrasonido microfocalizado en tiempo real.",
       "disclaimer": "Para indicaciones, contraindicaciones, advertencias y precauciones, ver inserto del producto.<br>ULTHERAPY®: Registro Sanitario INVIMA 2021DM-0008171-R1.<br>ULTHERA INC, ULTHERAPY y DEEPSEE son marcas comerciales y/o marcas registradas en Colombia.",
       "atmosphere": {
@@ -117,16 +218,59 @@
           }
         ]
       }
+    },
+    {
+      "id": "belotero",
+      "name": "Belotero<sup>®</sup>",
+      "version": "0.1.0",
+      "enabled": true,
+      "develop": true,
+      "order": 3,
+      "image": "/content/images/brands/BeloteroBrand.png",
+      "logo": "/content/images/brands/BeloteroLogo.webp",
+      "attractionVideos": [],
+      "description": "Descubre una completa gama de tratamientos con rellenos de ácido hialurónico para rejuvenecer y corregir el aspecto de la piel.",
+      "disclaimer": "Para indicaciones, contraindicaciones, advertencias y precauciones, ver inserto del producto.<br>RADIESSE® CLÁSICO: Registro Sanitario INVIMA 2019DM-0004463-R1. RADIESSE® PLUS: Registro Sanitario INVIMA 2018DM-0017846.<br>RADIESSE es una marca comercial y/o marca registrada de Merz North America, Inc. en Colombia y/o en otros países.",
+      "atmosphere": {
+        "baseColor": "#1f0e06",
+        "blurTint": "#C8681D",
+        "blobs": [
+          {
+            "from": "#C8681D",
+            "to": "#EBB082",
+            "opacity": 0.55
+          },
+          {
+            "from": "#F3A96E",
+            "to": "#C86011",
+            "opacity": 0.5
+          },
+          {
+            "from": "#FDF5E6",
+            "to": "#EBB082",
+            "opacity": 0.48
+          },
+          {
+            "from": "#E07A2F",
+            "to": "#A34E12",
+            "opacity": 0.52
+          },
+          {
+            "from": "#C8681D",
+            "to": "#8B4510",
+            "opacity": 0.5
+          }
+        ]
+      }
     }
   ],
   "games": [
     {
       "id": "memory",
-      "name": "Encuentra la Pareja",
       "version": "0.5.0",
       "minAppVersion": "0.1.0",
       "enabled": true,
-      "description": "Juego de concentración y memoria visual con elementos de marca.",
+      "develop": false,
       "assets": {
         "sfxFlip": "/content/audio/sfx/flip.mp3",
         "sfxMatch": "/content/audio/sfx/match.mp3",
@@ -135,31 +279,19 @@
         "sfxWin": "/content/audio/sfx/game-win.mp3",
         "sfxLose": "/content/audio/sfx/game-lose.mp3",
         "sfxDraw": "/content/audio/sfx/game-draw.mp3"
-      },
-      "config": {
-        "pairs": 3,
-        "lives": 3,
-        "difficulty": "medium"
       }
     },
     {
       "id": "triqui",
-      "name": "Triqui (Tres en Raya)",
       "version": "0.6.0",
       "minAppVersion": "0.1.0",
       "enabled": true,
-      "description": "Juego clásico de estrategia y agilidad mental en tablero 3×3.",
+      "develop": false,
       "assets": {
-        "markX": "/content/images/games/triqui/mark-x.png",
-        "markO": "/content/images/games/triqui/mark-o.png",
         "sfxPut": "/content/audio/sfx/put.mp3",
         "sfxWin": "/content/audio/sfx/game-win.mp3",
         "sfxLose": "/content/audio/sfx/game-lose.mp3",
         "sfxDraw": "/content/audio/sfx/game-draw.mp3"
-      },
-      "config": {
-        "difficulty": "medium",
-        "firstPlayer": "patient"
       }
     }
   ],
@@ -176,9 +308,9 @@
         "lives": 3,
         "difficulty": "medium"
       },
-      "title": "Encuentra la Pareja",
+      "name": "Encuentra la Pareja",
       "description": "<strong>Descubre cuánto sabes del universo de la estética mientras te diviertes.</strong> Encuentra todas las parejas de imágenes en este juego de memoria y, al completar el desafío, podrás participar por atractivos premios.<br><strong>¡Cada coincidencia cuenta!</strong>",
-      "image": "/content/images/experiences/radiesse-memory.jpg",
+      "image": "/content/images/experiences/radiesse-memory.png",
       "theme": {
         "accentColor": "#00E5FF",
         "primaryColor": "#0891b2"
@@ -186,86 +318,45 @@
       "assets": {
         "cardBack": "/content/images/games/memory/cards/radiesse/card-back.png",
         "cardFaces": [
-          "/content/images/games/memory/cards/radiesse/card-01.png",
-          "/content/images/games/memory/cards/radiesse/card-02.png",
-          "/content/images/games/memory/cards/radiesse/card-03.png",
-          "/content/images/games/memory/cards/radiesse/card-04.png",
-          "/content/images/games/memory/cards/radiesse/card-05.png",
-          "/content/images/games/memory/cards/radiesse/card-06.png",
-          "/content/images/games/memory/cards/radiesse/card-07.png",
-          "/content/images/games/memory/cards/radiesse/card-08.png",
-          "/content/images/games/memory/cards/radiesse/card-09.png",
-          "/content/images/games/memory/cards/radiesse/card-10.png",
-          "/content/images/games/memory/cards/radiesse/card-11.png",
-          "/content/images/games/memory/cards/radiesse/card-12.png",
-          "/content/images/games/memory/cards/radiesse/card-13.png",
-          "/content/images/games/memory/cards/radiesse/card-14.png",
-          "/content/images/games/memory/cards/radiesse/card-15.png",
-          "/content/images/games/memory/cards/radiesse/card-16.png",
-          "/content/images/games/memory/cards/radiesse/card-17.png",
-          "/content/images/games/memory/cards/radiesse/card-18.png",
-          "/content/images/games/memory/cards/radiesse/card-19.png",
-          "/content/images/games/memory/cards/radiesse/card-20.png",
-          "/content/images/games/memory/cards/radiesse/card-21.png",
-          "/content/images/games/memory/cards/radiesse/card-22.png",
-          "/content/images/games/memory/cards/radiesse/card-23.png",
-          "/content/images/games/memory/cards/radiesse/card-24.png",
-          "/content/images/games/memory/cards/radiesse/card-25.png",
-          "/content/images/games/memory/cards/radiesse/card-26.png",
-          "/content/images/games/memory/cards/radiesse/card-27.png"
+          "/content/images/games/memory/cards/radiesse/card-01.jpg",
+          "/content/images/games/memory/cards/radiesse/card-02.jpg",
+          "/content/images/games/memory/cards/radiesse/card-03.jpg",
+          "/content/images/games/memory/cards/radiesse/card-04.jpg",
+          "/content/images/games/memory/cards/radiesse/card-05.jpg",
+          "/content/images/games/memory/cards/radiesse/card-06.jpg",
+          "/content/images/games/memory/cards/radiesse/card-07.jpg",
+          "/content/images/games/memory/cards/radiesse/card-08.jpg",
+          "/content/images/games/memory/cards/radiesse/card-09.jpg",
+          "/content/images/games/memory/cards/radiesse/card-10.jpg",
+          "/content/images/games/memory/cards/radiesse/card-11.jpg",
+          "/content/images/games/memory/cards/radiesse/card-12.jpg",
+          "/content/images/games/memory/cards/radiesse/card-13.jpg",
+          "/content/images/games/memory/cards/radiesse/card-014.jpg",
+          "/content/images/games/memory/cards/radiesse/card-15.jpg",
+          "/content/images/games/memory/cards/radiesse/card-16.jpg",
+          "/content/images/games/memory/cards/radiesse/card-17.jpg",
+          "/content/images/games/memory/cards/radiesse/card-18.jpg",
+          "/content/images/games/memory/cards/radiesse/card-19.jpg",
+          "/content/images/games/memory/cards/radiesse/card-20.jpg"
         ]
-      }
-    },
-    {
-      "id": "ultherapy-memory",
-      "brandId": "ultherapy",
-      "gameId": "memory",
-      "version": "0.5.0",
-      "enabled": true,
-      "order": 2,
-      "config": {
-        "pairs": 4,
-        "lives": 4,
-        "difficulty": "medium"
       },
-      "title": "Encuentra la Pareja Ultherapy<sup>®</sup>",
-      "description": "<strong>Descubre el universo del lifting facial mientras pones a prueba tu atención.</strong> Encuentra la imagen que completa cada pareja, supera el reto y acércate a uno de nuestros premios.<br><strong>¡Cada coincidencia cuenta!</strong>",
-      "image": "/content/images/experiences/ultherapy-memory.jpg",
-      "theme": {
-        "accentColor": "#D4AF37",
-        "primaryColor": "#B8860B"
+      "results": {
+        "win": {
+          "title": "¡GANASTE!",
+          "description": "Completaste el reto con éxito.<br>Gracias por ser parte de esta experiencia Merz Aesthetics.",
+          "note": "Conquistaste el tablero y descubriste más sobre la estética."
+        },
+        "out-of-lives": {
+          "title": "SIN MÁS INTENTOS",
+          "description": "Agotaste tus intentos en esta sesión.<br>Vuelve a intentarlo pronto y sigue descubriendo más del universo de la estética.",
+          "note": "Aún puedes volver a jugar o descubrir más experiencias Merz Aesthetics."
+        }
       },
-      "assets": {
-        "cardBack": "/content/images/games/memory/cards/ultherapy/card-back.png",
-        "cardFaces": [
-          "/content/images/games/memory/cards/ultherapy/card-28.png",
-          "/content/images/games/memory/cards/ultherapy/card-29.png",
-          "/content/images/games/memory/cards/ultherapy/card-30.png",
-          "/content/images/games/memory/cards/ultherapy/card-31.png",
-          "/content/images/games/memory/cards/ultherapy/card-32.png",
-          "/content/images/games/memory/cards/ultherapy/card-33.png",
-          "/content/images/games/memory/cards/ultherapy/card-34.png",
-          "/content/images/games/memory/cards/ultherapy/card-35.png",
-          "/content/images/games/memory/cards/ultherapy/card-36.png",
-          "/content/images/games/memory/cards/ultherapy/card-37.png",
-          "/content/images/games/memory/cards/ultherapy/card-38.png",
-          "/content/images/games/memory/cards/ultherapy/card-39.png",
-          "/content/images/games/memory/cards/ultherapy/card-40.png",
-          "/content/images/games/memory/cards/ultherapy/card-41.png",
-          "/content/images/games/memory/cards/ultherapy/card-42.png",
-          "/content/images/games/memory/cards/ultherapy/card-43.png",
-          "/content/images/games/memory/cards/ultherapy/card-44.png",
-          "/content/images/games/memory/cards/ultherapy/card-45.png",
-          "/content/images/games/memory/cards/ultherapy/card-46.png",
-          "/content/images/games/memory/cards/ultherapy/card-47.png",
-          "/content/images/games/memory/cards/ultherapy/card-48.png",
-          "/content/images/games/memory/cards/ultherapy/card-49.png",
-          "/content/images/games/memory/cards/ultherapy/card-50.png",
-          "/content/images/games/memory/cards/ultherapy/card-51.png",
-          "/content/images/games/memory/cards/ultherapy/card-52.png",
-          "/content/images/games/memory/cards/ultherapy/card-53.png",
-          "/content/images/games/memory/cards/ultherapy/card-54.png"
-        ]
+      "exitConfirm": {
+        "title": "¿ABANDONAR LA PARTIDA?",
+        "message": "Si regresas a la selección de juegos, perderás tu progreso actual en este juego de memoria.<br><strong>¿Deseas salir o continuar jugando?</strong>",
+        "confirmButtonText": "Sí, salir",
+        "cancelButtonText": "Continuar jugando"
       }
     },
     {
@@ -274,10 +365,15 @@
       "gameId": "triqui",
       "version": "0.6.0",
       "enabled": true,
-      "order": 3,
-      "title": "Triqui interactivo Radiesse<sup>®</sup>",
+      "order": 2,
+      "config": {
+        "difficulty": "medium",
+        "firstPlayer": "random",
+        "playerSymbol": "random"
+      },
+      "name": "Triqui interactivo",
       "description": "Pon a prueba tu habilidad en nuestro reto de tres en línea y <strong>descubre más sobre la estética.</strong> Completa la secuencia, conquista el tablero y acércate a uno de nuestros premios.<br><strong>¡Cada movimiento cuenta!</strong>",
-      "image": "/content/images/experiences/radiesse-triqui.jpg",
+      "image": "/content/images/experiences/radiesse-triqui.png",
       "theme": {
         "accentColor": "#00E5FF",
         "primaryColor": "#0891b2"
@@ -285,6 +381,108 @@
       "assets": {
         "markX": "/content/images/games/triqui/radiesse/mark-x.png",
         "markO": "/content/images/games/triqui/radiesse/mark-o.png"
+      },
+      "results": {
+        "win": {
+          "title": "¡GANASTE!",
+          "description": "Completaste el reto con éxito.<br>Gracias por ser parte de esta experiencia Merz Aesthetics.",
+          "note": "Conquistaste el tablero y descubriste más sobre la estética."
+        },
+        "lose": {
+          "title": "PERDISTE ESTA RONDA",
+          "description": "La máquina ganó esta jugada.<br>Te quedan {lives} oportunidades.<br>Concéntrate y sigue jugando.",
+          "note": "Aún puedes recuperarte en la siguiente ronda.<br>Ajusta tu estrategia y vuelve a intentarlo."
+        },
+        "draw": {
+          "title": "¡EMPATE!",
+          "description": "La ronda terminó en empate.<br>Te quedan {lives} oportunidades.<br>Pon atención y sigue jugando.",
+          "note": "Ninguno logró cerrar la jugada.<br>Prepárate para la siguiente ronda."
+        },
+        "out-of-lives": {
+          "title": "SIN MÁS INTENTOS",
+          "description": "Agotaste tus intentos en esta sesión.<br>Vuelve a intentarlo pronto y sigue descubriendo más del universo de la estética.",
+          "note": "Aún puedes volver a jugar o descubrir más experiencias Merz Aesthetics."
+        }
+      },
+      "turnNotice": {
+        "durationSeconds": 12,
+        "player": {
+          "title": "¡ES TU TURNO!",
+          "message": "Inicias tú con {asset}.<br>¡Elige bien tu jugada!"
+        },
+        "ai": {
+          "title": "INICIA TU RIVAL",
+          "message": "Inicia la IA con {asset}.<br>¡No la dejes ganar!"
+        }
+      },
+      "exitConfirm": {
+        "title": "¿ABANDONAR LA PARTIDA?",
+        "message": "Si regresas a la selección de juegos, perderás tu partida actual de Triqui.<br><strong>¿Deseas salir o continuar jugando?</strong>",
+        "confirmButtonText": "Sí, salir",
+        "cancelButtonText": "Continuar jugando"
+      }
+    },
+    {
+      "id": "ultherapy-memory",
+      "brandId": "ultherapy",
+      "gameId": "memory",
+      "version": "0.5.0",
+      "enabled": true,
+      "order": 1,
+      "config": {
+        "pairs": 3,
+        "lives": 3,
+        "difficulty": "medium"
+      },
+      "name": "Encuentra la Pareja",
+      "description": "<strong>Descubre el universo del lifting facial mientras pones a prueba tu atención.</strong> Encuentra la imagen que completa cada pareja, supera el reto y acércate a uno de nuestros premios.<br><strong>¡Cada coincidencia cuenta!</strong>",
+      "image": "/content/images/experiences/ultherapy-memory.png",
+      "theme": {
+        "accentColor": "#D4AF37",
+        "primaryColor": "#B8860B"
+      },
+      "assets": {
+        "cardBack": "/content/images/games/memory/cards/ultherapy/card-back.png",
+        "cardFaces": [
+          "/content/images/games/memory/cards/ultherapy/card-01.jpg",
+          "/content/images/games/memory/cards/ultherapy/card-02.jpg",
+          "/content/images/games/memory/cards/ultherapy/card-03.jpg",
+          "/content/images/games/memory/cards/ultherapy/card-04.jpg",
+          "/content/images/games/memory/cards/ultherapy/card-05.jpg",
+          "/content/images/games/memory/cards/ultherapy/card-06.jpg",
+          "/content/images/games/memory/cards/ultherapy/card-07.jpg",
+          "/content/images/games/memory/cards/ultherapy/card-08.jpg",
+          "/content/images/games/memory/cards/ultherapy/card-09.jpg",
+          "/content/images/games/memory/cards/ultherapy/card-10.jpg",
+          "/content/images/games/memory/cards/ultherapy/card-11.jpg",
+          "/content/images/games/memory/cards/ultherapy/card-12.jpg",
+          "/content/images/games/memory/cards/ultherapy/card-13.jpg",
+          "/content/images/games/memory/cards/ultherapy/card-14.jpg",
+          "/content/images/games/memory/cards/ultherapy/card-15.jpg",
+          "/content/images/games/memory/cards/ultherapy/card-16.jpg",
+          "/content/images/games/memory/cards/ultherapy/card-17.jpg",
+          "/content/images/games/memory/cards/ultherapy/card-18.jpg",
+          "/content/images/games/memory/cards/ultherapy/card-19.jpg",
+          "/content/images/games/memory/cards/ultherapy/card-20.jpg"
+        ]
+      },
+      "results": {
+        "win": {
+          "title": "¡GANASTE!",
+          "description": "Completaste el reto con éxito.<br>Gracias por ser parte de esta experiencia Merz Aesthetics.",
+          "note": "Conquistaste el tablero y descubriste más sobre el lifting facial."
+        },
+        "out-of-lives": {
+          "title": "SIN MÁS INTENTOS",
+          "description": "Agotaste tus intentos en esta sesión.<br>Vuelve a intentarlo pronto y sigue descubriendo más del universo de la estética.",
+          "note": "Aún puedes volver a jugar o descubrir más experiencias Merz Aesthetics."
+        }
+      },
+      "exitConfirm": {
+        "title": "¿ABANDONAR LA PARTIDA?",
+        "message": "Si regresas a la selección de juegos, perderás tu progreso actual en este juego de memoria.<br><strong>¿Deseas salir o continuar jugando?</strong>",
+        "confirmButtonText": "Sí, salir",
+        "cancelButtonText": "Continuar jugando"
       }
     },
     {
@@ -293,10 +491,15 @@
       "gameId": "triqui",
       "version": "0.6.0",
       "enabled": true,
-      "order": 4,
-      "title": "Triqui interactivo Ultherapy<sup>®</sup>",
+      "order": 2,
+      "config": {
+        "difficulty": "medium",
+        "firstPlayer": "random",
+        "playerSymbol": "random"
+      },
+      "name": "Triqui interactivo",
       "description": "Pon a prueba tu habilidad en nuestro reto de tres en línea y <strong>descubre más sobre el lifting facial.</strong> Completa la secuencia, conquista el tablero y acércate a uno de nuestros premios.<br><strong>¡Cada movimiento cuenta!</strong>",
-      "image": "/content/images/experiences/ultherapy-triqui.jpg",
+      "image": "/content/images/experiences/ultherapy-triqui.png",
       "theme": {
         "accentColor": "#D4AF37",
         "primaryColor": "#B8860B"
@@ -304,11 +507,110 @@
       "assets": {
         "markX": "/content/images/games/triqui/ultherapy/mark-x.png",
         "markO": "/content/images/games/triqui/ultherapy/mark-o.png"
+      },
+      "results": {
+        "win": {
+          "title": "¡GANASTE!",
+          "description": "Completaste el reto con éxito.<br>Gracias por ser parte de esta experiencia Merz Aesthetics.",
+          "note": "Conquistaste el tablero y descubriste más sobre el lifting facial."
+        },
+        "lose": {
+          "title": "PERDISTE ESTA RONDA",
+          "description": "La máquina ganó esta jugada.<br>Te quedan {lives} oportunidades.<br>Concéntrate y sigue jugando.",
+          "note": "Aún puedes recuperarte en la siguiente ronda.<br>Ajusta tu estrategia y vuelve a intentarlo."
+        },
+        "draw": {
+          "title": "¡EMPATE!",
+          "description": "La ronda terminó en empate.<br>Te quedan {lives} oportunidades.<br>Pon atención y sigue jugando.",
+          "note": "Ninguno logró cerrar la jugada.<br>Prepárate para la siguiente ronda."
+        },
+        "out-of-lives": {
+          "title": "SIN MÁS INTENTOS",
+          "description": "Agotaste tus intentos en esta sesión.<br>Vuelve a intentarlo pronto y sigue descubriendo más del universo de la estética.",
+          "note": "Aún puedes volver a jugar o descubrir más experiencias Merz Aesthetics."
+        }
+      },
+      "turnNotice": {
+        "durationSeconds": 30,
+        "player": {
+          "title": "¡ES TU TURNO!",
+          "message": "Inicias <strong>TÚ</strong> con {asset}.<br>¡Elige bien tu jugada!"
+        },
+        "ai": {
+          "title": "INICIA TU RIVAL",
+          "message": "Inicia la <strong>IA</strong> con {asset}.<br>¡No la dejes ganar!"
+        }
+      },
+      "exitConfirm": {
+        "title": "¿ABANDONAR LA PARTIDA?",
+        "message": "Si regresas a la selección de juegos, perderás tu partida actual de Triqui.<br><strong>¿Deseas salir o continuar jugando?</strong>",
+        "confirmButtonText": "Sí, salir",
+        "cancelButtonText": "Continuar jugando"
+      }
+    },
+    {
+      "id": "belotero-triqui",
+      "brandId": "belotero",
+      "gameId": "triqui",
+      "version": "0.6.0",
+      "enabled": true,
+      "order": 1,
+      "config": {
+        "difficulty": "medium",
+        "firstPlayer": "random",
+        "playerSymbol": "random"
+      },
+      "name": "Triqui interactivo",
+      "description": "Pon a prueba tu habilidad en nuestro reto de tres en línea y <strong>descubre más sobre el lifting facial.</strong> Completa la secuencia, conquista el tablero y acércate a uno de nuestros premios.<br><strong>¡Cada movimiento cuenta!</strong>",
+      "image": "/content/images/experiences/belotero-triqui.png",
+      "theme": {
+        "accentColor": "#D4AF37",
+        "primaryColor": "#B8860B"
+      },
+      "assets": {
+        "markX": "/content/images/games/triqui/ultherapy/mark-x.png",
+        "markO": "/content/images/games/triqui/ultherapy/mark-o.png"
+      },
+      "results": {
+        "win": {
+          "title": "¡GANASTE!",
+          "description": "Completaste el reto con éxito.<br>Gracias por ser parte de esta experiencia Merz Aesthetics.",
+          "note": "Conquistaste el tablero y descubriste más sobre el lifting facial."
+        },
+        "lose": {
+          "title": "PERDISTE ESTA RONDA",
+          "description": "La máquina ganó esta jugada.<br>Te quedan {lives} oportunidades.<br>Concéntrate y sigue jugando.",
+          "note": "Aún puedes recuperarte en la siguiente ronda.<br>Ajusta tu estrategia y vuelve a intentarlo."
+        },
+        "draw": {
+          "title": "¡EMPATE!",
+          "description": "La ronda terminó en empate.<br>Te quedan {lives} oportunidades.<br>Pon atención y sigue jugando.",
+          "note": "Ninguno logró cerrar la jugada.<br>Prepárate para la siguiente ronda."
+        },
+        "out-of-lives": {
+          "title": "SIN MÁS INTENTOS",
+          "description": "Agotaste tus intentos en esta sesión.<br>Vuelve a intentarlo pronto y sigue descubriendo más del universo de la estética.",
+          "note": "Aún puedes volver a jugar o descubrir más experiencias Merz Aesthetics."
+        }
+      },
+      "turnNotice": {
+        "durationSeconds": 30,
+        "player": {
+          "title": "¡ES TU TURNO!",
+          "message": "Inicias <strong>TÚ</strong> con {asset}.<br>¡Elige bien tu jugada!"
+        },
+        "ai": {
+          "title": "INICIA TU RIVAL",
+          "message": "Inicia la <strong>IA</strong> con {asset}.<br>¡No la dejes ganar!"
+        }
+      },
+      "exitConfirm": {
+        "title": "¿ABANDONAR LA PARTIDA?",
+        "message": "Si regresas a la selección de juegos, perderás tu partida actual de Triqui.<br><strong>¿Deseas salir o continuar jugando?</strong>",
+        "confirmButtonText": "Sí, salir",
+        "cancelButtonText": "Continuar jugando"
       }
     }
-  ],
-  "audio": {
-    "backgroundMusic": "/content/audio/bgm.mp3",
-    "volume": 0.35
-  }
+  ]
 }
+

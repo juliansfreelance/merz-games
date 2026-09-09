@@ -20,7 +20,7 @@ export interface DisplayHeart {
     <div
       class="flex items-center gap-2 sm:gap-2.5"
       role="status"
-      [attr.aria-label]="remainingLives() + ' intentos restantes'"
+      [attr.aria-label]="remainingLives() + ' intentos'"
     >
       @if (isCompact()) {
         <!-- Modo compacto para más de 3 vidas: ❤️ × N -->
