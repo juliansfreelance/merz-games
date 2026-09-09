@@ -54,3 +54,6 @@ skills-lock.json
 
 # Tauri
 /src-tauri/target/
+
+# Videos
+/public/content/videos/
