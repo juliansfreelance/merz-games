@@ -61,6 +61,16 @@ interface KioskSettingsData {
    * null = sin override; la cascada arranca en el nivel de experiencia/motor.
    */
   triquiPlayerSymbol: PlayerSymbolChoice | null;
+  /**
+   * Reduce movimiento del Cover Flow (sin rotateY / spring).
+   * Default false = 3D activo como en el manifest.
+   */
+  coverReduceMotion: boolean;
+  /**
+   * Atmósfera con blobs animados (FloatingGradient).
+   * Default true = comportamiento actual.
+   */
+  atmosphereMotionEnabled: boolean;
   /** Overrides específicos por experiencia (clave = experienceId). */
   experienceOverrides?: Record<string, ExperienceSettingsOverride>;
 }
@@ -86,6 +96,8 @@ const DEFAULT_SETTINGS: KioskSettingsData = {
   triquiDifficulty: null,
   triquiFirstPlayer: null,
   triquiPlayerSymbol: null,
+  coverReduceMotion: false,
+  atmosphereMotionEnabled: true,
   experienceOverrides: {},
 };
 
@@ -104,6 +116,8 @@ const DEFAULT_SETTINGS: KioskSettingsData = {
  * - `memoryPairs`: número de parejas para Memoria | null (sin override).
  * - `triquiDifficulty`: dificultad para Triqui | null (sin override).
  * - `triquiFirstPlayer`: quién empieza en Triqui | null (sin override).
+ * - `coverReduceMotion`: Cover Flow sin 3D (default false).
+ * - `atmosphereMotionEnabled`: FloatingGradient animado (default true).
  */
 @Injectable({ providedIn: 'root' })
 export class KioskSettings {
@@ -186,6 +200,16 @@ export class KioskSettings {
    */
   readonly triquiPlayerSymbol = computed(() => this._data().triquiPlayerSymbol);
 
+  /** Cover Flow con movimiento reducido (panel; default false = 3D ON). */
+  readonly coverReduceMotion = computed(
+    () => this._data().coverReduceMotion ?? DEFAULT_SETTINGS.coverReduceMotion,
+  );
+
+  /** FloatingGradient con animación de blobs (default true). */
+  readonly atmosphereMotionEnabled = computed(
+    () => this._data().atmosphereMotionEnabled ?? DEFAULT_SETTINGS.atmosphereMotionEnabled,
+  );
+
   constructor() {
     // Persistir cada vez que cualquier ajuste cambie (efecto secundario real).
     effect(() => {
@@ -235,6 +259,16 @@ export class KioskSettings {
     this._sessionSoundEnabled.set(null);
     this._patch({ soundEnabled: enabled });
     this.logger.info('KioskSettings', `Sonido persistente ${enabled ? 'activado' : 'desactivado'}.`);
+  }
+
+  setCoverReduceMotion(enabled: boolean): void {
+    this._patch({ coverReduceMotion: enabled });
+    this.logger.info('KioskSettings', `coverReduceMotion: ${enabled}`);
+  }
+
+  setAtmosphereMotionEnabled(enabled: boolean): void {
+    this._patch({ atmosphereMotionEnabled: enabled });
+    this.logger.info('KioskSettings', `atmosphereMotionEnabled: ${enabled}`);
   }
 
   setBgmVolume(volume: number): void {
@@ -506,6 +540,8 @@ export class KioskSettings {
       triquiDifficulty: null,
       triquiFirstPlayer: null,
       triquiPlayerSymbol: null,
+      coverReduceMotion: DEFAULT_SETTINGS.coverReduceMotion,
+      atmosphereMotionEnabled: DEFAULT_SETTINGS.atmosphereMotionEnabled,
       experienceOverrides: {},
     };
   }
@@ -544,6 +580,8 @@ export class KioskSettings {
       screensaverVideoOrder: defaults.screensaverVideoOrder,
       screensaverIdleMs: defaults.screensaverIdleMs,
       videoVolume: defaults.videoVolume,
+      coverReduceMotion: defaults.coverReduceMotion,
+      atmosphereMotionEnabled: defaults.atmosphereMotionEnabled,
     });
     this.logger.info('KioskSettings', 'Ajustes generales restaurados a los valores por defecto.');
   }
@@ -682,6 +720,16 @@ export class KioskSettings {
           ? parsed.experienceOverrides
           : {};
 
+      const coverReduceMotion: boolean =
+        typeof parsed.coverReduceMotion === 'boolean'
+          ? parsed.coverReduceMotion
+          : defaults.coverReduceMotion;
+
+      const atmosphereMotionEnabled: boolean =
+        typeof parsed.atmosphereMotionEnabled === 'boolean'
+          ? parsed.atmosphereMotionEnabled
+          : defaults.atmosphereMotionEnabled;
+
       return {
         screensaverMode,
         screensaverVideoOrder,
@@ -694,6 +742,8 @@ export class KioskSettings {
         triquiDifficulty,
         triquiFirstPlayer,
         triquiPlayerSymbol,
+        coverReduceMotion,
+        atmosphereMotionEnabled,
         experienceOverrides,
       };
     } catch {

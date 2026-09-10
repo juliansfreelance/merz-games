@@ -812,6 +812,46 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 </button>
               </div>
 
+              <!-- Rendimiento visual (Cover Flow + atmósfera) -->
+              <div class="space-y-5 p-5 sm:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl">
+                <div class="flex items-center gap-2.5 pb-2 border-b border-white/10">
+                  <app-hero-icon name="cpu-chip" class="text-xl text-yellow-400" />
+                  <span class="font-extrabold uppercase tracking-wider text-sm kiosk:text-base text-white">Rendimiento visual</span>
+                </div>
+
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="font-bold text-sm text-white">Movimiento reducido (Cover Flow)</p>
+                    <p class="text-xs text-neutral-400 mt-0.5">Desactiva rotación 3D y spring. Útil en pantallas con poca GPU.</p>
+                  </div>
+                  <button
+                    type="button"
+                    uiSfx="click"
+                    class="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border cursor-pointer"
+                    [class]="settings.coverReduceMotion() ? 'bg-yellow-400/20 border-yellow-400/40 text-yellow-300' : 'bg-white/10 border-white/20 text-neutral-400'"
+                    (click)="toggleCoverReduceMotion()"
+                  >
+                    {{ settings.coverReduceMotion() ? 'ON' : 'OFF' }}
+                  </button>
+                </div>
+
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="font-bold text-sm text-white">Atmósfera animada</p>
+                    <p class="text-xs text-neutral-400 mt-0.5">Manchas de color en movimiento. Apagar deja el tinte estático.</p>
+                  </div>
+                  <button
+                    type="button"
+                    uiSfx="click"
+                    class="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border cursor-pointer"
+                    [class]="settings.atmosphereMotionEnabled() ? 'bg-yellow-400/20 border-yellow-400/40 text-yellow-300' : 'bg-white/10 border-white/20 text-neutral-400'"
+                    (click)="toggleAtmosphereMotion()"
+                  >
+                    {{ settings.atmosphereMotionEnabled() ? 'ON' : 'OFF' }}
+                  </button>
+                </div>
+              </div>
+
               <!-- Protector de Pantalla -->
               <div class="space-y-4 p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
                 <div class="flex items-center gap-2 pb-1 border-b border-white/10">
@@ -4065,6 +4105,24 @@ export class AdminPanel {
     const next = !this.settings.soundEnabled();
     this.settings.setSoundEnabled(next);
     this.showToast('Audio General', next ? 'Sonido activado' : 'Audio silenciado');
+  }
+
+  protected toggleCoverReduceMotion(): void {
+    const next = !this.settings.coverReduceMotion();
+    this.settings.setCoverReduceMotion(next);
+    this.showToast(
+      'Cover Flow',
+      next ? 'Movimiento reducido activado' : 'Cover Flow 3D activado',
+    );
+  }
+
+  protected toggleAtmosphereMotion(): void {
+    const next = !this.settings.atmosphereMotionEnabled();
+    this.settings.setAtmosphereMotionEnabled(next);
+    this.showToast(
+      'Atmósfera',
+      next ? 'Animación activada' : 'Atmósfera estática',
+    );
   }
 
   protected onBgmVolumeInput(event: Event): void {

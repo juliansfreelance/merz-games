@@ -491,4 +491,25 @@ describe('KioskSettings', () => {
       expect(settings.triquiPlayerSymbol()).toBe('random');
     });
   });
+
+  describe('rendimiento visual', () => {
+    it('coverReduceMotion y atmosphereMotionEnabled usan defaults actuales', () => {
+      const { settings } = buildSettings();
+      expect(settings.coverReduceMotion()).toBe(false);
+      expect(settings.atmosphereMotionEnabled()).toBe(true);
+    });
+
+    it('persiste coverReduceMotion y atmosphereMotionEnabled', () => {
+      const { settings, store } = buildSettings();
+      settings.setCoverReduceMotion(true);
+      settings.setAtmosphereMotionEnabled(false);
+      expect(settings.coverReduceMotion()).toBe(true);
+      expect(settings.atmosphereMotionEnabled()).toBe(false);
+
+      TestBed.flushEffects();
+      const parsed = JSON.parse(store[SETTINGS_KEY]);
+      expect(parsed.coverReduceMotion).toBe(true);
+      expect(parsed.atmosphereMotionEnabled).toBe(false);
+    });
+  });
 });

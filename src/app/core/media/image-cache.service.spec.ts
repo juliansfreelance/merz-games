@@ -144,4 +144,45 @@ describe('ImageCacheService', () => {
       globalThis.Image = originalImage;
     }
   });
+
+  it('release() elimina una URL concreta', async () => {
+    const originalImage = globalThis.Image;
+    try {
+      class MockImage {
+        src = '';
+        complete = true;
+        naturalWidth = 10;
+        decode = vi.fn().mockResolvedValue(undefined);
+      }
+      globalThis.Image = MockImage as unknown as typeof Image;
+
+      await service.preloadMany(['/content/a.png', '/content/b.png']);
+      service.release('/content/a.png');
+      expect(service.has('/content/a.png')).toBe(false);
+      expect(service.has('/content/b.png')).toBe(true);
+    } finally {
+      globalThis.Image = originalImage;
+    }
+  });
+
+  it('releaseAllExcept() conserva solo las URLs pedidas', async () => {
+    const originalImage = globalThis.Image;
+    try {
+      class MockImage {
+        src = '';
+        complete = true;
+        naturalWidth = 10;
+        decode = vi.fn().mockResolvedValue(undefined);
+      }
+      globalThis.Image = MockImage as unknown as typeof Image;
+
+      await service.preloadMany(['/content/a.png', '/content/b.png', '/content/c.png']);
+      service.releaseAllExcept(['/content/b.png']);
+      expect(service.has('/content/a.png')).toBe(false);
+      expect(service.has('/content/b.png')).toBe(true);
+      expect(service.has('/content/c.png')).toBe(false);
+    } finally {
+      globalThis.Image = originalImage;
+    }
+  });
 });

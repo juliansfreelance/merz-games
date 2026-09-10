@@ -5,6 +5,7 @@ import { filter, map, startWith } from 'rxjs/operators';
 import { PlatformService } from './core/platform/platform.service';
 import { CatalogService } from './core/catalog/catalog';
 import { MediaPlayer } from './core/media/media-player';
+import { KioskSettings } from './core/settings/kiosk-settings';
 import { FloatingGradient } from './features/shared/floating-gradient';
 import { Atmosphere } from './core/catalog/content-manifest.model';
 import { UI_SFX, UiSfx } from './features/shared/ui-sfx';
@@ -34,6 +35,7 @@ export class App {
   private readonly platformService = inject(PlatformService);
   private readonly catalog = inject(CatalogService);
   private readonly mediaPlayer = inject(MediaPlayer);
+  private readonly settings = inject(KioskSettings);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly watchdog = inject(IdleWatchdog);
@@ -42,6 +44,7 @@ export class App {
   protected readonly appVersion = this.platformService.appVersion;
   protected readonly isScreensaverActive = this.watchdog.isActive;
   protected readonly isQuickSettingsOpen = signal<boolean>(false);
+  protected readonly atmosphereMotionEnabled = this.settings.atmosphereMotionEnabled;
 
   private readonly currentUrl = toSignal(
     this.router.events.pipe(

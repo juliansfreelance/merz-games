@@ -45,4 +45,13 @@ describe('FloatingGradient', () => {
     const blobs = hostElement.querySelectorAll('app-atmosphere-blobs');
     expect(blobs.length).toBeGreaterThan(0);
   });
+
+  it('con animated=false no aplica clases de animación float', () => {
+    fixture.componentRef.setInput('animated', false);
+    fixture.detectChanges();
+
+    const hostElement: HTMLElement = fixture.nativeElement;
+    const animated = hostElement.querySelector('.animate-float-1');
+    expect(animated).toBeNull();
+  });
 });

@@ -1,6 +1,6 @@
 {
   "name": "merz-games",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -8,10 +8,11 @@
     "build:pages": "ng build --configuration production --base-href /merz-games/ && node scripts/prepare-pages-dist.mjs",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "format": "prettier --write \"scripts/**/*.{js,mjs}\" \".github/**/*.{yml,yaml}\" \"releases/**/*.md\" \"src/app/core/update/**/*.{ts,html}\" \"src/app/core/catalog/compare-catalogs.spec.ts\" \"src/app/core/catalog/catalog.spec.ts\" \"src/app/features/brands/brand-select.spec.ts\" \"src/app/features/admin/admin-panel.spec.ts\" \"src/app/features/shared/game-chrome.spec.ts\"",
-    "format:check": "prettier --check \"scripts/**/*.{js,mjs}\" \".github/**/*.{yml,yaml}\" \"src/app/core/update/**/*.{ts,html}\" \"src/app/core/catalog/compare-catalogs.spec.ts\" \"src/app/core/catalog/catalog.spec.ts\" \"src/app/features/brands/brand-select.spec.ts\" \"src/app/features/admin/admin-panel.spec.ts\" \"src/app/features/shared/game-chrome.spec.ts\"",
+    "format": "prettier --write \"scripts/**/*.{js,mjs}\" \".github/**/*.{yml,yaml}\" \"releases/**/*.md\" \"src/app/core/update/**/*.{ts,html}\" \"src/app/core/catalog/compare-catalogs.spec.ts\" \"src/app/core/catalog/catalog.spec.ts\" \"src/app/features/brands/brand-select.spec.ts\" \"src/app/features/admin/admin-panel.spec.ts\" \"src/app/features/shared/game-chrome.spec.ts\" \"src/app/core/media/image-cache.service.ts\" \"src/app/core/media/image-cache.service.spec.ts\" \"src/app/core/settings/kiosk-settings.ts\" \"src/app/core/settings/kiosk-settings.spec.ts\"",
+    "format:check": "prettier --check \"scripts/**/*.{js,mjs}\" \".github/**/*.{yml,yaml}\" \"src/app/core/update/**/*.{ts,html}\" \"src/app/core/catalog/compare-catalogs.spec.ts\" \"src/app/core/catalog/catalog.spec.ts\" \"src/app/features/brands/brand-select.spec.ts\" \"src/app/features/admin/admin-panel.spec.ts\" \"src/app/features/shared/game-chrome.spec.ts\" \"src/app/core/media/image-cache.service.ts\" \"src/app/core/media/image-cache.service.spec.ts\" \"src/app/core/settings/kiosk-settings.ts\" \"src/app/core/settings/kiosk-settings.spec.ts\"",
     "lint": "npm run format:check",
     "copy:videos": "node scripts/copy-videos.mjs",
+    "videos:compress": "node scripts/compress-videos.mjs",
     "bump:version": "node scripts/bump-version.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

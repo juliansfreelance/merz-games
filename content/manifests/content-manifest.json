@@ -121,13 +121,8 @@
       "logo": "/content/images/brands/RadiesseLogo.svg",
       "attractionVideos": [
         {
-          "nombre": "Radiesse Promocional 1",
+          "nombre": "Radiesse Promocional",
           "source": "/content/videos/radiesse.mp4",
-          "enabled": true
-        },
-        {
-          "nombre": "Radiesse Promocional 2",
-          "source": "/content/videos/radiesse2.mp4",
           "enabled": true
         }
       ],
@@ -175,13 +170,8 @@
       "logo": "/content/images/brands/UltherapyLogo.svg",
       "attractionVideos": [
         {
-          "nombre": "Ultherapy Promocional 1",
+          "nombre": "Ultherapy Promocional",
           "source": "/content/videos/ultherapy.mp4",
-          "enabled": true
-        },
-        {
-          "nombre": "Ultherapy Promocional 2",
-          "source": "/content/videos/ultherapy2.mp4",
           "enabled": true
         }
       ],

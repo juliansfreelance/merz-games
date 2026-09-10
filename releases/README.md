@@ -31,3 +31,14 @@ cambian en cada build. El workflow `.github/workflows/release.yml` sube
 
 Canal de **contenido** (JSON): ver `CONTENT_MANIFEST_URL` en
 `src/app/core/update/update.constants.ts` (raw de la rama `master`).
+
+## Videos de atracción (Release `content-videos`)
+
+Pack canónico (ligero, 1 clip por marca):
+
+- `general1.mp4`
+- `radiesse.mp4`
+- `ultherapy.mp4`
+
+Local: `npm run videos:compress` (ffmpeg) y/o `npm run copy:videos`.
+CI Release descarga este Release auxiliar antes de `tauri build`.

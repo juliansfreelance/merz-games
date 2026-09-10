@@ -2,6 +2,7 @@ import { Component, computed, effect, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CatalogService } from '../../core/catalog/catalog';
 import { GameExperience } from '../../core/catalog/game-experience.model';
+import { KioskSettings } from '../../core/settings/kiosk-settings';
 import { KioskButton } from '../shared/kiosk-button';
 import { KioskCard } from '../shared/kiosk-card';
 import { CatalogCard } from '../shared/catalog-card';
@@ -71,7 +72,7 @@ import { map } from 'rxjs/operators';
             [enableClickToSnap]="catalog.coverConfig().enableClickToSnap"
             [enableScroll]="catalog.coverConfig().enableScroll"
             [enableAudio]="catalog.coverConfig().enableAudio"
-            [reduceMotion]="catalog.coverConfig().reduceMotion"
+            [reduceMotion]="coverReduceMotion()"
             [scrollThreshold]="catalog.coverConfig().scrollThreshold"
             ariaLabel="Selector de juegos"
           />
@@ -115,7 +116,12 @@ import { map } from 'rxjs/operators';
 export class ExperienceSelect {
   private readonly route = inject(ActivatedRoute);
   protected readonly catalog = inject(CatalogService);
+  private readonly settings = inject(KioskSettings);
   private readonly router = inject(Router);
+
+  protected readonly coverReduceMotion = computed(
+    () => this.settings.coverReduceMotion() || this.catalog.coverConfig().reduceMotion,
+  );
 
   private readonly brandId = toSignal(
     this.route.paramMap.pipe(map((p) => p.get('brandId') ?? '')),

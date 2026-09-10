@@ -86,13 +86,13 @@ describe('Content Catalog Manifest Contract', () => {
   it('debe definir attractionVideos para radiesse y ultherapy pero no para merz', () => {
     const radiesse = manifest.brands.find((b) => b.id === 'radiesse');
     expect(radiesse?.attractionVideos).toBeDefined();
-    expect(radiesse?.attractionVideos?.length).toBe(2);
+    expect(radiesse?.attractionVideos?.length).toBe(1);
     expect(radiesse?.attractionVideos?.[0].source).toBe('/content/videos/radiesse.mp4');
     expect(radiesse?.attractionVideos?.[0].enabled).toBe(true);
 
     const ultherapy = manifest.brands.find((b) => b.id === 'ultherapy');
     expect(ultherapy?.attractionVideos).toBeDefined();
-    expect(ultherapy?.attractionVideos?.length).toBe(2);
+    expect(ultherapy?.attractionVideos?.length).toBe(1);
     expect(ultherapy?.attractionVideos?.[0].source).toBe('/content/videos/ultherapy.mp4');
     expect(ultherapy?.attractionVideos?.[0].enabled).toBe(true);
 
@@ -656,11 +656,11 @@ describe('CatalogService — persistencia', () => {
     });
 
     const radiesse = catalog.brands().find((b) => b.id === 'radiesse');
-    expect(radiesse?.attractionVideos?.length).toBe(2);
+    expect(radiesse?.attractionVideos?.length).toBe(1);
     expect(radiesse?.attractionVideos?.[0].source).toBe('/content/videos/radiesse.mp4');
 
     const ultherapy = catalog.brands().find((b) => b.id === 'ultherapy');
-    expect(ultherapy?.attractionVideos?.length).toBe(2);
+    expect(ultherapy?.attractionVideos?.length).toBe(1);
     expect(ultherapy?.attractionVideos?.[0].source).toBe('/content/videos/ultherapy.mp4');
 
     const general = catalog.rawManifest()?.app?.protector?.attractionVideos;
@@ -926,9 +926,6 @@ describe('UpdateModel', () => {
     const radiesseVideos = catalog.getBrandById('radiesse')?.attractionVideos;
     expect(radiesseVideos?.find((v) => v.source === '/content/videos/radiesse.mp4')?.enabled).toBe(
       false,
-    );
-    expect(radiesseVideos?.find((v) => v.source === '/content/videos/radiesse2.mp4')?.enabled).toBe(
-      true,
     );
 
     // Deshabilitar video general

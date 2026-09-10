@@ -46,16 +46,23 @@ function isSameAtmosphere(a?: Atmosphere | null, b?: Atmosphere | null): boolean
     <!-- Blob 1: Superior izquierdo / halo alto -->
     @if (pair1(); as p1) {
       <div
-        class="absolute -top-[10%] -left-[10%] w-[70%] h-[40%] rounded-full blur-[70px] animate-float-1 pointer-events-none"
+        class="absolute -top-[10%] -left-[10%] w-[70%] h-[40%] rounded-full blur-[70px] pointer-events-none"
+        [class.animate-float-1]="animated()"
       >
-        <div class="absolute inset-0 w-full h-full rounded-full animate-color-primary-1">
+        <div
+          class="absolute inset-0 w-full h-full rounded-full"
+          [class.animate-color-primary-1]="animated()"
+        >
           <div
             class="w-full h-full rounded-full"
             [style.background]="'radial-gradient(circle at 40% 40%, ' + p1.primary.from + ' 0%, ' + p1.primary.to + ' 50%, transparent 75%)'"
             [style.opacity]="p1.primary.opacity"
           ></div>
         </div>
-        <div class="absolute inset-0 w-full h-full rounded-full animate-color-secondary-1">
+        <div
+          class="absolute inset-0 w-full h-full rounded-full"
+          [class.animate-color-secondary-1]="animated()"
+        >
           <div
             class="w-full h-full rounded-full"
             [style.background]="'radial-gradient(circle at 40% 40%, ' + p1.secondary.from + ' 0%, ' + p1.secondary.to + ' 50%, transparent 75%)'"
@@ -68,16 +75,23 @@ function isSameAtmosphere(a?: Atmosphere | null, b?: Atmosphere | null): boolean
     <!-- Blob 2: Superior derecho / medio-alto -->
     @if (pair2(); as p2) {
       <div
-        class="absolute top-[8%] -right-[10%] w-[65%] h-[38%] rounded-full blur-[75px] animate-float-4 pointer-events-none"
+        class="absolute top-[8%] -right-[10%] w-[65%] h-[38%] rounded-full blur-[75px] pointer-events-none"
+        [class.animate-float-4]="animated()"
       >
-        <div class="absolute inset-0 w-full h-full rounded-full animate-color-primary-2">
+        <div
+          class="absolute inset-0 w-full h-full rounded-full"
+          [class.animate-color-primary-2]="animated()"
+        >
           <div
             class="w-full h-full rounded-full"
             [style.background]="'radial-gradient(circle at 50% 50%, ' + p2.primary.from + ' 0%, ' + p2.primary.to + ' 50%, transparent 75%)'"
             [style.opacity]="p2.primary.opacity"
           ></div>
         </div>
-        <div class="absolute inset-0 w-full h-full rounded-full animate-color-secondary-2">
+        <div
+          class="absolute inset-0 w-full h-full rounded-full"
+          [class.animate-color-secondary-2]="animated()"
+        >
           <div
             class="w-full h-full rounded-full"
             [style.background]="'radial-gradient(circle at 50% 50%, ' + p2.secondary.from + ' 0%, ' + p2.secondary.to + ' 50%, transparent 75%)'"
@@ -90,16 +104,23 @@ function isSameAtmosphere(a?: Atmosphere | null, b?: Atmosphere | null): boolean
     <!-- Blob 3: Centro / medio -->
     @if (pair3(); as p3) {
       <div
-        class="absolute top-[32%] left-[10%] w-[65%] h-[38%] rounded-full blur-[75px] animate-float-3 pointer-events-none"
+        class="absolute top-[32%] left-[10%] w-[65%] h-[38%] rounded-full blur-[75px] pointer-events-none"
+        [class.animate-float-3]="animated()"
       >
-        <div class="absolute inset-0 w-full h-full rounded-full animate-color-primary-3">
+        <div
+          class="absolute inset-0 w-full h-full rounded-full"
+          [class.animate-color-primary-3]="animated()"
+        >
           <div
             class="w-full h-full rounded-full"
             [style.background]="'radial-gradient(circle at 45% 45%, ' + p3.primary.from + ' 0%, ' + p3.primary.to + ' 50%, transparent 75%)'"
             [style.opacity]="p3.primary.opacity"
           ></div>
         </div>
-        <div class="absolute inset-0 w-full h-full rounded-full animate-color-secondary-3">
+        <div
+          class="absolute inset-0 w-full h-full rounded-full"
+          [class.animate-color-secondary-3]="animated()"
+        >
           <div
             class="w-full h-full rounded-full"
             [style.background]="'radial-gradient(circle at 45% 45%, ' + p3.secondary.from + ' 0%, ' + p3.secondary.to + ' 50%, transparent 75%)'"
@@ -112,16 +133,23 @@ function isSameAtmosphere(a?: Atmosphere | null, b?: Atmosphere | null): boolean
     <!-- Blob 4: Medio-bajo derecho -->
     @if (pair4(); as p4) {
       <div
-        class="absolute top-[54%] -right-[5%] w-[68%] h-[38%] rounded-full blur-[75px] animate-float-2 pointer-events-none"
+        class="absolute top-[54%] -right-[5%] w-[68%] h-[38%] rounded-full blur-[75px] pointer-events-none"
+        [class.animate-float-2]="animated()"
       >
-        <div class="absolute inset-0 w-full h-full rounded-full animate-color-primary-4">
+        <div
+          class="absolute inset-0 w-full h-full rounded-full"
+          [class.animate-color-primary-4]="animated()"
+        >
           <div
             class="w-full h-full rounded-full"
             [style.background]="'radial-gradient(circle at 50% 50%, ' + p4.primary.from + ' 0%, ' + p4.primary.to + ' 55%, transparent 75%)'"
             [style.opacity]="p4.primary.opacity"
           ></div>
         </div>
-        <div class="absolute inset-0 w-full h-full rounded-full animate-color-secondary-4">
+        <div
+          class="absolute inset-0 w-full h-full rounded-full"
+          [class.animate-color-secondary-4]="animated()"
+        >
           <div
             class="w-full h-full rounded-full"
             [style.background]="'radial-gradient(circle at 50% 50%, ' + p4.secondary.from + ' 0%, ' + p4.secondary.to + ' 55%, transparent 75%)'"
@@ -134,16 +162,23 @@ function isSameAtmosphere(a?: Atmosphere | null, b?: Atmosphere | null): boolean
     <!-- Blob 5: Base inferior izquierda -->
     @if (pair5(); as p5) {
       <div
-        class="absolute -bottom-[8%] -left-[8%] w-[70%] h-[40%] rounded-full blur-[70px] animate-float-5 pointer-events-none"
+        class="absolute -bottom-[8%] -left-[8%] w-[70%] h-[40%] rounded-full blur-[70px] pointer-events-none"
+        [class.animate-float-5]="animated()"
       >
-        <div class="absolute inset-0 w-full h-full rounded-full animate-color-primary-5">
+        <div
+          class="absolute inset-0 w-full h-full rounded-full"
+          [class.animate-color-primary-5]="animated()"
+        >
           <div
             class="w-full h-full rounded-full"
             [style.background]="'radial-gradient(circle at 45% 45%, ' + p5.primary.from + ' 0%, ' + p5.primary.to + ' 50%, transparent 75%)'"
             [style.opacity]="p5.primary.opacity"
           ></div>
         </div>
-        <div class="absolute inset-0 w-full h-full rounded-full animate-color-secondary-5">
+        <div
+          class="absolute inset-0 w-full h-full rounded-full"
+          [class.animate-color-secondary-5]="animated()"
+        >
           <div
             class="w-full h-full rounded-full"
             [style.background]="'radial-gradient(circle at 45% 45%, ' + p5.secondary.from + ' 0%, ' + p5.secondary.to + ' 50%, transparent 75%)'"
@@ -156,6 +191,7 @@ function isSameAtmosphere(a?: Atmosphere | null, b?: Atmosphere | null): boolean
 })
 export class AtmosphereBlobs {
   readonly atmosphere = input<Atmosphere>(DEFAULT_ATMOSPHERE);
+  readonly animated = input(true);
 
   private getPair(idx: number): BlobPair {
     const list = this.atmosphere()?.blobs?.length
@@ -203,7 +239,7 @@ export class AtmosphereBlobs {
           [class.opacity-100]="activeSlot() === 'A'"
           [class.opacity-0]="activeSlot() !== 'A'"
         >
-          <app-atmosphere-blobs [atmosphere]="la" />
+          <app-atmosphere-blobs [atmosphere]="la" [animated]="animated()" />
         </div>
       }
 
@@ -214,7 +250,7 @@ export class AtmosphereBlobs {
           [class.opacity-100]="activeSlot() === 'B'"
           [class.opacity-0]="activeSlot() !== 'B'"
         >
-          <app-atmosphere-blobs [atmosphere]="lb" />
+          <app-atmosphere-blobs [atmosphere]="lb" [animated]="animated()" />
         </div>
       }
 
@@ -225,6 +261,8 @@ export class AtmosphereBlobs {
 })
 export class FloatingGradient {
   readonly atmosphere = input<Atmosphere>(DEFAULT_ATMOSPHERE);
+  /** Si false, blobs estáticos (sin CSS float/color pulse). Default true. */
+  readonly animated = input(true);
 
   protected readonly baseColor = computed(
     () => this.atmosphere()?.baseColor ?? DEFAULT_ATMOSPHERE.baseColor,

@@ -9,7 +9,7 @@ import { Router } from '@angular/router';
 import { CatalogService } from '../../core/catalog/catalog';
 import { AppInitService } from '../../core/lifecycle/app-init.service';
 import { MediaPlayer } from '../../core/media/media-player';
-import { ImageCacheService } from '../../core/media/image-cache.service';
+import { ImageCacheService, IMAGE_CACHE_CRITICAL_URLS } from '../../core/media/image-cache.service';
 import { playUiSfx, UI_SFX } from '../shared/ui-sfx';
 import { AssetSrc } from '../../core/platform/asset-src';
 
@@ -208,11 +208,20 @@ export class Splash implements OnInit {
       this.progress.set(100);
       this.statusMessage.set('¡Listo!');
       this.isComplete.set(true);
+      this.trimImageCacheAfterSplash();
 
       this.scheduleTimeout(() => {
         this.advance();
       }, 400);
     }, remainingTime);
+  }
+
+  /** Tras precargar todo, libera bitmaps que no son chrome crítico ni logos de marcas. */
+  private trimImageCacheAfterSplash(): void {
+    const brandUrls = this.catalog.brands().flatMap((b) =>
+      [b.logo, b.image].filter((u): u is string => !!u),
+    );
+    this.imageCache.releaseAllExcept([...IMAGE_CACHE_CRITICAL_URLS, ...brandUrls]);
   }
 
   private async preloadFonts(): Promise<void> {

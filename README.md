@@ -27,7 +27,7 @@ Kiosco interactivo táctil para consultorios (**9:16** / diseño base **1080×19
 3. **WebView2** (Windows 10/11)
 4. Node con `packageManager: npm@12.0.2`
 
-Videos de atracción: masters en `resources/videos/` (gitignored). Antes del build: `npm run copy:videos`.
+Videos de atracción: masters en `resources/videos/` (gitignored). Comprimir con `npm run videos:compress` (ffmpeg); antes del build: `npm run copy:videos`. Pack CI: Release `content-videos` (3 MP4 ligeros).
 
 ---
 
@@ -38,6 +38,7 @@ npm start              # http://localhost:4200/
 npm test               # Vitest
 npm run build          # dist/merz-games/browser
 npm run format:check   # Prettier (ámbitos de release)
+npm run videos:compress # masters → public/content/videos/ (ffmpeg)
 npm run copy:videos    # MP4 → public/content/videos/
 npm run bump:version -- 0.1.1   # package.json + tauri.conf + Cargo.toml
 npm run tauri:dev      # ventana 1080×1920 + ng serve

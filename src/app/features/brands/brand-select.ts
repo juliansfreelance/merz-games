@@ -1,7 +1,9 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { CatalogService } from '../../core/catalog/catalog';
 import { Brand } from '../../core/catalog/brand.model';
+import { KioskSettings } from '../../core/settings/kiosk-settings';
+import { ImageCacheService, IMAGE_CACHE_CRITICAL_URLS } from '../../core/media/image-cache.service';
 import { KioskButton } from '../shared/kiosk-button';
 import { KioskCard } from '../shared/kiosk-card';
 import { CatalogCard } from '../shared/catalog-card';
@@ -66,7 +68,7 @@ import { HeroIcon } from '../shared/hero-icon';
             [enableClickToSnap]="catalog.coverConfig().enableClickToSnap"
             [enableScroll]="catalog.coverConfig().enableScroll"
             [enableAudio]="catalog.coverConfig().enableAudio"
-            [reduceMotion]="catalog.coverConfig().reduceMotion"
+            [reduceMotion]="coverReduceMotion()"
             [scrollThreshold]="catalog.coverConfig().scrollThreshold"
             ariaLabel="Selector de marcas"
           />
@@ -103,7 +105,14 @@ import { HeroIcon } from '../shared/hero-icon';
 })
 export class BrandSelect {
   protected readonly catalog = inject(CatalogService);
+  private readonly settings = inject(KioskSettings);
+  private readonly imageCache = inject(ImageCacheService);
   private readonly router = inject(Router);
+
+  /** Panel gana sobre el manifest: reduceMotion ON si cualquiera lo pide. */
+  protected readonly coverReduceMotion = computed(
+    () => this.settings.coverReduceMotion() || this.catalog.coverConfig().reduceMotion,
+  );
 
   constructor() {
     this.catalog.clearSelectedBrand();
@@ -115,10 +124,36 @@ export class BrandSelect {
 
   selectBrand(brandId: string): void {
     this.catalog.setSelectedBrand(brandId);
+    void this.warmBrandCache(brandId);
     this.router.navigate(['/brands', brandId, 'games']);
   }
 
   goBack(): void {
     this.router.navigate(['/welcome']);
+  }
+
+  private async warmBrandCache(brandId: string): Promise<void> {
+    const brand = this.catalog.getBrandById(brandId);
+    const brandUrls = [brand?.logo, brand?.image].filter((u): u is string => !!u);
+    const expUrls = this.catalog.experiencesForBrand(brandId).flatMap((exp) => {
+      const urls: string[] = [];
+      if (exp.image) urls.push(exp.image);
+      if (exp.theme?.backgroundImage) urls.push(exp.theme.backgroundImage);
+      if (exp.assets) {
+        for (const value of Object.values(exp.assets)) {
+          if (typeof value === 'string' && value) urls.push(value);
+          if (Array.isArray(value)) urls.push(...value.filter(Boolean));
+        }
+      }
+      return urls;
+    });
+    const keep = [
+      ...IMAGE_CACHE_CRITICAL_URLS,
+      ...this.catalog.brands().flatMap((b) => [b.logo, b.image].filter((u): u is string => !!u)),
+      ...brandUrls,
+      ...expUrls,
+    ];
+    await this.imageCache.preloadMany([...brandUrls, ...expUrls]);
+    this.imageCache.releaseAllExcept(keep);
   }
 }
