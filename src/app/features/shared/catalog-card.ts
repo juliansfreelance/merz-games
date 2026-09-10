@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { MediaPlayer } from '../../core/media/media-player';
 import { playUiSfx } from './ui-sfx';
 import { HeroIcon } from './hero-icon';
+import { AssetSrc } from '../../core/platform/asset-src';
 
 /**
  * CatalogCard — Tarjeta interactiva de marca o experiencia para el catálogo.
@@ -12,7 +13,7 @@ import { HeroIcon } from './hero-icon';
  */
 @Component({
   selector: 'app-catalog-card',
-  imports: [CommonModule, HeroIcon],
+  imports: [CommonModule, HeroIcon, AssetSrc],
   host: {
     class: 'block w-full h-full',
   },

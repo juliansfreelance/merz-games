@@ -1,5 +1,6 @@
 import { effect, inject, Injectable } from '@angular/core';
 import { AppLogger } from '../logging/app-error';
+import { assetUrl } from '../platform/asset-url';
 import { KioskSettings } from '../settings/kiosk-settings';
 
 export interface PlayOptions {
@@ -171,8 +172,8 @@ export class MediaPlayer {
 
     if (this._bgmElement) {
       this._bgmElement.volume = this._bgmVolume;
-      if (this._bgmElement.src !== this._resolveUrl(url)) {
-        this._bgmElement.src = url;
+      if (this._bgmElement.src !== assetUrl(url)) {
+        this._bgmElement.src = assetUrl(url);
         this._bgmElement.load();
       }
     }
@@ -236,7 +237,7 @@ export class MediaPlayer {
     if (!this.settings.soundEnabled()) return;
 
     const element = this._acquireSfxVoice();
-    element.src = url;
+    element.src = assetUrl(url);
     const sfxScale = this.settings.sfxVolume ? this.settings.sfxVolume() : 1;
     element.volume = Math.max(0, Math.min(1, volume * sfxScale));
     element.currentTime = 0;
@@ -262,7 +263,7 @@ export class MediaPlayer {
     if (!this._bgmElement) {
       this._bgmElement = document.createElement('audio');
       this._bgmElement.loop = true;
-      this._bgmElement.src = this._bgmUrl;
+      this._bgmElement.src = assetUrl(this._bgmUrl);
     }
 
     this._bgmElement.volume = this._bgmVolume;
@@ -314,15 +315,7 @@ export class MediaPlayer {
     const el: HTMLAudioElement | HTMLVideoElement = isVideo
       ? document.createElement('video')
       : document.createElement('audio');
-    el.src = url;
+    el.src = assetUrl(url);
     return el;
-  }
-
-  private _resolveUrl(url: string): string {
-    try {
-      return new URL(url, location.href).href;
-    } catch {
-      return url;
-    }
   }
 }

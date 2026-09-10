@@ -1,6 +1,7 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CatalogService } from '../../core/catalog/catalog';
+import { AssetSrc } from '../../core/platform/asset-src';
 
 /**
  * KioskDisclaimer — Sticky Footer unificado para todas las pantallas del kiosco.
@@ -15,7 +16,7 @@ import { CatalogService } from '../../core/catalog/catalog';
  */
 @Component({
   selector: 'app-kiosk-disclaimer',
-  imports: [CommonModule],
+  imports: [CommonModule, AssetSrc],
   host: {
     class: 'block w-full mt-auto shrink-0',
   },

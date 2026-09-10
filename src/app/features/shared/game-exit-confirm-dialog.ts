@@ -11,6 +11,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { KioskButton } from './kiosk-button';
 import { HeroIcon } from './hero-icon';
+import { AssetSrc } from '../../core/platform/asset-src';
 
 /**
  * GameExitConfirmDialog — Diálogo modal táctil de confirmación para abandonar la partida
@@ -26,7 +27,7 @@ import { HeroIcon } from './hero-icon';
  */
 @Component({
   selector: 'app-game-exit-confirm-dialog',
-  imports: [CommonModule, KioskButton, HeroIcon],
+  imports: [CommonModule, KioskButton, HeroIcon, AssetSrc],
   template: `
     <div
       class="result-overlay result-overlay-enter fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto"

@@ -34,7 +34,7 @@ describe('CatalogCard', () => {
   it('debe incluir la capa falsa de backdrop con textura', () => {
     const host: HTMLElement = fixture.nativeElement;
     const texture = host.querySelector(
-      'img[src="/content/images/texture.jpg"][aria-hidden="true"]',
+      'img[src$="/content/images/texture.jpg"][aria-hidden="true"]',
     ) as HTMLImageElement | null;
     expect(texture).toBeTruthy();
   });

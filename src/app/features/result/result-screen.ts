@@ -16,6 +16,7 @@ import { GameSession } from '../../core/session/game-session';
 import { KioskButton } from '../shared/kiosk-button';
 import { HeroIcon } from '../shared/hero-icon';
 import { MediaPlayer } from '../../core/media/media-player';
+import { AssetSrc } from '../../core/platform/asset-src';
 import { ExperienceResultText } from '../../core/catalog/game-experience.model';
 
 const RESULT_SFX: Record<PlayResult, string> = {
@@ -64,7 +65,7 @@ const FIREWORKS_DURATION_MS = 15_000;
  */
 @Component({
   selector: 'app-result-screen',
-  imports: [KioskButton, HeroIcon],
+  imports: [KioskButton, HeroIcon, AssetSrc],
   template: `
     <div
       class="result-overlay result-overlay-enter fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto"

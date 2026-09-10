@@ -17,6 +17,7 @@ import {
   getNextPlaylistItem,
   ScreensaverPlaylistItem,
 } from '../../core/kiosk/screensaver-playlist';
+import { AssetSrc } from '../../core/platform/asset-src';
 
 /** Tiempo mínimo de animación clásica entre videos en modo video (mínimo 20 s). */
 export const CLASSIC_DWELL_MS = 20_000;
@@ -37,6 +38,7 @@ export const CLASSIC_DWELL_MS = 20_000;
 @Component({
   selector: 'app-screensaver',
   standalone: true,
+  imports: [AssetSrc],
   templateUrl: './screensaver.html',
   styleUrl: './screensaver.css',
   host: {

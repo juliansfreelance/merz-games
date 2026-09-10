@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { assetUrl } from '../platform/asset-url';
 
 /**
  * Servicio centralizado de caché de imágenes en memoria.
@@ -72,7 +73,7 @@ export class ImageCacheService {
         resolve();
       };
 
-      img.src = url;
+      img.src = assetUrl(url);
 
       if (img.complete) {
         finish();

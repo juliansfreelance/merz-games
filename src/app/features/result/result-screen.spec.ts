@@ -83,9 +83,9 @@ describe('ResultScreen overlay', () => {
     expect(dialog.classList).toContain('inset-0');
     expect(dialog.getAttribute('aria-modal')).toBe('true');
     expect(fixture.nativeElement.textContent).toContain('¡GANASTE!');
-    const logoImg = fixture.nativeElement.querySelector('img[src="/content/images/MerzAestheticsLogo.svg"]');
+    const logoImg = fixture.nativeElement.querySelector('img[src$="/content/images/MerzAestheticsLogo.svg"]');
     expect(logoImg).toBeTruthy();
-    const resultImg = fixture.nativeElement.querySelector('img[src="/content/images/experiences/result/win.png"]');
+    const resultImg = fixture.nativeElement.querySelector('img[src$="/content/images/experiences/result/win.png"]');
     expect(resultImg).toBeTruthy();
     expect(fixture.nativeElement.textContent).not.toContain('Beta');
   });

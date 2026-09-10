@@ -3,13 +3,14 @@ import { Router } from '@angular/router';
 import { CatalogService } from '../../core/catalog/catalog';
 import { KioskButton } from '../shared/kiosk-button';
 import { KioskDisclaimer } from '../shared/kiosk-disclaimer';
+import { AssetSrc } from '../../core/platform/asset-src';
 
 /**
  * Pantalla de bienvenida con breakpoint responsivo para 1080x1920 (kiosco 55").
  */
 @Component({
   selector: 'app-welcome',
-  imports: [KioskButton, KioskDisclaimer],
+  imports: [KioskButton, KioskDisclaimer, AssetSrc],
   host: {
     class: 'flex flex-col flex-1 w-full h-full min-h-0 overflow-y-auto overscroll-contain',
     style: 'touch-action: pan-y; -webkit-overflow-scrolling: touch;',

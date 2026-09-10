@@ -21,6 +21,7 @@ import { CatalogDiffItem } from '../../core/catalog/compare-catalogs';
 import { UpdateStatus } from '../../core/catalog/update.model';
 import { KioskSettings, ScreensaverMode, ScreensaverVideoOrder } from '../../core/settings/kiosk-settings';
 import { PlatformService } from '../../core/platform/platform.service';
+import { AssetSrc } from '../../core/platform/asset-src';
 import { UpdateCoordinator } from '../../core/update/update-coordinator';
 import { Difficulty, FirstPlayer, Mark, PlayerSymbolChoice } from '../../core/games/triqui/triqui.model';
 import {
@@ -182,6 +183,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
     CdkDragHandle,
     CdkDragPlaceholder,
     CdkDragPreview,
+    AssetSrc,
   ],
   host: {
     class: 'flex flex-col w-full h-full min-h-0 overflow-hidden select-none',

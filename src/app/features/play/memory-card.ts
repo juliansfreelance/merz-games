@@ -5,6 +5,7 @@ import {
   output,
 } from '@angular/core';
 import { MemoryCardState } from '../../core/games/memory/memory.model';
+import { AssetSrc } from '../../core/platform/asset-src';
 
 /** Duración del volteo 3D. El pulso de acierto y el SFX de fallo esperan este tiempo. */
 export const CARD_FLIP_DURATION_MS = 350;
@@ -22,6 +23,7 @@ export const MATCH_PULSE_DELAY_MS = CARD_FLIP_DURATION_MS;
  */
 @Component({
   selector: 'app-memory-card',
+  imports: [AssetSrc],
   host: {
     class: 'block',
     style: 'touch-action: manipulation;',

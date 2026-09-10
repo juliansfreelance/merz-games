@@ -119,7 +119,7 @@ describe('Screensaver Component', () => {
 
       const el = fixture.nativeElement as HTMLElement;
       const img = el.querySelector('img');
-      expect(img?.getAttribute('src')).toBe('/content/images/MerzAestheticsLogo.svg');
+      expect(img?.getAttribute('src')).toMatch(/\/content\/images\/MerzAestheticsLogo\.svg$/);
       expect(el.textContent).toContain('HOY TU PIEL');
       expect(el.textContent).toContain('TAMBIÉN GANA');
     });

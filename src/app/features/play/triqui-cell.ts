@@ -5,6 +5,7 @@ import {
   output,
 } from '@angular/core';
 import { CellIndex, Mark } from '../../core/games/triqui/triqui.model';
+import { AssetSrc } from '../../core/platform/asset-src';
 
 /**
  * Celda individual táctil del tablero 3×3 de Triqui.
@@ -16,6 +17,7 @@ import { CellIndex, Mark } from '../../core/games/triqui/triqui.model';
  */
 @Component({
   selector: 'app-triqui-cell',
+  imports: [AssetSrc],
   host: {
     class: 'relative flex items-center justify-center aspect-square w-full h-full select-none',
   },

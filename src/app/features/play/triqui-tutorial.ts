@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { HeroIcon } from '../shared/hero-icon';
 import { UiSfx } from '../shared/ui-sfx';
+import { AssetSrc } from '../../core/platform/asset-src';
 import { Mark } from '../../core/games/triqui/triqui.model';
 
 /** Espera para que el tablero se vea antes del tutorial automático. */
@@ -28,7 +29,7 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
  */
 @Component({
   selector: 'app-triqui-tutorial',
-  imports: [HeroIcon, UiSfx],
+  imports: [HeroIcon, UiSfx, AssetSrc],
   template: `
     @if (visible()) {
       <div

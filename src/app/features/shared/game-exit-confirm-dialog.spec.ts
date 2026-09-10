@@ -88,7 +88,7 @@ describe('GameExitConfirmDialog Component', () => {
   });
 
   it('renderiza la imagen warning.png con el estilo de pantalla de resultado y sin botón superior derecho', () => {
-    const img = fixture.nativeElement.querySelector('img[src="/content/images/experiences/result/warning.png"]');
+    const img = fixture.nativeElement.querySelector('img[src$="/content/images/experiences/result/warning.png"]');
     expect(img).toBeTruthy();
     expect(img.classList).toContain('object-contain');
 

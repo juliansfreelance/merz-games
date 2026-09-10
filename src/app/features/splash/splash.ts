@@ -11,6 +11,7 @@ import { AppInitService } from '../../core/lifecycle/app-init.service';
 import { MediaPlayer } from '../../core/media/media-player';
 import { ImageCacheService } from '../../core/media/image-cache.service';
 import { playUiSfx, UI_SFX } from '../shared/ui-sfx';
+import { AssetSrc } from '../../core/platform/asset-src';
 
 /** Logos institucionales y recursos globales que no viven en el manifest. */
 const CORE_IMAGE_URLS = [
@@ -44,6 +45,7 @@ const MIN_SPLASH_MS = 1_200;
  */
 @Component({
   selector: 'app-splash',
+  imports: [AssetSrc],
   host: {
     class: 'block w-full h-full min-h-0 flex-1 flex flex-col overflow-hidden',
   },

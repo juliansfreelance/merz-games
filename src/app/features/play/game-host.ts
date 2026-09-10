@@ -22,6 +22,7 @@ import { UnavailableScreen } from '../shared/unavailable-screen';
 import { GameChrome } from '../shared/game-chrome';
 import { ResultScreen } from '../result/result-screen';
 import { GameExitConfirmDialog } from '../shared/game-exit-confirm-dialog';
+import { AssetSrc } from '../../core/platform/asset-src';
 import { MemoryPlay } from './memory-play';
 import { TriquiPlay } from './triqui-play';
 
@@ -46,7 +47,7 @@ const GAME_COMPONENT_BY_ID: Readonly<Record<string, Type<unknown>>> = {
  */
 @Component({
   selector: 'app-game-host',
-  imports: [NgComponentOutlet, UnavailableScreen, GameChrome, ResultScreen, GameExitConfirmDialog],
+  imports: [NgComponentOutlet, UnavailableScreen, GameChrome, ResultScreen, GameExitConfirmDialog, AssetSrc],
   host: {
     class: 'flex flex-col flex-1 w-full h-full min-h-0 overflow-y-auto',
     style: 'touch-action: pan-y; -webkit-overflow-scrolling: touch;',
