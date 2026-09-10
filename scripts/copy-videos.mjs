@@ -77,5 +77,7 @@ if (missing.length) {
     process.exit(1);
   }
   console.warn(msg);
-  console.warn('[copy-videos] modo no estricto: el instalador puede caer a protector clásico si faltan clips.');
+  console.warn(
+    '[copy-videos] modo no estricto: el instalador puede caer a protector clásico si faltan clips.',
+  );
 }

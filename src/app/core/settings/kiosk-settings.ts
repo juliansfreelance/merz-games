@@ -16,9 +16,9 @@ export type ScreensaverVideoOrder = 'sequential' | 'random';
 
 /** Valores y límites de inactividad para el protector (en milisegundos). */
 export const SCREENSAVER_IDLE_DEFAULT_MS = 180_000; // 3 minutos
-export const SCREENSAVER_IDLE_MIN_MS = 30_000;      // 30 segundos
-export const SCREENSAVER_IDLE_MAX_MS = 900_000;     // 15 minutos
-export const SCREENSAVER_IDLE_STEP_MS = 30_000;    // 30 segundos
+export const SCREENSAVER_IDLE_MIN_MS = 30_000; // 30 segundos
+export const SCREENSAVER_IDLE_MAX_MS = 900_000; // 15 minutos
+export const SCREENSAVER_IDLE_STEP_MS = 30_000; // 30 segundos
 
 /** Volumen por defecto para los clips de video. */
 export const DEFAULT_VIDEO_VOLUME = 0.5;
@@ -187,9 +187,7 @@ export class KioskSettings {
   );
 
   /** Volumen de los clips de video del protector (0 a 1). */
-  readonly videoVolume = computed(
-    () => this._data().videoVolume ?? DEFAULT_SETTINGS.videoVolume,
-  );
+  readonly videoVolume = computed(() => this._data().videoVolume ?? DEFAULT_SETTINGS.videoVolume);
 
   // ─── Overrides volátiles por sesión (solo memoria, no se persisten) ─────────
   private readonly _sessionSoundEnabled = signal<boolean | null>(null);
@@ -198,14 +196,20 @@ export class KioskSettings {
 
   /** Valores configurados/persistidos en storage (panel de control / manifest). */
   readonly persistentSoundEnabled = computed(() => this._data().soundEnabled);
-  readonly persistentBgmVolume = computed(() => this._data().bgmVolume ?? DEFAULT_SETTINGS.bgmVolume);
-  readonly persistentSfxVolume = computed(() => this._data().sfxVolume ?? DEFAULT_SETTINGS.sfxVolume);
+  readonly persistentBgmVolume = computed(
+    () => this._data().bgmVolume ?? DEFAULT_SETTINGS.bgmVolume,
+  );
+  readonly persistentSfxVolume = computed(
+    () => this._data().sfxVolume ?? DEFAULT_SETTINGS.sfxVolume,
+  );
 
   /**
    * Audio habilitado/deshabilitado a nivel efectivo de sesión.
    * Si existe un ajuste temporal de sesión, lo prioriza; si no, toma el configurado.
    */
-  readonly soundEnabled = computed(() => this._sessionSoundEnabled() ?? this.persistentSoundEnabled());
+  readonly soundEnabled = computed(
+    () => this._sessionSoundEnabled() ?? this.persistentSoundEnabled(),
+  );
 
   /** Volumen de música de fondo efectivo de la sesión (0 a 1). */
   readonly bgmVolume = computed(() => this._sessionBgmVolume() ?? this.persistentBgmVolume());
@@ -297,7 +301,10 @@ export class KioskSettings {
   setSoundEnabled(enabled: boolean): void {
     this._sessionSoundEnabled.set(null);
     this._patch({ soundEnabled: enabled });
-    this.logger.info('KioskSettings', `Sonido persistente ${enabled ? 'activado' : 'desactivado'}.`);
+    this.logger.info(
+      'KioskSettings',
+      `Sonido persistente ${enabled ? 'activado' : 'desactivado'}.`,
+    );
   }
 
   setCoverReduceMotion(enabled: boolean): void {
@@ -360,7 +367,10 @@ export class KioskSettings {
     this._sessionSoundEnabled.set(null);
     this._sessionBgmVolume.set(null);
     this._sessionSfxVolume.set(null);
-    this.logger.info('KioskSettings', 'Ajustes de audio de sesión restablecidos a los valores del sistema.');
+    this.logger.info(
+      'KioskSettings',
+      'Ajustes de audio de sesión restablecidos a los valores del sistema.',
+    );
   }
 
   /**
@@ -404,13 +414,23 @@ export class KioskSettings {
     const overrides = this._data().experienceOverrides;
     const exp = overrides?.[experienceId];
     if (!exp) return null;
-    if (exp.memoryPairs === undefined && exp.memoryLives === undefined && exp.memoryDifficulty === undefined) {
+    if (
+      exp.memoryPairs === undefined &&
+      exp.memoryLives === undefined &&
+      exp.memoryDifficulty === undefined
+    ) {
       return null;
     }
     const result: MemoryConfigOverride = {
-      ...(exp.memoryPairs !== undefined && exp.memoryPairs !== null ? { pairs: exp.memoryPairs } : {}),
-      ...(exp.memoryLives !== undefined && exp.memoryLives !== null ? { lives: exp.memoryLives } : {}),
-      ...(exp.memoryDifficulty !== undefined && exp.memoryDifficulty !== null ? { difficulty: exp.memoryDifficulty } : {}),
+      ...(exp.memoryPairs !== undefined && exp.memoryPairs !== null
+        ? { pairs: exp.memoryPairs }
+        : {}),
+      ...(exp.memoryLives !== undefined && exp.memoryLives !== null
+        ? { lives: exp.memoryLives }
+        : {}),
+      ...(exp.memoryDifficulty !== undefined && exp.memoryDifficulty !== null
+        ? { difficulty: exp.memoryDifficulty }
+        : {}),
     };
     return Object.keys(result).length > 0 ? result : null;
   }
@@ -463,7 +483,10 @@ export class KioskSettings {
       },
     };
     this._patch({ experienceOverrides: updatedOverrides });
-    this.logger.info('KioskSettings', `Exp "${experienceId}" memoryPairs override: ${pairs ?? 'default'}`);
+    this.logger.info(
+      'KioskSettings',
+      `Exp "${experienceId}" memoryPairs override: ${pairs ?? 'default'}`,
+    );
   }
 
   /**
@@ -490,7 +513,10 @@ export class KioskSettings {
       },
     };
     this._patch({ experienceOverrides: updatedOverrides });
-    this.logger.info('KioskSettings', `Exp "${experienceId}" triquiDifficulty override: ${diff ?? 'default'}`);
+    this.logger.info(
+      'KioskSettings',
+      `Exp "${experienceId}" triquiDifficulty override: ${diff ?? 'default'}`,
+    );
   }
 
   /**
@@ -517,7 +543,10 @@ export class KioskSettings {
       },
     };
     this._patch({ experienceOverrides: updatedOverrides });
-    this.logger.info('KioskSettings', `Exp "${experienceId}" triquiFirstPlayer override: ${player ?? 'default'}`);
+    this.logger.info(
+      'KioskSettings',
+      `Exp "${experienceId}" triquiFirstPlayer override: ${player ?? 'default'}`,
+    );
   }
 
   /**
@@ -544,14 +573,18 @@ export class KioskSettings {
       },
     };
     this._patch({ experienceOverrides: updatedOverrides });
-    this.logger.info('KioskSettings', `Exp "${experienceId}" triquiPlayerSymbol override: ${symbol ?? 'default'}`);
+    this.logger.info(
+      'KioskSettings',
+      `Exp "${experienceId}" triquiPlayerSymbol override: ${symbol ?? 'default'}`,
+    );
   }
 
   /**
    * Obtiene los valores por defecto iniciales de los ajustes basados en la sección app del manifest activo.
    */
   getManifestDefaultSettings(): KioskSettingsData {
-    const manifest = typeof this.catalog?.rawManifest === 'function' ? this.catalog.rawManifest() : undefined;
+    const manifest =
+      typeof this.catalog?.rawManifest === 'function' ? this.catalog.rawManifest() : undefined;
     const appAudio = manifest?.app?.audio;
     const appProtector = manifest?.app?.protector;
 
@@ -593,7 +626,10 @@ export class KioskSettings {
       screensaverIdleMs: defaults.screensaverIdleMs,
       videoVolume: defaults.videoVolume,
     });
-    this.logger.info('KioskSettings', 'Ajustes del protector restaurados a los valores por defecto.');
+    this.logger.info(
+      'KioskSettings',
+      'Ajustes del protector restaurados a los valores por defecto.',
+    );
   }
 
   /** Restablece los ajustes generales (audio y protector) a sus valores por defecto. */
@@ -656,7 +692,10 @@ export class KioskSettings {
     } catch {
       this.logger.warn('KioskSettings', 'No se pudo persistir los ajustes tras restaurar.');
     }
-    this.logger.info('KioskSettings', 'Ajustes de kiosco restaurados a los valores por defecto del manifest.');
+    this.logger.info(
+      'KioskSettings',
+      'Ajustes de kiosco restaurados a los valores por defecto del manifest.',
+    );
   }
 
   // ─── Interno ─────────────────────────────────────────────────────────────────
@@ -673,7 +712,11 @@ export class KioskSettings {
     try {
       const parsed = JSON.parse(raw) as Partial<KioskSettingsData>;
       return {
-        screensaverMode: pick(parsed.screensaverMode, ['classic', 'video'] as const, defaults.screensaverMode),
+        screensaverMode: pick(
+          parsed.screensaverMode,
+          ['classic', 'video'] as const,
+          defaults.screensaverMode,
+        ),
         screensaverVideoOrder: pick(
           parsed.screensaverVideoOrder,
           ['random', 'sequential'] as const,

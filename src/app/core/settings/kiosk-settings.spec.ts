@@ -11,15 +11,13 @@ function buildSettings(initialStorage: Record<string, string> = {}) {
   const mockPlatform = {
     appVersion: signal('0.1.0'),
     storageGet: (key: string) => store[key] ?? null,
-    storageSet: (key: string, value: string) => { store[key] = value; },
+    storageSet: (key: string, value: string) => {
+      store[key] = value;
+    },
   };
 
   TestBed.configureTestingModule({
-    providers: [
-      KioskSettings,
-      AppLogger,
-      { provide: PlatformService, useValue: mockPlatform },
-    ],
+    providers: [KioskSettings, AppLogger, { provide: PlatformService, useValue: mockPlatform }],
   });
 
   return {
@@ -70,16 +68,14 @@ describe('KioskSettings', () => {
     const mockPlatform = {
       appVersion: signal('0.1.0'),
       storageGet: (key: string) => store[key] ?? null,
-      storageSet: (key: string, value: string) => { store[key] = value; },
+      storageSet: (key: string, value: string) => {
+        store[key] = value;
+      },
     };
 
     // Primera instancia: cambia a 'video' y fuerza el efecto de persistencia
     TestBed.configureTestingModule({
-      providers: [
-        KioskSettings,
-        AppLogger,
-        { provide: PlatformService, useValue: mockPlatform },
-      ],
+      providers: [KioskSettings, AppLogger, { provide: PlatformService, useValue: mockPlatform }],
     });
     TestBed.inject(KioskSettings).setScreensaverMode('video');
     // Forzar ejecución del effect() para que escriba al store antes del reset
@@ -88,11 +84,7 @@ describe('KioskSettings', () => {
 
     // Segunda instancia: debe leer 'video' del store compartido
     TestBed.configureTestingModule({
-      providers: [
-        KioskSettings,
-        AppLogger,
-        { provide: PlatformService, useValue: mockPlatform },
-      ],
+      providers: [KioskSettings, AppLogger, { provide: PlatformService, useValue: mockPlatform }],
     });
     const settings2 = TestBed.inject(KioskSettings);
     expect(settings2.screensaverMode()).toBe<ScreensaverMode>('video');
@@ -133,15 +125,13 @@ describe('KioskSettings', () => {
     const mockPlatform = {
       appVersion: signal('0.1.0'),
       storageGet: (key: string) => store[key] ?? null,
-      storageSet: (key: string, value: string) => { store[key] = value; },
+      storageSet: (key: string, value: string) => {
+        store[key] = value;
+      },
     };
 
     TestBed.configureTestingModule({
-      providers: [
-        KioskSettings,
-        AppLogger,
-        { provide: PlatformService, useValue: mockPlatform },
-      ],
+      providers: [KioskSettings, AppLogger, { provide: PlatformService, useValue: mockPlatform }],
     });
     const s1 = TestBed.inject(KioskSettings);
     s1.setSoundEnabled(false);
@@ -150,11 +140,7 @@ describe('KioskSettings', () => {
     TestBed.resetTestingModule();
 
     TestBed.configureTestingModule({
-      providers: [
-        KioskSettings,
-        AppLogger,
-        { provide: PlatformService, useValue: mockPlatform },
-      ],
+      providers: [KioskSettings, AppLogger, { provide: PlatformService, useValue: mockPlatform }],
     });
     const s2 = TestBed.inject(KioskSettings);
     expect(s2.soundEnabled()).toBe(false);
@@ -184,15 +170,13 @@ describe('KioskSettings', () => {
     const mockPlatform = {
       appVersion: signal('0.1.0'),
       storageGet: (key: string) => store[key] ?? null,
-      storageSet: (key: string, value: string) => { store[key] = value; },
+      storageSet: (key: string, value: string) => {
+        store[key] = value;
+      },
     };
 
     TestBed.configureTestingModule({
-      providers: [
-        KioskSettings,
-        AppLogger,
-        { provide: PlatformService, useValue: mockPlatform },
-      ],
+      providers: [KioskSettings, AppLogger, { provide: PlatformService, useValue: mockPlatform }],
     });
     const s1 = TestBed.inject(KioskSettings);
     s1.setTriquiDifficulty('easy');
@@ -201,11 +185,7 @@ describe('KioskSettings', () => {
     TestBed.resetTestingModule();
 
     TestBed.configureTestingModule({
-      providers: [
-        KioskSettings,
-        AppLogger,
-        { provide: PlatformService, useValue: mockPlatform },
-      ],
+      providers: [KioskSettings, AppLogger, { provide: PlatformService, useValue: mockPlatform }],
     });
     const s2 = TestBed.inject(KioskSettings);
     expect(s2.triquiDifficulty()).toBe('easy');
@@ -249,8 +229,16 @@ describe('KioskSettings', () => {
   it('clearExperienceOverridesForGame elimina solo overrides del motor indicado', () => {
     const { settings } = buildSettings();
 
-    settings.setExperienceMemoryConfig('radiesse-memory', { pairs: 5, lives: 4, difficulty: 'easy' });
-    settings.setExperienceMemoryConfig('ultherapy-memory', { pairs: 6, lives: 5, difficulty: 'hard' });
+    settings.setExperienceMemoryConfig('radiesse-memory', {
+      pairs: 5,
+      lives: 4,
+      difficulty: 'easy',
+    });
+    settings.setExperienceMemoryConfig('ultherapy-memory', {
+      pairs: 6,
+      lives: 5,
+      difficulty: 'hard',
+    });
     settings.setExperienceTriquiDifficulty('radiesse-triqui', 'hard');
 
     settings.clearExperienceOverridesForGame('memory');
@@ -337,15 +325,13 @@ describe('KioskSettings', () => {
       const mockPlatform = {
         appVersion: signal('0.1.0'),
         storageGet: (key: string) => store[key] ?? null,
-        storageSet: (key: string, value: string) => { store[key] = value; },
+        storageSet: (key: string, value: string) => {
+          store[key] = value;
+        },
       };
 
       TestBed.configureTestingModule({
-        providers: [
-          KioskSettings,
-          AppLogger,
-          { provide: PlatformService, useValue: mockPlatform },
-        ],
+        providers: [KioskSettings, AppLogger, { provide: PlatformService, useValue: mockPlatform }],
       });
       const s1 = TestBed.inject(KioskSettings);
       s1.setVideoVolume(0.25);
@@ -355,11 +341,7 @@ describe('KioskSettings', () => {
       TestBed.resetTestingModule();
 
       TestBed.configureTestingModule({
-        providers: [
-          KioskSettings,
-          AppLogger,
-          { provide: PlatformService, useValue: mockPlatform },
-        ],
+        providers: [KioskSettings, AppLogger, { provide: PlatformService, useValue: mockPlatform }],
       });
       const s2 = TestBed.inject(KioskSettings);
       expect(s2.videoVolume()).toBe(0.25);
@@ -406,11 +388,7 @@ describe('KioskSettings', () => {
 
       TestBed.resetTestingModule();
       TestBed.configureTestingModule({
-        providers: [
-          KioskSettings,
-          AppLogger,
-          { provide: PlatformService, useValue: mockPlatform },
-        ],
+        providers: [KioskSettings, AppLogger, { provide: PlatformService, useValue: mockPlatform }],
       });
       const settings = TestBed.inject(KioskSettings);
       TestBed.flushEffects();
