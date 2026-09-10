@@ -106,7 +106,7 @@ Sin `git pull`, sin tokens write en el cliente. Check **solo** desde el panel.
 | Canal | Qué | URL canónica |
 | --- | --- | --- |
 | **App** | Ejecutable firmado (Tauri Updater) | `https://github.com/juliansfreelance/merz-games/releases/latest/download/latest.json` |
-| **Contenido** | `content-manifest.json` | `https://raw.githubusercontent.com/juliansfreelance/merz-games/develop/content/manifests/content-manifest.json` |
+| **Contenido** | `content-manifest.json` | `https://raw.githubusercontent.com/juliansfreelance/merz-games/master/content/manifests/content-manifest.json` |
 
 - Contenido: `fetch` → `compareCatalogs` → confirmación → `loadManifest`. JSON inválido o `minAppVersion` alto → se conserva el catálogo local. `pendingAssets` se **listan** (escritura a disco = Fase 10).
 - App: pubkey minisign real en `tauri.conf.json`; firma con secretos de CI. Sin Release / sin red → error u `offline` honestos.

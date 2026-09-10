@@ -70,11 +70,25 @@ jobs:
             echo "tag=v${VER}" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Prepare signing key
+        shell: bash
+        env:
+          RAW_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          # GitHub suele añadir un \n al secret; minisign lo rechaza (Invalid symbol 10).
+          if [ -z "$RAW_KEY" ]; then
+            echo "Falta el secret TAURI_SIGNING_PRIVATE_KEY" >&2
+            exit 1
+          fi
+          printf '%s' "$RAW_KEY" | tr -d '\r\n' > "$RUNNER_TEMP/tauri_signing.key"
+          echo "TAURI_SIGNING_PRIVATE_KEY_PATH=$RUNNER_TEMP/tauri_signing.key" >> "$GITHUB_ENV"
+          echo "Signing key file prepared (${#RAW_KEY} chars raw)."
+
       - name: Build and publish
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PATH: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PATH }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ steps.meta.outputs.tag }}
@@ -82,7 +96,7 @@ jobs:
           releaseBody: |
             Instaladores Windows (MSI + NSIS) y artefactos del updater (`latest.json` + `.sig`).
 
-            Canal contenido (JSON): raw `develop` → `content/manifests/content-manifest.json`.
+            Canal contenido (JSON): raw `master` → `content/manifests/content-manifest.json`.
             Canal app: este Release → `latest.json`.
           releaseDraft: false
           prerelease: false

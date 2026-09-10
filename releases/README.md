@@ -30,4 +30,4 @@ cambian en cada build. El workflow `.github/workflows/release.yml` sube
 `latest.json` al Release.
 
 Canal de **contenido** (JSON): ver `CONTENT_MANIFEST_URL` en
-`src/app/core/update/update.constants.ts` (raw de la rama `develop`).
+`src/app/core/update/update.constants.ts` (raw de la rama `master`).
