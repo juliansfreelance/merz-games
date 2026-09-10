@@ -6,6 +6,7 @@ import { AdminSession } from './admin-session';
 import { CatalogService } from '../../core/catalog/catalog';
 import { PlatformService } from '../../core/platform/platform.service';
 import { UpdateCoordinator } from '../../core/update/update-coordinator';
+import { ContentPack } from '../../core/update/content-pack';
 import { KioskSettings } from '../../core/settings/kiosk-settings';
 import { MediaPlayer } from '../../core/media/media-player';
 
@@ -35,6 +36,11 @@ describe('AdminPanel', () => {
     snapshot: ReturnType<typeof signal<any>>;
     check: ReturnType<typeof vi.fn>;
     apply: ReturnType<typeof vi.fn>;
+  };
+  let mockContentPack: {
+    clearInstalled: ReturnType<typeof vi.fn>;
+    whenReady: ReturnType<typeof vi.fn>;
+    available: boolean;
   };
 
   beforeEach(async () => {
@@ -70,6 +76,11 @@ describe('AdminPanel', () => {
       check: vi.fn(),
       apply: vi.fn(),
     };
+    mockContentPack = {
+      clearInstalled: vi.fn().mockResolvedValue(undefined),
+      whenReady: vi.fn().mockResolvedValue(undefined),
+      available: false,
+    };
 
     await TestBed.configureTestingModule({
       imports: [AdminPanel],
@@ -78,6 +89,7 @@ describe('AdminPanel', () => {
         { provide: AdminSession, useValue: mockSession },
         { provide: PlatformService, useValue: mockPlatform },
         { provide: UpdateCoordinator, useValue: mockUpdates },
+        { provide: ContentPack, useValue: mockContentPack },
         CatalogService,
         KioskSettings,
         MediaPlayer,
@@ -528,10 +540,12 @@ describe('AdminPanel', () => {
     ) as HTMLButtonElement | undefined;
     expect(confirmBtn).toBeTruthy();
     confirmBtn?.click();
+    await fixture.whenStable();
     fixture.detectChanges();
 
     expect(catalogResetSpy).toHaveBeenCalledTimes(1);
     expect(settingsResetSpy).toHaveBeenCalledTimes(1);
+    expect(mockContentPack.clearInstalled).toHaveBeenCalledTimes(1);
     expect(el.textContent).toContain('Valores restaurados');
   });
 

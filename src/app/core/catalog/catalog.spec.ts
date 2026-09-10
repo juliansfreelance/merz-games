@@ -705,6 +705,21 @@ describe('CatalogService — persistencia', () => {
     const result = catalog.loadManifest(newManifest);
     expect(result).toBe(true);
     expect(catalog.brands().map((b) => b.id)).toContain('nueva');
+    expect(catalog.experiences().some((e) => e.id === 'nueva-memory')).toBe(true);
+  });
+
+  it('canApplyManifest rechaza motor con minAppVersion superior', () => {
+    const { catalog } = buildCatalog();
+    const remote: ContentManifest = {
+      ...(manifestSeed as ContentManifest),
+      games: [
+        ...(manifestSeed as ContentManifest).games.map((g) =>
+          g.id === 'memory' ? { ...g, minAppVersion: '99.0.0' } : g,
+        ),
+      ],
+    };
+    expect(catalog.canApplyManifest(remote)).toBe(false);
+    expect(catalog.loadManifest(remote)).toBe(false);
   });
 
   it('manifest persistido con versión distinta a la semilla no se hidrata desde seed', () => {

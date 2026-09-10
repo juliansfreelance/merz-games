@@ -1,10 +1,4 @@
-import {
-  Component,
-  DestroyRef,
-  inject,
-  OnInit,
-  signal,
-} from '@angular/core';
+import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { CatalogService } from '../../core/catalog/catalog';
 import { AppInitService } from '../../core/lifecycle/app-init.service';
@@ -12,6 +6,7 @@ import { MediaPlayer } from '../../core/media/media-player';
 import { ImageCacheService, IMAGE_CACHE_CRITICAL_URLS } from '../../core/media/image-cache.service';
 import { playUiSfx, UI_SFX } from '../shared/ui-sfx';
 import { AssetSrc } from '../../core/platform/asset-src';
+import { ContentPack } from '../../core/update/content-pack';
 
 /** Logos institucionales y recursos globales que no viven en el manifest. */
 const CORE_IMAGE_URLS = [
@@ -59,7 +54,6 @@ const MIN_SPLASH_MS = 1_200;
       role="button"
       aria-label="Toca para continuar"
     >
-
       <!-- Fuerza la descarga de todos los pesos antes de ir a /welcome. -->
       <div class="sr-only" aria-hidden="true">
         <span class="font-normal">Aa</span>
@@ -71,8 +65,9 @@ const MIN_SPLASH_MS = 1_200;
       </div>
 
       <!-- Bloque Central exactamente centrado vertical y horizontalmente -->
-      <div class="flex flex-col items-center justify-center max-w-md kiosk:max-w-lg w-full gap-8 sm:gap-10 kiosk:gap-14 text-center my-auto">
-
+      <div
+        class="flex flex-col items-center justify-center max-w-md kiosk:max-w-lg w-full gap-8 sm:gap-10 kiosk:gap-14 text-center my-auto"
+      >
         <!-- Icono / Escudo Institucional -->
         <div
           class="w-28 h-28 sm:w-36 sm:h-36 kiosk:w-48 kiosk:h-48 rounded-3xl kiosk:rounded-[2.5rem] bg-white/5 border border-white/15 backdrop-blur-md flex items-center justify-center shadow-2xl shadow-black/50 p-4 sm:p-6 shrink-0 transition-transform duration-500"
@@ -96,22 +91,26 @@ const MIN_SPLASH_MS = 1_200;
         </div>
 
         <!-- Barra de Progreso del Loader -->
-        <div class="w-full max-w-65 sm:max-w-[320px] kiosk:max-w-100 flex flex-col items-center gap-3 pt-2">
-          <div class="w-full h-2 sm:h-2.5 bg-white/10 rounded-full overflow-hidden border border-white/15 backdrop-blur-md p-0.5 shadow-inner">
+        <div
+          class="w-full max-w-65 sm:max-w-[320px] kiosk:max-w-100 flex flex-col items-center gap-3 pt-2"
+        >
+          <div
+            class="w-full h-2 sm:h-2.5 bg-white/10 rounded-full overflow-hidden border border-white/15 backdrop-blur-md p-0.5 shadow-inner"
+          >
             <div
               class="h-full rounded-full bg-linear-to-r from-emerald-400 via-cyan-400 to-indigo-500 shadow-[0_0_14px_rgba(0,229,255,0.85)] transition-all duration-300 ease-out"
               [style.width.%]="progress()"
             ></div>
           </div>
 
-          <div class="flex items-center justify-between w-full text-xs sm:text-sm text-neutral-300 font-medium tracking-wider px-1">
+          <div
+            class="flex items-center justify-between w-full text-xs sm:text-sm text-neutral-300 font-medium tracking-wider px-1"
+          >
             <span class="truncate max-w-50 sm:max-w-60 text-left">{{ statusMessage() }}</span>
             <span class="tabular-nums text-white font-extrabold">{{ progress() }}%</span>
           </div>
         </div>
-
       </div>
-
     </div>
   `,
 })
@@ -121,6 +120,7 @@ export class Splash implements OnInit {
   private readonly appInit = inject(AppInitService);
   private readonly media = inject(MediaPlayer);
   private readonly imageCache = inject(ImageCacheService);
+  private readonly contentPack = inject(ContentPack);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly progress = signal(0);
@@ -151,13 +151,10 @@ export class Splash implements OnInit {
     const startTime = Date.now();
     this.statusMessage.set('Cargando catálogo...');
     this.progress.set(15);
+    await this.contentPack.whenReady();
 
     const allUrls = Array.from(
-      new Set([
-        ...CORE_IMAGE_URLS,
-        ...Object.values(UI_SFX),
-        ...this.catalog.collectPreloadUrls(),
-      ]),
+      new Set([...CORE_IMAGE_URLS, ...Object.values(UI_SFX), ...this.catalog.collectPreloadUrls()]),
     );
 
     const imageUrls = allUrls.filter((url) => !AUDIO_URL.test(url));
@@ -218,9 +215,9 @@ export class Splash implements OnInit {
 
   /** Tras precargar todo, libera bitmaps que no son chrome crítico ni logos de marcas. */
   private trimImageCacheAfterSplash(): void {
-    const brandUrls = this.catalog.brands().flatMap((b) =>
-      [b.logo, b.image].filter((u): u is string => !!u),
-    );
+    const brandUrls = this.catalog
+      .brands()
+      .flatMap((b) => [b.logo, b.image].filter((u): u is string => !!u));
     this.imageCache.releaseAllExcept([...IMAGE_CACHE_CRITICAL_URLS, ...brandUrls]);
   }
 
@@ -239,11 +236,7 @@ export class Splash implements OnInit {
     await this.withTimeout(loadAll(), FONT_LOAD_TIMEOUT_MS);
   }
 
-  private updateProgress(
-    loaded: number,
-    total: number,
-    message: string,
-  ): void {
+  private updateProgress(loaded: number, total: number, message: string): void {
     const rawPercent = Math.min(95, Math.round((loaded / total) * 95));
     this.progress.set(Math.max(this.progress(), rawPercent));
     this.statusMessage.set(message);

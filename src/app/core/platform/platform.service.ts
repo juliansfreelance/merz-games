@@ -1,4 +1,5 @@
 import { Injectable, signal, Signal } from '@angular/core';
+import { APP_VERSION } from './app-version';
 
 export type PlatformKind = 'browser' | 'tauri';
 
@@ -27,11 +28,10 @@ function detectNative(): boolean {
 export class PlatformService {
   private readonly _isNative = detectNative();
   private readonly _platformKind: PlatformKind = this._isNative ? 'tauri' : 'browser';
-  private readonly _appVersion = signal<string>('0.1.0');
+  private readonly _appVersion = signal<string>(APP_VERSION);
   private readonly _isKiosk = signal<boolean>(true);
 
   constructor() {
-    this.initializeVersion();
     if (!this._isNative && typeof document !== 'undefined') {
       this._isKiosk.set(!!document.fullscreenElement);
       document.addEventListener('fullscreenchange', () => {
@@ -62,14 +62,12 @@ export class PlatformService {
    *
    * Implementación actual: `localStorage` del WebView.
    * En Tauri el WebView comparte el mismo `localStorage`.
-   * La escritura de assets de contenido en AppData queda para cuando
-   * exista un pack publicado (`plugin-fs`).
+   * Los packs OTA de imágenes/audio/video viven en AppLocalData (`content/`)
+   * vía `ContentPack` + `plugin-fs`, no en este almacén de texto.
    */
   storageGet(key: string): string | null {
     try {
-      return typeof localStorage !== 'undefined'
-        ? localStorage.getItem(key)
-        : null;
+      return typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
     } catch {
       return null;
     }
@@ -120,7 +118,10 @@ export class PlatformService {
   /** Cierra la aplicación. En navegador no aplica. */
   async exit(): Promise<KioskCommandResult> {
     if (!this._isNative) {
-      return { ok: false, message: 'Cerrar la aplicación solo está disponible en la app de escritorio.' };
+      return {
+        ok: false,
+        message: 'Cerrar la aplicación solo está disponible en la app de escritorio.',
+      };
     }
     return this.invokeKioskCommand('exit_app');
   }
@@ -198,7 +199,12 @@ export class PlatformService {
     }
   }
 
-  private async initializeVersion(): Promise<void> {
+  /**
+   * En Tauri sustituye el fallback por `getVersion()`.
+   * En navegador (ng serve / GitHub Pages) conserva `APP_VERSION` de package.json.
+   * Invocado desde `provideAppInitializer`, no desde el constructor.
+   */
+  async loadNativeVersion(): Promise<void> {
     if (this._isNative) {
       try {
         const { getVersion } = await import('@tauri-apps/api/app');

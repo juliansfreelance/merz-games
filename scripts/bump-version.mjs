@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Alinea la versión de la app en package.json, src-tauri/tauri.conf.json
- * y src-tauri/Cargo.toml.
+ * Alinea la versión de la app en package.json, src-tauri/tauri.conf.json,
+ * src-tauri/Cargo.toml, el fallback de Pages (`app-version.ts`) y el README.
  *
  * Uso:
  *   node scripts/bump-version.mjs 0.1.1
@@ -24,7 +24,7 @@ function readJson(path) {
 }
 
 function bumpSemver(current, kind) {
-  const [major, minor, patch] = current.split('.').map((n) => Number(n));
+  const [major, minor, patch] = current.split('.').map(Number);
   if ([major, minor, patch].some((n) => Number.isNaN(n))) {
     throw new Error(`Versión inválida: ${current}`);
   }
@@ -37,6 +37,8 @@ function bumpSemver(current, kind) {
 const packagePath = join(root, 'package.json');
 const tauriPath = join(root, 'src-tauri', 'tauri.conf.json');
 const cargoPath = join(root, 'src-tauri', 'Cargo.toml');
+const appVersionPath = join(root, 'src', 'app', 'core', 'platform', 'app-version.ts');
+const readmePath = join(root, 'README.md');
 
 const pkg = readJson(packagePath);
 const current = pkg.version;
@@ -57,5 +59,14 @@ writeFileSync(tauriPath, `${JSON.stringify(tauri, null, 2)}\n`);
 let cargo = readFileSync(cargoPath, 'utf8');
 cargo = cargo.replace(/^version\s*=\s*"[^"]+"/m, `version = "${next}"`);
 writeFileSync(cargoPath, cargo);
+
+writeFileSync(
+  appVersionPath,
+  `/** Versión de la app. La mantiene \`scripts/bump-version.mjs\` alineada con package.json. */\nexport const APP_VERSION = '${next}';\n`,
+);
+
+let readme = readFileSync(readmePath, 'utf8');
+readme = readme.replace(/\*\*App\*\* \| `[^`]+`/, `**App** | \`${next}\``);
+writeFileSync(readmePath, readme);
 
 console.log(`[bump-version] ${current} → ${next}`);

@@ -66,3 +66,4 @@ skills-lock.json
 .env
 .env.*
 !.env.example
+src-tauri/2

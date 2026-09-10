@@ -1,15 +1,9 @@
-import {
-  computed,
-  effect,
-  inject,
-  Injectable,
-  linkedSignal,
-  signal,
-} from '@angular/core';
+import { computed, effect, inject, Injectable, linkedSignal, signal } from '@angular/core';
 import { PlatformService } from '../platform/platform.service';
 import { AppLogger } from '../logging/app-error';
 import {
   Atmosphere,
+  AttractionVideo,
   ContentManifest,
   ExperiencesMode,
   resolveAppCoverConfig,
@@ -36,7 +30,7 @@ export const DEFAULT_ATMOSPHERE: Readonly<Atmosphere> = {
   blobs: [
     { from: '#d946ef', to: '#a855f7', opacity: 0.32 },
     { from: '#f43f5e', to: '#e11d48', opacity: 0.28 },
-    { from: '#10b981', to: '#059669', opacity: 0.30 },
+    { from: '#10b981', to: '#059669', opacity: 0.3 },
     { from: '#6366f1', to: '#3b82f6', opacity: 0.32 },
     { from: '#00E5FF', to: '#0891b2', opacity: 0.28 },
   ],
@@ -49,7 +43,7 @@ export const ADMIN_ATMOSPHERE: Readonly<Atmosphere> = {
   blobs: [
     { from: '#ef4444', to: '#b91c1c', opacity: 0.45 },
     { from: '#3b82f6', to: '#1d4ed8', opacity: 0.45 },
-    { from: '#dc2626', to: '#991b1b', opacity: 0.40 },
+    { from: '#dc2626', to: '#991b1b', opacity: 0.4 },
     { from: '#2563eb', to: '#1e40af', opacity: 0.42 },
     { from: '#f87171', to: '#60a5fa', opacity: 0.35 },
   ],
@@ -58,7 +52,6 @@ export const ADMIN_ATMOSPHERE: Readonly<Atmosphere> = {
 /** Disclaimer general de la actividad para todas las pantallas de navegación. */
 export const DEFAULT_ACTIVITY_DISCLAIMER =
   'Esta actividad corresponde a una dinámica de habilidad mental y no a un concurso, sorteo o juego de azar. La ejecución, administración y cumplimiento de la mecánica son responsabilidad exclusiva de cada clínica participante.';
-
 
 /** Datos normalizados para renderizar una Card de Catálogo. */
 export interface CatalogCardItem {
@@ -77,8 +70,7 @@ export interface CatalogCardItem {
  * Comparador mínimo sin librería externa.
  */
 export function semverGte(version: string, minRequired: string): boolean {
-  const parse = (v: string): number[] =>
-    v.split('.').map((n) => parseInt(n, 10) || 0);
+  const parse = (v: string): number[] => v.split('.').map((n) => Number.parseInt(n, 10) || 0);
   const [vMajor, vMinor, vPatch] = parse(version);
   const [mMajor, mMinor, mPatch] = parse(minRequired);
 
@@ -91,10 +83,7 @@ export function semverGte(version: string, minRequired: string): boolean {
  * Valida un manifest: relaciones de marcas/motores, enabled, minAppVersion.
  * Retorna una lista de errores (vacía si es válido).
  */
-function validateManifest(
-  manifest: ContentManifest,
-  appVersion: string,
-): string[] {
+function validateManifest(manifest: ContentManifest, appVersion: string): string[] {
   const errors: string[] = [];
 
   if (
@@ -137,6 +126,12 @@ function validateManifest(
   return errors;
 }
 
+/** El JSON es un catálogo aplicable con esta versión de app (relaciones + minAppVersion). */
+export function manifestIsAcceptable(raw: unknown, appVersion: string): boolean {
+  if (!raw || typeof raw !== 'object') return false;
+  return validateManifest(raw as ContentManifest, appVersion).length === 0;
+}
+
 function pushAssetUrl(target: Set<string>, value: string | string[] | undefined): void {
   if (!value) return;
   if (Array.isArray(value)) {
@@ -155,6 +150,16 @@ function pushAssetRecord(
   if (!record) return;
   for (const value of Object.values(record)) {
     pushAssetUrl(target, value);
+  }
+}
+
+function pushEnabledAttractionVideos(
+  target: Set<string>,
+  videos: AttractionVideo[] | undefined,
+): void {
+  for (const video of videos ?? []) {
+    if (video.enabled === false) continue;
+    pushAssetUrl(target, video.source);
   }
 }
 
@@ -178,13 +183,9 @@ export function collectContentAssetUrls(
   for (const brand of manifest.brands.filter((b) => b.enabled)) {
     pushAssetUrl(urls, brand.image);
     pushAssetUrl(urls, brand.logo);
-    if (includeVideos) {
-      pushAssetUrl(urls, brand.attractionVideo);
-      for (const video of brand.attractionVideos ?? []) {
-        if (video.enabled === false) continue;
-        pushAssetUrl(urls, video.source);
-      }
-    }
+    if (!includeVideos) continue;
+    pushAssetUrl(urls, brand.attractionVideo);
+    pushEnabledAttractionVideos(urls, brand.attractionVideos);
   }
 
   for (const game of manifest.games.filter((g) => g.enabled)) {
@@ -200,111 +201,142 @@ export function collectContentAssetUrls(
 
   pushAssetUrl(urls, manifest.app?.audio?.backgroundMusic);
   if (includeVideos) {
-    for (const video of manifest.app?.protector?.attractionVideos ?? []) {
-      if (video.enabled === false) continue;
-      pushAssetUrl(urls, video.source);
-    }
+    pushEnabledAttractionVideos(urls, manifest.app?.protector?.attractionVideos);
   }
   return [...urls];
 }
 
-/** Overlay de contenido embebido sobre un manifest persistido (assets, copy, atmósfera). */
-function hydrateManifestFromSeed(candidate: ContentManifest): void {
-  if (seed.app) {
-    candidate.app = {
-      ...seed.app,
-      ...candidate.app,
-      theme: {
-        ...seed.app?.theme,
-        ...candidate.app?.theme,
-        home: candidate.app?.theme?.home ?? seed.app?.theme?.home,
-        panel: {
-          ...seed.app?.theme?.panel,
-          ...candidate.app?.theme?.panel,
-        },
-      },
-      audio: {
-        ...seed.app?.audio,
-        ...candidate.app?.audio,
-      },
-      protector: {
-        ...seed.app?.protector,
-        ...candidate.app?.protector,
-        attractionVideos: (() => {
-          const seedVideos = seed.app?.protector?.attractionVideos;
-          if (!seedVideos) return candidate.app?.protector?.attractionVideos;
-          const candidateVideos = candidate.app?.protector?.attractionVideos ?? [];
-          return seedVideos.map((seedV) => {
-            const existing = candidateVideos.find((cv) => cv.source === seedV.source);
-            return existing ? { ...seedV, enabled: existing.enabled } : { ...seedV };
-          });
-        })(),
-      },
-      security: {
-        ...seed.app?.security,
-        ...candidate.app?.security,
-      },
-      cover: {
-        ...seed.app?.cover,
-        ...candidate.app?.cover,
-      },
-      experiencesMode:
-        candidate.app?.experiencesMode === 'global' ||
-        candidate.app?.experiencesMode === 'individual'
-          ? candidate.app.experiencesMode
-          : seed.app?.experiencesMode,
-      developMode:
-        typeof candidate.app?.developMode === 'boolean'
-          ? candidate.app.developMode
-          : seed.app?.developMode,
-    };
-  }
-  if (seed.atmosphere) {
-    candidate.atmosphere = seed.atmosphere;
-  }
+function mergeAttractionVideos(
+  seedVideos: AttractionVideo[] | undefined,
+  candidateVideos: AttractionVideo[] | undefined,
+): AttractionVideo[] | undefined {
+  if (!seedVideos) return candidateVideos;
+  const current = candidateVideos ?? [];
+  return seedVideos.map((seedV) => {
+    const existing = current.find((cv) => cv.source === seedV.source);
+    return existing ? { ...seedV, enabled: existing.enabled } : { ...seedV };
+  });
+}
 
+function overlayTruthy<T extends object>(target: T, source: T, keys: readonly (keyof T)[]): void {
+  for (const key of keys) {
+    if (source[key]) {
+      target[key] = source[key];
+    }
+  }
+}
+
+function resolvePersistedExperiencesMode(
+  candidate: ExperiencesMode | undefined,
+  fallback: ExperiencesMode | undefined,
+): ExperiencesMode | undefined {
+  if (candidate === 'global' || candidate === 'individual') return candidate;
+  return fallback;
+}
+
+function hydrateAppFromSeed(candidate: ContentManifest): void {
+  if (!seed.app) return;
+  const seedApp = seed.app;
+  const currentApp = candidate.app;
+  candidate.app = {
+    ...seedApp,
+    ...currentApp,
+    theme: {
+      ...seedApp.theme,
+      ...currentApp?.theme,
+      home: currentApp?.theme?.home ?? seedApp.theme?.home,
+      panel: {
+        ...seedApp.theme?.panel,
+        ...currentApp?.theme?.panel,
+      },
+    },
+    audio: {
+      ...seedApp.audio,
+      ...currentApp?.audio,
+    },
+    protector: {
+      ...seedApp.protector,
+      ...currentApp?.protector,
+      attractionVideos: mergeAttractionVideos(
+        seedApp.protector?.attractionVideos,
+        currentApp?.protector?.attractionVideos,
+      ),
+    },
+    security: {
+      ...seedApp.security,
+      ...currentApp?.security,
+    },
+    cover: {
+      ...seedApp.cover,
+      ...currentApp?.cover,
+    },
+    experiencesMode: resolvePersistedExperiencesMode(
+      currentApp?.experiencesMode,
+      seedApp.experiencesMode,
+    ),
+    developMode:
+      typeof currentApp?.developMode === 'boolean' ? currentApp.developMode : seedApp.developMode,
+  };
+}
+
+function hydrateBrandsFromSeed(candidate: ContentManifest): void {
   for (const brand of candidate.brands ?? []) {
     const seedBrand = seed.brands?.find((b) => b.id === brand.id);
     if (!seedBrand) continue;
     if (seedBrand.develop !== undefined) brand.develop = seedBrand.develop;
-    if (seedBrand.atmosphere) brand.atmosphere = seedBrand.atmosphere;
-    if (seedBrand.disclaimer) brand.disclaimer = seedBrand.disclaimer;
-    if (seedBrand.image) brand.image = seedBrand.image;
-    if (seedBrand.logo) brand.logo = seedBrand.logo;
-    if (seedBrand.description) brand.description = seedBrand.description;
-    if (seedBrand.name) brand.name = seedBrand.name;
-    if (seedBrand.attractionVideo) brand.attractionVideo = seedBrand.attractionVideo;
+    overlayTruthy(brand, seedBrand, [
+      'atmosphere',
+      'disclaimer',
+      'image',
+      'logo',
+      'description',
+      'name',
+      'attractionVideo',
+    ]);
     if (seedBrand.attractionVideos) {
-      const candidateVideos = brand.attractionVideos ?? [];
-      brand.attractionVideos = seedBrand.attractionVideos.map((seedV) => {
-        const existing = candidateVideos.find((cv) => cv.source === seedV.source);
-        return existing ? { ...seedV, enabled: existing.enabled } : { ...seedV };
-      });
+      brand.attractionVideos = mergeAttractionVideos(
+        seedBrand.attractionVideos,
+        brand.attractionVideos,
+      );
     }
   }
+}
 
+function hydrateExperiencesFromSeed(candidate: ContentManifest): void {
   for (const exp of candidate.experiences ?? []) {
     const seedExp = seed.experiences?.find((e) => e.id === exp.id);
     if (!seedExp) continue;
     if (seedExp.develop !== undefined) exp.develop = seedExp.develop;
-    if (seedExp.image) exp.image = seedExp.image;
-    if (seedExp.name) exp.name = seedExp.name;
-    if (seedExp.title) exp.title = seedExp.title;
-    if (seedExp.description) exp.description = seedExp.description;
-    if (seedExp.assets) exp.assets = seedExp.assets;
-    if (seedExp.theme) exp.theme = seedExp.theme;
-    if (seedExp.config) exp.config = seedExp.config;
+    overlayTruthy(exp, seedExp, [
+      'image',
+      'name',
+      'title',
+      'description',
+      'assets',
+      'theme',
+      'config',
+    ]);
   }
+}
 
+function hydrateGamesFromSeed(candidate: ContentManifest): void {
   for (const game of candidate.games ?? []) {
     const seedGame = seed.games?.find((g) => g.id === game.id);
     if (!seedGame) continue;
     if (seedGame.develop !== undefined) game.develop = seedGame.develop;
-    if (seedGame.assets) game.assets = seedGame.assets;
-    if (seedGame.config) game.config = seedGame.config;
-    if (seedGame.image) game.image = seedGame.image;
-    if (seedGame.description) game.description = seedGame.description;
+    overlayTruthy(game, seedGame, ['assets', 'config', 'image', 'description']);
   }
+}
+
+/** Overlay de contenido embebido sobre un manifest persistido (assets, copy, atmósfera). */
+function hydrateManifestFromSeed(candidate: ContentManifest): void {
+  hydrateAppFromSeed(candidate);
+  if (seed.atmosphere) {
+    candidate.atmosphere = seed.atmosphere;
+  }
+  hydrateBrandsFromSeed(candidate);
+  hydrateExperiencesFromSeed(candidate);
+  hydrateGamesFromSeed(candidate);
 }
 
 /**
@@ -343,14 +375,10 @@ export class CatalogService {
    * Modo desarrollo / beta (`app.developMode`).
    * Default: `false` — el contenido marcado como beta queda oculto en el kiosco y el panel.
    */
-  readonly developMode = computed<boolean>(
-    () => this.manifest().app?.developMode === true,
-  );
+  readonly developMode = computed<boolean>(() => this.manifest().app?.developMode === true);
 
   /** Configuración resuelta del Cover Flow (`app.cover` + defaults). */
-  readonly coverConfig = computed(() =>
-    resolveAppCoverConfig(this.manifest().app?.cover),
-  );
+  readonly coverConfig = computed(() => resolveAppCoverConfig(this.manifest().app?.cover));
 
   // ─── Signals públicos de catálogo ───────────────────────────────────────────
 
@@ -402,12 +430,8 @@ export class CatalogService {
     const appVersion = this.platform.appVersion();
     const showBeta = this.developMode();
 
-    const brandMap = new Map<string, Brand>(
-      manifest.brands.map((b) => [b.id, b]),
-    );
-    const gameMap = new Map<string, Game>(
-      manifest.games.map((g) => [g.id, g]),
-    );
+    const brandMap = new Map<string, Brand>(manifest.brands.map((b) => [b.id, b]));
+    const gameMap = new Map<string, Game>(manifest.games.map((g) => [g.id, g]));
 
     return manifest.experiences
       .filter((exp) => {
@@ -417,8 +441,7 @@ export class CatalogService {
         const game = gameMap.get(exp.gameId);
         if (!game?.enabled) return false;
         if (!semverGte(appVersion, game.minAppVersion)) return false;
-        const isBeta =
-          exp.develop === true || brand.develop === true || game.develop === true;
+        const isBeta = exp.develop === true || brand.develop === true || game.develop === true;
         if (isBeta && !showBeta) return false;
         return true;
       })
@@ -549,9 +572,7 @@ export class CatalogService {
     const brand = this.getBrandById(brandId);
     if (brand?.atmosphere) return brand.atmosphere;
 
-    const seedBrand = (manifestSeed as ContentManifest).brands?.find(
-      (b) => b.id === brandId,
-    );
+    const seedBrand = (manifestSeed as ContentManifest).brands?.find((b) => b.id === brandId);
     return seedBrand?.atmosphere ?? this.defaultAtmosphere();
   }
 
@@ -589,9 +610,7 @@ export class CatalogService {
     const brand = this.getBrandById(brandId);
     if (brand?.disclaimer) return brand.disclaimer;
 
-    const seedBrand = (manifestSeed as ContentManifest).brands?.find(
-      (b) => b.id === brandId,
-    );
+    const seedBrand = (manifestSeed as ContentManifest).brands?.find((b) => b.id === brandId);
     return seedBrand?.disclaimer;
   }
 
@@ -669,9 +688,7 @@ export class CatalogService {
    * Normaliza los datos de una marca para renderizar en `CatalogCard`.
    */
   cardForBrand(brand: Brand): CatalogCardItem {
-    const seedBrand = (manifestSeed as ContentManifest).brands?.find(
-      (b) => b.id === brand.id,
-    );
+    const seedBrand = (manifestSeed as ContentManifest).brands?.find((b) => b.id === brand.id);
     return {
       id: brand.id,
       title: brand.name,
@@ -689,15 +706,18 @@ export class CatalogService {
    * Normaliza los datos de una experiencia para renderizar en `CatalogCard`.
    */
   cardForExperience(exp: GameExperience): CatalogCardItem {
-    const seedExp = (manifestSeed as ContentManifest).experiences?.find(
-      (e) => e.id === exp.id,
-    );
+    const seedExp = (manifestSeed as ContentManifest).experiences?.find((e) => e.id === exp.id);
     const game = this.getGameById(exp.gameId);
-    const seedGame = (manifestSeed as ContentManifest).games?.find(
-      (g) => g.id === exp.gameId,
-    );
+    const seedGame = (manifestSeed as ContentManifest).games?.find((g) => g.id === exp.gameId);
 
-    const title = exp.name ?? exp.title ?? seedExp?.name ?? seedExp?.title ?? game?.name ?? seedGame?.name ?? exp.id;
+    const title =
+      exp.name ??
+      exp.title ??
+      seedExp?.name ??
+      seedExp?.title ??
+      game?.name ??
+      seedGame?.name ??
+      exp.id;
     const description =
       exp.description ??
       seedExp?.description ??
@@ -743,23 +763,24 @@ export class CatalogService {
   }
 
   /**
-   * Intenta cargar un manifest externo (p. ej. entregado por el updater en Fase 7).
+   * Intenta cargar un manifest externo (p. ej. entregado por el updater).
    */
   loadManifest(rawJson: unknown): boolean {
     const appVersion = this.platform.appVersion();
     const candidate = rawJson as ContentManifest;
     const errors = validateManifest(candidate, appVersion);
     if (errors.length > 0) {
-      this.logger.warn(
-        'CatalogService',
-        'Manifest rechazado, conservando el actual:',
-        errors,
-      );
+      this.logger.warn('CatalogService', 'Manifest rechazado, conservando el actual:', errors);
       return false;
     }
     this.manifest.set(candidate);
     this.logger.info('CatalogService', 'Manifest externo activado.', candidate.version);
     return true;
+  }
+
+  /** Dry-run: el JSON pasaría `loadManifest` con la versión de app actual. */
+  canApplyManifest(raw: unknown): boolean {
+    return manifestIsAcceptable(raw, this.platform.appVersion());
   }
 
   /**
@@ -856,9 +877,7 @@ export class CatalogService {
     const current = this.manifest();
     const updated = {
       ...current,
-      brands: current.brands.map((b) =>
-        b.id === brandId ? { ...b, enabled } : b,
-      ),
+      brands: current.brands.map((b) => (b.id === brandId ? { ...b, enabled } : b)),
     };
     this.manifest.set(updated);
     this.logger.info('CatalogService', `Marca "${brandId}" enabled: ${enabled}`);
@@ -878,10 +897,7 @@ export class CatalogService {
         orderMap.has(b.id) ? { ...b, order: orderMap.get(b.id)! } : b,
       ),
     });
-    this.logger.info(
-      'CatalogService',
-      `Orden de marcas actualizado: ${orderedIds.join(' → ')}`,
-    );
+    this.logger.info('CatalogService', `Orden de marcas actualizado: ${orderedIds.join(' → ')}`);
   }
 
   /**
@@ -941,7 +957,10 @@ export class CatalogService {
       }),
     };
     this.manifest.set(updated);
-    this.logger.info('CatalogService', `Video "${videoSource}" de marca "${brandId}" enabled: ${enabled}`);
+    this.logger.info(
+      'CatalogService',
+      `Video "${videoSource}" de marca "${brandId}" enabled: ${enabled}`,
+    );
   }
 
   /**
@@ -981,15 +1000,17 @@ export class CatalogService {
         ...current.app,
         protector: {
           ...current.app?.protector,
-          attractionVideos: seedProtectorVideos ? JSON.parse(JSON.stringify(seedProtectorVideos)) : undefined,
+          attractionVideos: seedProtectorVideos
+            ? structuredClone(seedProtectorVideos)
+            : undefined,
         },
       },
       brands: current.brands.map((b) => {
         const seedB = seedBrands.find((sb) => sb.id === b.id);
-        if (!seedB || !seedB.attractionVideos) return b;
+        if (!seedB?.attractionVideos) return b;
         return {
           ...b,
-          attractionVideos: JSON.parse(JSON.stringify(seedB.attractionVideos)),
+          attractionVideos: structuredClone(seedB.attractionVideos),
         };
       }),
     };
@@ -999,7 +1020,10 @@ export class CatalogService {
     } catch {
       this.logger.warn('CatalogService', 'No se pudo persistir los videos tras restaurar.');
     }
-    this.logger.info('CatalogService', 'Videos de atracción restaurados a los valores por defecto.');
+    this.logger.info(
+      'CatalogService',
+      'Videos de atracción restaurados a los valores por defecto.',
+    );
   }
 
   /**
@@ -1007,7 +1031,7 @@ export class CatalogService {
    * Restablece las marcas y experiencias habilitadas/deshabilitadas a su estado original de fábrica.
    */
   resetToDefault(): void {
-    const cleanManifest = JSON.parse(JSON.stringify(manifestSeed)) as ContentManifest;
+    const cleanManifest = structuredClone(manifestSeed) as ContentManifest;
     this.manifest.set(cleanManifest);
     this.selectedBrand.set(undefined);
     try {
@@ -1015,7 +1039,10 @@ export class CatalogService {
     } catch {
       this.logger.warn('CatalogService', 'No se pudo persistir el manifest tras restaurar.');
     }
-    this.logger.info('CatalogService', 'Catálogo restaurado a los valores por defecto de content-manifest.json');
+    this.logger.info(
+      'CatalogService',
+      'Catálogo restaurado a los valores por defecto de content-manifest.json',
+    );
   }
 
   // ─── Internos ───────────────────────────────────────────────────────────────
@@ -1044,11 +1071,7 @@ export class CatalogService {
     const appVersion = this.platform.appVersion();
     const errors = validateManifest(parsed as ContentManifest, appVersion);
     if (errors.length > 0) {
-      this.logger.warn(
-        'CatalogService',
-        'Manifest persistido inválido, usando semilla:',
-        errors,
-      );
+      this.logger.warn('CatalogService', 'Manifest persistido inválido, usando semilla:', errors);
       return;
     }
 

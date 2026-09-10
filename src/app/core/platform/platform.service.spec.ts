@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { APP_VERSION } from './app-version';
 import { PlatformService } from './platform.service';
 
 describe('PlatformService', () => {
@@ -16,7 +17,12 @@ describe('PlatformService', () => {
   it('should default to browser mode in test environment', () => {
     expect(service.isNative).toBe(false);
     expect(service.platformKind).toBe('browser');
-    expect(service.appVersion()).toBe('0.1.0');
+    expect(service.appVersion()).toBe(APP_VERSION);
+  });
+
+  it('loadNativeVersion en navegador conserva APP_VERSION', async () => {
+    await service.loadNativeVersion();
+    expect(service.appVersion()).toBe(APP_VERSION);
   });
 
   it('restart en navegador recarga la pagina con window.location.reload', async () => {

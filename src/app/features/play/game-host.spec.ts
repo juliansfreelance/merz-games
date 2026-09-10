@@ -17,14 +17,57 @@ describe('GameHost', () => {
   function setup(experienceId: string, activeExperienceId = '') {
     const mockCatalog = {
       getExperienceById: (id: string) => {
-        const experiences: Record<string, { id: string; brandId: string; gameId: string; version: string; enabled: boolean; order: number }> = {
-          'radiesse-memory': { id: 'radiesse-memory', brandId: 'radiesse', gameId: 'memory', version: '0.1.0', enabled: true, order: 1 },
-          'radiesse-triqui': { id: 'radiesse-triqui', brandId: 'radiesse', gameId: 'triqui', version: '0.1.0', enabled: true, order: 2 },
-          'unknown-engine': { id: 'unknown-engine', brandId: 'radiesse', gameId: 'no-existe', version: '0.1.0', enabled: true, order: 3 },
+        const experiences: Record<
+          string,
+          {
+            id: string;
+            brandId: string;
+            gameId: string;
+            version: string;
+            enabled: boolean;
+            order: number;
+          }
+        > = {
+          'radiesse-memory': {
+            id: 'radiesse-memory',
+            brandId: 'radiesse',
+            gameId: 'memory',
+            version: '0.1.0',
+            enabled: true,
+            order: 1,
+          },
+          'radiesse-triqui': {
+            id: 'radiesse-triqui',
+            brandId: 'radiesse',
+            gameId: 'triqui',
+            version: '0.1.0',
+            enabled: true,
+            order: 2,
+          },
+          'unknown-engine': {
+            id: 'unknown-engine',
+            brandId: 'radiesse',
+            gameId: 'no-existe',
+            version: '0.1.0',
+            enabled: true,
+            order: 3,
+          },
+          'radiesse-ruleta': {
+            id: 'radiesse-ruleta',
+            brandId: 'radiesse',
+            gameId: 'ruleta',
+            version: '0.1.0',
+            enabled: true,
+            order: 4,
+          },
         };
         return experiences[id];
       },
-      getBrandById: (id: string) => ({ id, name: id === 'radiesse' ? 'Radiesse' : id, enabled: true }),
+      getBrandById: (id: string) => ({
+        id,
+        name: id === 'radiesse' ? 'Radiesse' : id,
+        enabled: true,
+      }),
       selectedBrand: signal({ id: 'radiesse', name: 'Radiesse', disclaimer: 'Disclaimer test' }),
       activityDisclaimer: signal('Disclaimer actividad test'),
       getGameById: (id: string) => ({
@@ -106,14 +149,12 @@ describe('GameHost', () => {
     expect(el.textContent).toContain('Ronda');
   });
 
-  it('should show unavailable screen for unknown gameId', () => {
-    const { fixture } = setup('unknown-engine');
-    const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector('app-unavailable-screen')).toBeTruthy();
-  });
-
-  it('should show unavailable screen for unknown experienceId', () => {
-    const { fixture } = setup('no-existe');
+  it.each([
+    { experienceId: 'unknown-engine', reason: 'gameId desconocido' },
+    { experienceId: 'radiesse-ruleta', reason: 'ruleta sin componente registrado' },
+    { experienceId: 'no-existe', reason: 'experienceId desconocido' },
+  ])('muestra UnavailableScreen cuando $reason ($experienceId)', ({ experienceId }) => {
+    const { fixture } = setup(experienceId);
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('app-unavailable-screen')).toBeTruthy();
   });
@@ -213,4 +254,3 @@ describe('GameHost', () => {
     expect(mockSession.leavePlay).toHaveBeenCalled();
   });
 });
-

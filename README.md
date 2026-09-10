@@ -4,9 +4,9 @@ Kiosco interactivo táctil para consultorios (**9:16** / diseño base **1080×19
 
 | | |
 | --- | --- |
-| **App** | `0.1.0` — Angular 22 + Tauri 2 (Windows) |
+| **App** | `0.1.2` — Angular 22 + Tauri 2 (Windows) |
 | **Catálogo** | `0.6.0` — Radiesse, Ultherapy; Belotero (`develop`); motores Memoria y Triqui |
-| **Estado** | Fases 1–9: producto jugable, kiosco nativo, protector, panel, instaladores y canales de update listos |
+| **Estado** | Fases **1–10** cerradas: producto jugable, kiosco nativo, panel, instaladores, canales de update y **packs OTA** a disco |
 
 ---
 
@@ -14,7 +14,7 @@ Kiosco interactivo táctil para consultorios (**9:16** / diseño base **1080×19
 
 - Angular 22 (standalone, signals, lazy routes)
 - TypeScript `~6.0.2`, Tailwind CSS v4 (`kiosk` / `kiosk-tall`)
-- Tauri 2 (`@tauri-apps/api`, `@tauri-apps/plugin-updater`)
+- Tauri 2 (`@tauri-apps/api`, `@tauri-apps/plugin-updater`, `@tauri-apps/plugin-fs` acotado a AppLocalData)
 - Vitest + Prettier (`npm run format:check`; ESLint queda como follow-up)
 - Montserrat local; Heroicons outline vía `HeroIcon` (sin CDN)
 
@@ -40,7 +40,7 @@ npm run build          # dist/merz-games/browser
 npm run format:check   # Prettier (ámbitos de release)
 npm run videos:compress # masters → public/content/videos/ (ffmpeg)
 npm run copy:videos    # MP4 → public/content/videos/
-npm run bump:version -- 0.1.1   # package.json + tauri.conf + Cargo.toml
+npm run bump:version -- 0.1.3   # package.json + tauri.conf + Cargo.toml
 npm run tauri:dev      # ventana 1080×1920 + ng serve
 npm run tauri:build    # copy:videos + MSI/NSIS + firmas updater
 ```
@@ -107,11 +107,13 @@ Sin `git pull`, sin tokens write en el cliente. Check **solo** desde el panel.
 | Canal | Qué | URL canónica |
 | --- | --- | --- |
 | **App** | Ejecutable firmado (Tauri Updater) | `https://github.com/juliansfreelance/merz-games/releases/latest/download/latest.json` |
-| **Contenido** | `content-manifest.json` | `https://raw.githubusercontent.com/juliansfreelance/merz-games/master/content/manifests/content-manifest.json` |
+| **Contenido** | `content-manifest.json` + archivos | JSON: `…/master/content/manifests/content-manifest.json` |
 
-- Contenido: `fetch` → `compareCatalogs` → confirmación → `loadManifest`. JSON inválido o `minAppVersion` alto → se conserva el catálogo local. `pendingAssets` se **listan** (escritura a disco = Fase 10).
+- Contenido: `fetch` → `compareCatalogs` → confirmación → **pack OTA** (`pendingAssets` a `%LOCALAPPDATA%\com.merzgames.app\content\`) → `loadManifest`. JSON inválido o `minAppVersion` alto → se conserva el catálogo local y **no** se instala el pack. En navegador el JSON sí; el pack no. Hashes opcionales en `content-index.json` (404 = verificar tipo/tamaño).
+- Origen de archivos: imágenes/audio → raw `master`/`public/`; MP4 → Release `content-videos` (no están en git).
+- Runtime: `assetUrl` usa **pack > bundle**. Tras el apply, jugar y el protector siguen **offline**.
 - App: pubkey minisign real en `tauri.conf.json`; firma con secretos de CI. Sin Release / sin red → error u `offline` honestos.
-- Orden apply: contenido primero, binario después (puede reiniciar).
+- Orden apply: pack a disco → JSON → binario (puede reiniciar). Restaurar fábrica: semilla + vaciar packs OTA (el bundle se conserva).
 
 ### Secretos de GitHub (Release)
 
@@ -134,16 +136,16 @@ Firma Authenticode de Windows: **opcional**. Sin certificado de agencia, SmartSc
 ### Release
 
 ```bash
-npm run bump:version -- 0.1.1   # o --patch
-git tag v0.1.1
-git push origin v0.1.1          # dispara .github/workflows/release.yml
+npm run bump:version -- 0.1.3   # o --patch
+git tag v0.1.3
+git push origin v0.1.3          # dispara .github/workflows/release.yml
 ```
 
 También `workflow_dispatch` en Actions. El job Windows: test → copy videos → `tauri-action` → Release con MSI, NSIS, `.sig` y `latest.json`.
 
 Videos en CI: Release auxiliar opcional `content-videos`, o masters en el runner vía `CONTENT_VIDEOS_DIR` / `resources/videos/`.
 
-Manual corto: [`resources/docs/manual-instalacion-y-panel.md`](resources/docs/manual-instalacion-y-panel.md) (carpeta `resources/` local / gitignored en este repo; copia operativa junto al instalador).
+Operativa: [`resources/docs/Manual de despliegue.md`](resources/docs/Manual%20de%20despliegue.md). Resumen corto: [`resources/docs/manual-instalacion-y-panel.md`](resources/docs/manual-instalacion-y-panel.md). Walkthrough de packs: [`Fase 10`](resources/docs/walkthrough/Fase%2010%20—%20Walkthrough%20plataforma%20y%20packs%20OTA.md).
 
 ---
 
@@ -159,27 +161,27 @@ Manual corto: [`resources/docs/manual-instalacion-y-panel.md`](resources/docs/ma
 
 ```text
 src/app/core/
-  platform/     restart, exit, enterKiosk, leaveKiosk
+  platform/     restart, exit, enterKiosk, leaveKiosk, content-fs, assetUrl (pack > bundle)
   catalog/      loadManifest, compareCatalogs
-  update/       content-update, app-update, coordinador
+  update/       content-update, content-pack, app-update, coordinador
   kiosk/        IdleWatchdog, screensaver playlist
   games/        memory/, triqui/
   …
 src/app/features/
   splash/, welcome/, brands/, experiences/, play/
   admin/, screensaver/, shared/ (CoverFlow, CatalogCard, …)
-content/manifests/content-manifest.json
+content/manifests/      content-manifest.json (+ content-index.json opcional)
 public/content/          imágenes, audio (videos gitignored)
 scripts/copy-videos.mjs  scripts/bump-version.mjs
-.github/workflows/       test.yml, release.yml
-src-tauri/               Tauri 2 + pubkey updater
+.github/workflows/       test.yml, release.yml, pages.yml
+src-tauri/               Tauri 2 + pubkey updater + plugin-fs
 releases/README.md       formato latest.json
 ```
 
-Persistencia local: `merz-games.catalog-manifest`, `merz-games.kiosk-settings`, `merz-games.admin-pin-hash`.
+Persistencia local: `merz-games.catalog-manifest`, `merz-games.kiosk-settings`, `merz-games.admin-pin-hash`. Packs OTA (Tauri): `%LOCALAPPDATA%\com.merzgames.app\content\`.
 
 ---
 
-## Fuera de alcance (Fase 10+)
+## Fuera de alcance
 
-Escritura de packs a `%LOCALAPPDATA%/merz-games/content/`, inventario de premios, stats, PII, Store de Windows.
+Inventario de premios, stats, PII, Store de Windows, Authenticode, motores nuevos (Ruleta, Quiz, …: `UnavailableScreen` si el `gameId` no está registrado).

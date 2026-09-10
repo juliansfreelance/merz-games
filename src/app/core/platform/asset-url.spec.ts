@@ -1,4 +1,5 @@
 import { assetUrl } from './asset-url';
+import { clearPackRuntime, hydratePackRuntime } from './pack-runtime';
 
 function withBaseHref(href: string, run: () => void): void {
   const previous = Array.from(document.querySelectorAll('base'));
@@ -15,6 +16,10 @@ function withBaseHref(href: string, run: () => void): void {
 }
 
 describe('assetUrl', () => {
+  afterEach(() => {
+    clearPackRuntime();
+  });
+
   it('deja pasar http(s), blob y data', () => {
     expect(assetUrl('https://cdn.example/a.png')).toBe('https://cdn.example/a.png');
     expect(assetUrl('http://localhost/a.png')).toBe('http://localhost/a.png');
@@ -41,6 +46,21 @@ describe('assetUrl', () => {
       );
       expect(assetUrl('content/audio/bgm.mp3')).toBe(
         'https://juliansfreelance.github.io/merz-games/content/audio/bgm.mp3',
+      );
+    });
+  });
+
+  it('pack hit gana al bundle', () => {
+    hydratePackRuntime({
+      files: { 'images/logo.png': '/mem/content/images/logo.png' },
+      convertFileSrc: (abs) => `asset://localhost${abs}`,
+    });
+    withBaseHref('http://localhost:4200/', () => {
+      expect(assetUrl('/content/images/logo.png')).toBe(
+        'asset://localhost/mem/content/images/logo.png',
+      );
+      expect(assetUrl('/content/images/other.png')).toBe(
+        'http://localhost:4200/content/images/other.png',
       );
     });
   });

@@ -1,7 +1,9 @@
 import { Injectable } from '@angular/core';
 import { CatalogService, collectContentAssetUrls } from '../catalog/catalog';
 import { ContentManifest } from '../catalog/content-manifest.model';
-import { CONTENT_MANIFEST_URL, CONTENT_OFFLINE_MESSAGE } from './update.constants';
+import { CONTENT_MANIFEST_URL, CONTENT_OFFLINE_MESSAGE, type FetchFn } from './update.constants';
+
+export type { FetchFn } from './update.constants';
 
 export type ContentFetchKind = 'ok' | 'offline' | 'error';
 
@@ -11,8 +13,6 @@ export interface ContentFetchResult {
   readonly errorMessage?: string;
 }
 
-export type FetchFn = (input: string, init?: RequestInit) => Promise<Response>;
-
 function isNetworkFailure(error: unknown): boolean {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
   if (error instanceof TypeError) return true;
@@ -21,7 +21,7 @@ function isNetworkFailure(error: unknown): boolean {
 }
 
 /**
- * GET del content-manifest publicado. Sin escritura a disco.
+ * GET del content-manifest publicado.
  */
 export async function fetchContentManifest(
   url: string = CONTENT_MANIFEST_URL,

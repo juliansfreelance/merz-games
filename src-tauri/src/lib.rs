@@ -10,29 +10,22 @@ fn exit_app(app: tauri::AppHandle) {
 
 #[tauri::command]
 fn leave_kiosk(window: tauri::WebviewWindow) -> Result<(), String> {
-    window
-        .set_fullscreen(false)
-        .map_err(|e| e.to_string())?;
-    window
-        .set_decorations(true)
-        .map_err(|e| e.to_string())?;
+    window.set_fullscreen(false).map_err(|e| e.to_string())?;
+    window.set_decorations(true).map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
 fn enter_kiosk(window: tauri::WebviewWindow) -> Result<(), String> {
-    window
-        .set_fullscreen(true)
-        .map_err(|e| e.to_string())?;
-    window
-        .set_decorations(false)
-        .map_err(|e| e.to_string())?;
+    window.set_fullscreen(true).map_err(|e| e.to_string())?;
+    window.set_decorations(false).map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             restart_app,

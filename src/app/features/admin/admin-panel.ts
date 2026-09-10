@@ -1,12 +1,4 @@
-import {
-  Component,
-  computed,
-  DestroyRef,
-  effect,
-  inject,
-  signal,
-  untracked,
-} from '@angular/core';
+import { Component, computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import {
   CdkDrag,
@@ -21,10 +13,16 @@ import { CatalogService, Brand, Game, GameExperience } from '../../core/catalog/
 import { AttractionVideo } from '../../core/catalog/content-manifest.model';
 import { CatalogDiffItem } from '../../core/catalog/compare-catalogs';
 import { UpdateStatus } from '../../core/catalog/update.model';
-import { KioskSettings, ScreensaverMode, ScreensaverVideoOrder } from '../../core/settings/kiosk-settings';
+import {
+  KioskSettings,
+  ScreensaverMode,
+  ScreensaverVideoOrder,
+} from '../../core/settings/kiosk-settings';
 import { PlatformService, KioskCommandResult } from '../../core/platform/platform.service';
 import { AssetSrc } from '../../core/platform/asset-src';
 import { UpdateCoordinator } from '../../core/update/update-coordinator';
+import { ContentPack } from '../../core/update/content-pack';
+import { pendingHasVideos } from '../../core/update/content-remote-url';
 import { Difficulty, FirstPlayer, PlayerSymbolChoice } from '../../core/games/triqui/triqui.model';
 import {
   resolveTriquiDifficulty,
@@ -53,12 +51,7 @@ import { HeroIcon, HeroIconName } from '../shared/hero-icon';
 import { SuperadminPinDialog } from '../shared/superadmin-pin-dialog';
 import { playUiSfx, UiSfx } from '../shared/ui-sfx';
 
-export type AdminSection =
-  | 'operations'
-  | 'settings'
-  | 'diagnostics'
-  | 'updates'
-  | 'pin';
+export type AdminSection = 'operations' | 'settings' | 'diagnostics' | 'updates' | 'pin';
 
 export type SettingsView = 'menu' | 'general' | 'brands-global' | 'games' | 'brands' | 'experience';
 
@@ -171,7 +164,7 @@ const UPDATE_STATUS_COPY: Record<UpdateStatus, string> = {
   idle: 'Listo para buscar actualizaciones.',
   checking: 'Buscando actualizaciones…',
   available: 'Hay cambios disponibles. Revisa la lista y confirma.',
-  downloading: 'Preparando contenido…',
+  downloading: 'Descargando archivos…',
   installing: 'Instalando…',
   completed: 'Actualización completada.',
   error: 'No se pudo completar la actualización.',
@@ -228,18 +221,26 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
         role="status"
         aria-live="polite"
       >
-        <div class="size-8.5 rounded-full bg-emerald-400/20 border border-emerald-400/40 flex items-center justify-center text-emerald-300 shrink-0">
+        <div
+          class="size-8.5 rounded-full bg-emerald-400/20 border border-emerald-400/40 flex items-center justify-center text-emerald-300 shrink-0"
+        >
           <app-hero-icon name="check" class="text-base text-emerald-300" />
         </div>
         <div>
-          <p class="text-[11px] font-extrabold uppercase tracking-wider text-emerald-300 drop-shadow-sm">{{ t.title }}</p>
+          <p
+            class="text-[11px] font-extrabold uppercase tracking-wider text-emerald-300 drop-shadow-sm"
+          >
+            {{ t.title }}
+          </p>
           <p class="text-xs sm:text-sm text-white font-bold drop-shadow-sm">{{ t.message }}</p>
         </div>
       </div>
     }
 
     <!-- Header Fijo / Translúcido con Blur y Estilo Blanco (Versión destacada interactiva) -->
-    <header class="shrink-0 w-full z-20 bg-white/10 backdrop-blur-xl border-b border-white/20 px-4 sm:px-6 py-3.5 sm:py-4">
+    <header
+      class="shrink-0 w-full z-20 bg-white/10 backdrop-blur-xl border-b border-white/20 px-4 sm:px-6 py-3.5 sm:py-4"
+    >
       <div class="max-w-xl kiosk:max-w-2xl mx-auto w-full flex items-center justify-between gap-3">
         <!-- Botón Volver en Header (icono + texto + SFX click-back) en color blanco -->
         <button
@@ -248,7 +249,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
           class="h-11 sm:h-12 px-4 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/25 border border-white/20 flex items-center gap-2 text-sm sm:text-base font-bold text-white active:scale-95 transition-all cursor-pointer select-none"
           style="touch-action: manipulation;"
           (click)="onBack()"
-          [attr.aria-label]="isAtRootMenu() ? 'Salir del panel de administración' : 'Volver al nivel anterior'"
+          [attr.aria-label]="
+            isAtRootMenu() ? 'Salir del panel de administración' : 'Volver al nivel anterior'
+          "
         >
           <app-hero-icon name="arrow-left" class="text-white" />
           <span class="text-white">{{ isAtRootMenu() ? 'Salir' : 'Volver' }}</span>
@@ -256,7 +259,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
 
         <!-- Título central de cabecera: solo texto (sin icono, sin bordes, sin background) -->
         <div class="flex items-center justify-center text-center truncate px-2">
-          <h1 class="text-base sm:text-lg kiosk:text-xl font-extrabold uppercase font-['Montserrat'] tracking-wide text-white truncate">
+          <h1
+            class="text-base sm:text-lg kiosk:text-xl font-extrabold uppercase font-['Montserrat'] tracking-wide text-white truncate"
+          >
             {{ isAtRootMenu() ? 'Panel Administrativo' : currentHeaderTitle() }}
           </h1>
         </div>
@@ -269,7 +274,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
             class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-yellow-400/15 hover:bg-yellow-400/25 active:bg-yellow-400/35 border border-yellow-400/40 text-xs sm:text-sm font-mono font-bold text-yellow-400 hover:text-yellow-300 active:scale-95 transition-all cursor-pointer select-none shadow-sm shadow-yellow-400/10"
             style="touch-action: manipulation;"
             (click)="goToDiagnostics()"
-            [attr.aria-label]="'Versión ' + platform.appVersion() + '. Tocar para ir directamente a diagnóstico'"
+            [attr.aria-label]="
+              'Versión ' + platform.appVersion() + '. Tocar para ir directamente a diagnóstico'
+            "
           >
             v{{ platform.appVersion() }}
           </button>
@@ -282,12 +289,15 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
       class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-6 py-6 sm:py-8"
       style="touch-action: pan-y; -webkit-overflow-scrolling: touch;"
     >
-      <div class="max-w-xl kiosk:max-w-2xl mx-auto w-full flex flex-col gap-6 text-white select-none pb-12">
-
+      <div
+        class="max-w-xl kiosk:max-w-2xl mx-auto w-full flex flex-col gap-6 text-white select-none pb-12"
+      >
         <!-- ═══ VISTA 0: MENÚ DE OPCIONES PRINCIPAL ═══ -->
         @if (activeSection() === null) {
           <div class="space-y-2 text-center pt-2">
-            <h2 class="text-2xl sm:text-3xl kiosk:text-4xl font-extrabold font-['Montserrat'] uppercase tracking-tight text-white">
+            <h2
+              class="text-2xl sm:text-3xl kiosk:text-4xl font-extrabold font-['Montserrat'] uppercase tracking-tight text-white"
+            >
               Panel Administrativo
             </h2>
             <p class="text-neutral-300 text-sm sm:text-base kiosk:text-lg max-w-md mx-auto">
@@ -305,27 +315,37 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 (click)="openSection(opt.id)"
               >
                 <div class="flex items-center gap-4 min-w-0">
-                  <div class="size-12 sm:size-14 rounded-xl bg-yellow-400/10 border border-yellow-400/25 flex items-center justify-center text-yellow-400 group-hover:bg-yellow-400/20 shrink-0 transition-colors">
+                  <div
+                    class="size-12 sm:size-14 rounded-xl bg-yellow-400/10 border border-yellow-400/25 flex items-center justify-center text-yellow-400 group-hover:bg-yellow-400/20 shrink-0 transition-colors"
+                  >
                     <app-hero-icon [name]="opt.icon" class="text-xl sm:text-2xl text-yellow-400" />
                   </div>
                   <div class="min-w-0">
                     <div class="flex items-center gap-2">
-                      <h3 class="text-base sm:text-lg kiosk:text-xl font-extrabold font-['Montserrat'] uppercase tracking-wide text-white group-hover:text-yellow-400 transition-colors truncate">
+                      <h3
+                        class="text-base sm:text-lg kiosk:text-xl font-extrabold font-['Montserrat'] uppercase tracking-wide text-white group-hover:text-yellow-400 transition-colors truncate"
+                      >
                         {{ opt.title }}
                       </h3>
                       @if (opt.id === 'updates' && snapshot().appUpdateAvailable) {
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-yellow-400/20 text-yellow-300 border border-yellow-400/30">
+                        <span
+                          class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-yellow-400/20 text-yellow-300 border border-yellow-400/30"
+                        >
                           Update
                         </span>
                       }
                     </div>
-                    <p class="text-xs sm:text-sm kiosk:text-base text-neutral-400 font-normal truncate">
+                    <p
+                      class="text-xs sm:text-sm kiosk:text-base text-neutral-400 font-normal truncate"
+                    >
                       {{ opt.subtitle }}
                     </p>
                   </div>
                 </div>
 
-                <div class="size-8 rounded-full bg-white/5 group-hover:bg-yellow-400/20 flex items-center justify-center text-neutral-400 group-hover:text-yellow-400 shrink-0 transition-all group-hover:translate-x-0.5">
+                <div
+                  class="size-8 rounded-full bg-white/5 group-hover:bg-yellow-400/20 flex items-center justify-center text-neutral-400 group-hover:text-yellow-400 shrink-0 transition-all group-hover:translate-x-0.5"
+                >
                   <app-hero-icon name="chevron-right" />
                 </div>
               </button>
@@ -337,28 +357,28 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
         @if (activeSection() === 'operations') {
           <div class="space-y-6">
             <div class="space-y-1">
-              <h2 class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400">
+              <h2
+                class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400"
+              >
                 Operación del Kiosco
               </h2>
               <p class="text-neutral-400 text-sm sm:text-base">
-                {{ isNative() ? 'Control de la aplicación táctil de escritorio.' : 'Control de ejecución del sistema y modo pantalla completa.' }}
+                {{
+                  isNative()
+                    ? 'Control de la aplicación táctil de escritorio.'
+                    : 'Control de ejecución del sistema y modo pantalla completa.'
+                }}
               </p>
             </div>
 
             <div class="space-y-3.5 pt-2">
-              <app-kiosk-button
-                variant="primary"
-                (click)="askConfirm('restart')"
-              >
+              <app-kiosk-button variant="primary" (click)="askConfirm('restart')">
                 <app-hero-icon name="arrow-path" class="text-yellow-400" />
                 Reiniciar aplicación
               </app-kiosk-button>
 
               @if (isNative()) {
-                <app-kiosk-button
-                  variant="secondary"
-                  (click)="askConfirm('exit')"
-                >
+                <app-kiosk-button variant="secondary" (click)="askConfirm('exit')">
                   <app-hero-icon name="power" class="text-rose-400" />
                   Cerrar aplicación
                 </app-kiosk-button>
@@ -368,12 +388,25 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 variant="secondary"
                 (click)="askConfirm(isKiosk() ? 'leaveKiosk' : 'enterKiosk')"
               >
-                <app-hero-icon [name]="isKiosk() ? 'arrows-pointing-in' : 'arrows-pointing-out'" class="text-neutral-300" />
-                {{ isKiosk() ? (isNative() ? 'Salir del modo kiosco' : 'Salir de pantalla completa') : (isNative() ? 'Entrar al modo kiosco' : 'Pantalla completa') }}
+                <app-hero-icon
+                  [name]="isKiosk() ? 'arrows-pointing-in' : 'arrows-pointing-out'"
+                  class="text-neutral-300"
+                />
+                {{
+                  isKiosk()
+                    ? isNative()
+                      ? 'Salir del modo kiosco'
+                      : 'Salir de pantalla completa'
+                    : isNative()
+                      ? 'Entrar al modo kiosco'
+                      : 'Pantalla completa'
+                }}
               </app-kiosk-button>
 
               @if (opMessage()) {
-                <p class="text-yellow-300 text-sm kiosk:text-base text-center font-medium">{{ opMessage() }}</p>
+                <p class="text-yellow-300 text-sm kiosk:text-base text-center font-medium">
+                  {{ opMessage() }}
+                </p>
               }
             </div>
           </div>
@@ -381,11 +414,12 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
 
         <!-- ═══ SUB-PÁGINA 2: AJUSTES DE JUEGO (JERÁRQUICO) ═══ -->
         @if (activeSection() === 'settings') {
-
           <!-- Nivel 2.0: Submenú de Ajustes de Juego (Generales, Memoria, Triqui) -->
           @if (settingsView() === 'menu') {
             <div class="space-y-2 text-center pt-2">
-              <h2 class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400">
+              <h2
+                class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400"
+              >
                 Ajustes de Juego
               </h2>
               <p class="text-neutral-300 text-sm sm:text-base">
@@ -403,11 +437,18 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 (click)="openSettingsGeneral()"
               >
                 <div class="flex items-center gap-4 min-w-0">
-                  <div class="size-12 sm:size-14 rounded-xl bg-yellow-400/10 border border-yellow-400/25 flex items-center justify-center text-yellow-400 group-hover:bg-yellow-400/20 shrink-0">
-                    <app-hero-icon name="adjustments-horizontal" class="text-xl sm:text-2xl text-yellow-400" />
+                  <div
+                    class="size-12 sm:size-14 rounded-xl bg-yellow-400/10 border border-yellow-400/25 flex items-center justify-center text-yellow-400 group-hover:bg-yellow-400/20 shrink-0"
+                  >
+                    <app-hero-icon
+                      name="adjustments-horizontal"
+                      class="text-xl sm:text-2xl text-yellow-400"
+                    />
                   </div>
                   <div class="min-w-0">
-                    <h3 class="text-base sm:text-lg kiosk:text-xl font-extrabold font-['Montserrat'] uppercase tracking-wide text-white group-hover:text-yellow-400 transition-colors truncate">
+                    <h3
+                      class="text-base sm:text-lg kiosk:text-xl font-extrabold font-['Montserrat'] uppercase tracking-wide text-white group-hover:text-yellow-400 transition-colors truncate"
+                    >
                       Ajustes Generales
                     </h3>
                     <p class="text-xs sm:text-sm text-neutral-400 truncate">
@@ -415,7 +456,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     </p>
                   </div>
                 </div>
-                <div class="size-8 rounded-full bg-white/5 group-hover:bg-yellow-400/20 flex items-center justify-center text-neutral-400 group-hover:text-yellow-400 shrink-0">
+                <div
+                  class="size-8 rounded-full bg-white/5 group-hover:bg-yellow-400/20 flex items-center justify-center text-neutral-400 group-hover:text-yellow-400 shrink-0"
+                >
                   <app-hero-icon name="chevron-right" />
                 </div>
               </button>
@@ -429,11 +472,15 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 (click)="openSettingsBrandsGlobal()"
               >
                 <div class="flex items-center gap-4 min-w-0">
-                  <div class="size-12 sm:size-14 rounded-xl bg-yellow-400/10 border border-yellow-400/25 flex items-center justify-center text-yellow-400 group-hover:bg-yellow-400/20 shrink-0">
+                  <div
+                    class="size-12 sm:size-14 rounded-xl bg-yellow-400/10 border border-yellow-400/25 flex items-center justify-center text-yellow-400 group-hover:bg-yellow-400/20 shrink-0"
+                  >
                     <app-hero-icon name="swatch" class="text-xl sm:text-2xl text-yellow-400" />
                   </div>
                   <div class="min-w-0">
-                    <h3 class="text-base sm:text-lg kiosk:text-xl font-extrabold font-['Montserrat'] uppercase tracking-wide text-white group-hover:text-yellow-400 transition-colors truncate">
+                    <h3
+                      class="text-base sm:text-lg kiosk:text-xl font-extrabold font-['Montserrat'] uppercase tracking-wide text-white group-hover:text-yellow-400 transition-colors truncate"
+                    >
                       Marcas y Experiencias
                     </h3>
                     <p class="text-xs sm:text-sm text-neutral-400 truncate">
@@ -441,7 +488,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     </p>
                   </div>
                 </div>
-                <div class="size-8 rounded-full bg-white/5 group-hover:bg-yellow-400/20 flex items-center justify-center text-neutral-400 group-hover:text-yellow-400 shrink-0">
+                <div
+                  class="size-8 rounded-full bg-white/5 group-hover:bg-yellow-400/20 flex items-center justify-center text-neutral-400 group-hover:text-yellow-400 shrink-0"
+                >
                   <app-hero-icon name="chevron-right" />
                 </div>
               </button>
@@ -455,11 +504,18 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 (click)="openSettingsGames()"
               >
                 <div class="flex items-center gap-4 min-w-0">
-                  <div class="size-12 sm:size-14 rounded-xl bg-yellow-400/10 border border-yellow-400/25 flex items-center justify-center text-yellow-400 group-hover:bg-yellow-400/20 shrink-0">
-                    <app-hero-icon name="rocket-launch" class="text-xl sm:text-2xl text-yellow-400" />
+                  <div
+                    class="size-12 sm:size-14 rounded-xl bg-yellow-400/10 border border-yellow-400/25 flex items-center justify-center text-yellow-400 group-hover:bg-yellow-400/20 shrink-0"
+                  >
+                    <app-hero-icon
+                      name="rocket-launch"
+                      class="text-xl sm:text-2xl text-yellow-400"
+                    />
                   </div>
                   <div class="min-w-0">
-                    <h3 class="text-base sm:text-lg kiosk:text-xl font-extrabold font-['Montserrat'] uppercase tracking-wide text-white group-hover:text-yellow-400 transition-colors truncate">
+                    <h3
+                      class="text-base sm:text-lg kiosk:text-xl font-extrabold font-['Montserrat'] uppercase tracking-wide text-white group-hover:text-yellow-400 transition-colors truncate"
+                    >
                       Juegos
                     </h3>
                     <p class="text-xs sm:text-sm text-neutral-400 truncate">
@@ -467,7 +523,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     </p>
                   </div>
                 </div>
-                <div class="size-8 rounded-full bg-white/5 group-hover:bg-yellow-400/20 flex items-center justify-center text-neutral-400 group-hover:text-yellow-400 shrink-0">
+                <div
+                  class="size-8 rounded-full bg-white/5 group-hover:bg-yellow-400/20 flex items-center justify-center text-neutral-400 group-hover:text-yellow-400 shrink-0"
+                >
                   <app-hero-icon name="chevron-right" />
                 </div>
               </button>
@@ -482,11 +540,15 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                   (click)="askConfirm('resetDefaults')"
                 >
                   <div class="flex items-center gap-4 min-w-0">
-                    <div class="size-11 sm:size-12 rounded-xl bg-rose-400/15 border border-rose-400/30 flex items-center justify-center text-rose-400 group-hover:bg-rose-400/25 shrink-0 transition-colors">
+                    <div
+                      class="size-11 sm:size-12 rounded-xl bg-rose-400/15 border border-rose-400/30 flex items-center justify-center text-rose-400 group-hover:bg-rose-400/25 shrink-0 transition-colors"
+                    >
                       <app-hero-icon name="arrow-path" class="text-xl sm:text-2xl text-rose-400" />
                     </div>
                     <div class="min-w-0">
-                      <h3 class="text-sm sm:text-base kiosk:text-lg font-extrabold font-['Montserrat'] uppercase tracking-wide text-rose-200 group-hover:text-rose-100 transition-colors truncate">
+                      <h3
+                        class="text-sm sm:text-base kiosk:text-lg font-extrabold font-['Montserrat'] uppercase tracking-wide text-rose-200 group-hover:text-rose-100 transition-colors truncate"
+                      >
                         Restablecer todos los ajustes del juego
                       </h3>
                       <p class="text-xs sm:text-sm text-neutral-300/80 truncate">
@@ -494,7 +556,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       </p>
                     </div>
                   </div>
-                  <div class="size-8 rounded-full bg-rose-400/10 group-hover:bg-rose-400/25 flex items-center justify-center text-rose-300 shrink-0 transition-colors">
+                  <div
+                    class="size-8 rounded-full bg-rose-400/10 group-hover:bg-rose-400/25 flex items-center justify-center text-rose-300 shrink-0 transition-colors"
+                  >
                     <app-hero-icon name="chevron-right" />
                   </div>
                 </button>
@@ -505,7 +569,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
           <!-- Nivel 2.0b: Submenú de Juegos (Memoria, Triqui) -->
           @if (settingsView() === 'games') {
             <div class="space-y-2 text-center pt-2">
-              <h2 class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400">
+              <h2
+                class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400"
+              >
                 Juegos
               </h2>
               <p class="text-neutral-300 text-sm sm:text-base">
@@ -523,11 +589,18 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 (click)="openSettingsGame('memory')"
               >
                 <div class="flex items-center gap-4 min-w-0">
-                  <div class="size-12 sm:size-14 rounded-xl bg-yellow-400/10 border border-yellow-400/25 flex items-center justify-center text-yellow-400 group-hover:bg-yellow-400/20 shrink-0">
-                    <app-hero-icon name="square-2-stack" class="text-xl sm:text-2xl text-yellow-400" />
+                  <div
+                    class="size-12 sm:size-14 rounded-xl bg-yellow-400/10 border border-yellow-400/25 flex items-center justify-center text-yellow-400 group-hover:bg-yellow-400/20 shrink-0"
+                  >
+                    <app-hero-icon
+                      name="square-2-stack"
+                      class="text-xl sm:text-2xl text-yellow-400"
+                    />
                   </div>
                   <div class="min-w-0">
-                    <h3 class="text-base sm:text-lg kiosk:text-xl font-extrabold font-['Montserrat'] uppercase tracking-wide text-white group-hover:text-yellow-400 transition-colors truncate">
+                    <h3
+                      class="text-base sm:text-lg kiosk:text-xl font-extrabold font-['Montserrat'] uppercase tracking-wide text-white group-hover:text-yellow-400 transition-colors truncate"
+                    >
                       Encuentra la Pareja (Memoria)
                     </h3>
                     <p class="text-xs sm:text-sm text-neutral-400 truncate">
@@ -535,7 +608,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     </p>
                   </div>
                 </div>
-                <div class="size-8 rounded-full bg-white/5 group-hover:bg-yellow-400/20 flex items-center justify-center text-neutral-400 group-hover:text-yellow-400 shrink-0">
+                <div
+                  class="size-8 rounded-full bg-white/5 group-hover:bg-yellow-400/20 flex items-center justify-center text-neutral-400 group-hover:text-yellow-400 shrink-0"
+                >
                   <app-hero-icon name="chevron-right" />
                 </div>
               </button>
@@ -549,11 +624,15 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 (click)="openSettingsGame('triqui')"
               >
                 <div class="flex items-center gap-4 min-w-0">
-                  <div class="size-12 sm:size-14 rounded-xl bg-yellow-400/10 border border-yellow-400/25 flex items-center justify-center text-yellow-400 group-hover:bg-yellow-400/20 shrink-0">
+                  <div
+                    class="size-12 sm:size-14 rounded-xl bg-yellow-400/10 border border-yellow-400/25 flex items-center justify-center text-yellow-400 group-hover:bg-yellow-400/20 shrink-0"
+                  >
                     <app-hero-icon name="squares-2x2" class="text-xl sm:text-2xl text-yellow-400" />
                   </div>
                   <div class="min-w-0">
-                    <h3 class="text-base sm:text-lg kiosk:text-xl font-extrabold font-['Montserrat'] uppercase tracking-wide text-white group-hover:text-yellow-400 transition-colors truncate">
+                    <h3
+                      class="text-base sm:text-lg kiosk:text-xl font-extrabold font-['Montserrat'] uppercase tracking-wide text-white group-hover:text-yellow-400 transition-colors truncate"
+                    >
                       Triqui (Tres en Raya)
                     </h3>
                     <p class="text-xs sm:text-sm text-neutral-400 truncate">
@@ -561,7 +640,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     </p>
                   </div>
                 </div>
-                <div class="size-8 rounded-full bg-white/5 group-hover:bg-yellow-400/20 flex items-center justify-center text-neutral-400 group-hover:text-yellow-400 shrink-0">
+                <div
+                  class="size-8 rounded-full bg-white/5 group-hover:bg-yellow-400/20 flex items-center justify-center text-neutral-400 group-hover:text-yellow-400 shrink-0"
+                >
                   <app-hero-icon name="chevron-right" />
                 </div>
               </button>
@@ -572,7 +653,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
           @if (settingsView() === 'general') {
             <div class="space-y-6">
               <div class="space-y-1">
-                <h2 class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400">
+                <h2
+                  class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400"
+                >
                   Ajustes Generales
                 </h2>
                 <p class="text-neutral-400 text-sm sm:text-base">
@@ -581,18 +664,30 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
               </div>
 
               <!-- Audio General (Media Player con efecto Glass y Sliders Blancos) -->
-              <div class="space-y-5 p-5 sm:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl">
+              <div
+                class="space-y-5 p-5 sm:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl"
+              >
                 <div class="flex items-center justify-between pb-2 border-b border-white/10">
                   <div class="flex items-center gap-2.5">
-                    <app-hero-icon [name]="settings.soundEnabled() ? 'speaker-wave' : 'speaker-x-mark'" class="text-xl text-yellow-400" />
-                    <span class="font-extrabold uppercase tracking-wider text-sm kiosk:text-base text-white">Audio General</span>
+                    <app-hero-icon
+                      [name]="settings.soundEnabled() ? 'speaker-wave' : 'speaker-x-mark'"
+                      class="text-xl text-yellow-400"
+                    />
+                    <span
+                      class="font-extrabold uppercase tracking-wider text-sm kiosk:text-base text-white"
+                      >Audio General</span
+                    >
                   </div>
 
                   <button
                     type="button"
                     uiSfx="click"
                     class="px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border cursor-pointer"
-                    [class]="settings.soundEnabled() ? 'bg-yellow-400/20 border-yellow-400/40 text-yellow-300' : 'bg-white/10 border-white/20 text-neutral-400'"
+                    [class]="
+                      settings.soundEnabled()
+                        ? 'bg-yellow-400/20 border-yellow-400/40 text-yellow-300'
+                        : 'bg-white/10 border-white/20 text-neutral-400'
+                    "
                     (click)="toggleSound()"
                   >
                     {{ settings.soundEnabled() ? 'Sonido Activado' : 'Silenciado' }}
@@ -606,7 +701,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       <app-hero-icon name="musical-note" class="text-sm text-yellow-400" />
                       <span>Música de fondo (BGM)</span>
                     </span>
-                    <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-white/10 text-yellow-400">
+                    <span
+                      class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-white/10 text-yellow-400"
+                    >
                       {{ Math.round(settings.bgmVolume() * 100) }}%
                     </span>
                   </div>
@@ -638,7 +735,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                         <app-hero-icon name="play" class="text-xs text-yellow-400" />
                         <span>Probar</span>
                       </button>
-                      <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-white/10 text-yellow-400">
+                      <span
+                        class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-white/10 text-yellow-400"
+                      >
                         {{ Math.round(settings.sfxVolume() * 100) }}%
                       </span>
                     </div>
@@ -663,7 +762,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       <app-hero-icon name="video-camera" class="text-sm text-yellow-400" />
                       <span>Videos de atracción (clips)</span>
                     </span>
-                    <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-white/10 text-yellow-400">
+                    <span
+                      class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-white/10 text-yellow-400"
+                    >
                       {{ Math.round(settings.videoVolume() * 100) }}%
                     </span>
                   </div>
@@ -679,9 +780,18 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                   />
                 </div>
 
-                <div class="p-3 rounded-xl bg-white/4 border border-white/10 text-xs text-neutral-300 flex items-start gap-2">
-                  <app-hero-icon name="information-circle" class="text-yellow-400 shrink-0 mt-0.5" />
-                  <span>BGM controla la música ambiental continua. SFX controla toques táctiles y aciertos. Videos controla el volumen independiente de clips (en silencio si el audio general está desactivado).</span>
+                <div
+                  class="p-3 rounded-xl bg-white/4 border border-white/10 text-xs text-neutral-300 flex items-start gap-2"
+                >
+                  <app-hero-icon
+                    name="information-circle"
+                    class="text-yellow-400 shrink-0 mt-0.5"
+                  />
+                  <span
+                    >BGM controla la música ambiental continua. SFX controla toques táctiles y
+                    aciertos. Videos controla el volumen independiente de clips (en silencio si el
+                    audio general está desactivado).</span
+                  >
                 </div>
 
                 <!-- Botón restablecer valores por defecto de Audio -->
@@ -698,22 +808,33 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
               </div>
 
               <!-- Rendimiento visual (Cover Flow + atmósfera) -->
-              <div class="space-y-5 p-5 sm:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl">
+              <div
+                class="space-y-5 p-5 sm:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl"
+              >
                 <div class="flex items-center gap-2.5 pb-2 border-b border-white/10">
                   <app-hero-icon name="cpu-chip" class="text-xl text-yellow-400" />
-                  <span class="font-extrabold uppercase tracking-wider text-sm kiosk:text-base text-white">Rendimiento visual</span>
+                  <span
+                    class="font-extrabold uppercase tracking-wider text-sm kiosk:text-base text-white"
+                    >Rendimiento visual</span
+                  >
                 </div>
 
                 <div class="flex items-center justify-between gap-4">
                   <div class="min-w-0">
                     <p class="font-bold text-sm text-white">Movimiento reducido (Cover Flow)</p>
-                    <p class="text-xs text-neutral-400 mt-0.5">Desactiva rotación 3D y spring. Útil en pantallas con poca GPU.</p>
+                    <p class="text-xs text-neutral-400 mt-0.5">
+                      Desactiva rotación 3D y spring. Útil en pantallas con poca GPU.
+                    </p>
                   </div>
                   <button
                     type="button"
                     uiSfx="click"
                     class="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border cursor-pointer"
-                    [class]="settings.coverReduceMotion() ? 'bg-yellow-400/20 border-yellow-400/40 text-yellow-300' : 'bg-white/10 border-white/20 text-neutral-400'"
+                    [class]="
+                      settings.coverReduceMotion()
+                        ? 'bg-yellow-400/20 border-yellow-400/40 text-yellow-300'
+                        : 'bg-white/10 border-white/20 text-neutral-400'
+                    "
                     (click)="toggleCoverReduceMotion()"
                   >
                     {{ settings.coverReduceMotion() ? 'ON' : 'OFF' }}
@@ -723,13 +844,19 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 <div class="flex items-center justify-between gap-4">
                   <div class="min-w-0">
                     <p class="font-bold text-sm text-white">Atmósfera animada</p>
-                    <p class="text-xs text-neutral-400 mt-0.5">Manchas de color en movimiento. Apagar deja el tinte estático.</p>
+                    <p class="text-xs text-neutral-400 mt-0.5">
+                      Manchas de color en movimiento. Apagar deja el tinte estático.
+                    </p>
                   </div>
                   <button
                     type="button"
                     uiSfx="click"
                     class="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border cursor-pointer"
-                    [class]="settings.atmosphereMotionEnabled() ? 'bg-yellow-400/20 border-yellow-400/40 text-yellow-300' : 'bg-white/10 border-white/20 text-neutral-400'"
+                    [class]="
+                      settings.atmosphereMotionEnabled()
+                        ? 'bg-yellow-400/20 border-yellow-400/40 text-yellow-300'
+                        : 'bg-white/10 border-white/20 text-neutral-400'
+                    "
                     (click)="toggleAtmosphereMotion()"
                   >
                     {{ settings.atmosphereMotionEnabled() ? 'ON' : 'OFF' }}
@@ -738,15 +865,21 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
               </div>
 
               <!-- Protector de Pantalla -->
-              <div class="space-y-4 p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+              <div
+                class="space-y-4 p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md"
+              >
                 <div class="flex items-center gap-2 pb-1 border-b border-white/10">
                   <app-hero-icon name="tv" class="text-base text-yellow-400" />
-                  <p class="font-bold uppercase tracking-wider text-sm kiosk:text-base text-white">Protector de pantalla</p>
+                  <p class="font-bold uppercase tracking-wider text-sm kiosk:text-base text-white">
+                    Protector de pantalla
+                  </p>
                 </div>
 
                 <!-- Modo Clásico / Video -->
                 <div class="space-y-2">
-                  <p class="text-xs font-bold uppercase tracking-wider text-neutral-400">Modo de visualización</p>
+                  <p class="text-xs font-bold uppercase tracking-wider text-neutral-400">
+                    Modo de visualización
+                  </p>
                   <div class="grid grid-cols-2 gap-3">
                     <button
                       type="button"
@@ -767,8 +900,13 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       Video
                     </button>
                   </div>
-                  <div class="p-3 rounded-xl bg-white/4 border border-white/10 text-xs text-neutral-300 flex items-start gap-2">
-                    <app-hero-icon name="information-circle" class="text-yellow-400 shrink-0 mt-0.5" />
+                  <div
+                    class="p-3 rounded-xl bg-white/4 border border-white/10 text-xs text-neutral-300 flex items-start gap-2"
+                  >
+                    <app-hero-icon
+                      name="information-circle"
+                      class="text-yellow-400 shrink-0 mt-0.5"
+                    />
                     <span>{{ screensaverExplanation(settings.screensaverMode()) }}</span>
                   </div>
                 </div>
@@ -776,8 +914,12 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 <!-- Tiempo de aparición (Inactividad) -->
                 <div class="space-y-2.5 pt-2 border-t border-white/10">
                   <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold uppercase tracking-wider text-neutral-400">Tiempo de inactividad</span>
-                    <span class="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-yellow-400/10 border border-yellow-400/20 text-yellow-400">
+                    <span class="text-xs font-bold uppercase tracking-wider text-neutral-400"
+                      >Tiempo de inactividad</span
+                    >
+                    <span
+                      class="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-yellow-400/10 border border-yellow-400/20 text-yellow-400"
+                    >
                       {{ formatIdleTime(settings.screensaverIdleMs()) }}
                     </span>
                   </div>
@@ -804,14 +946,17 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     </button>
                   </div>
                   <p class="text-[11px] text-neutral-400">
-                    Aparece tras {{ formatIdleTime(settings.screensaverIdleMs()) }} sin toques en pantallas de paciente. En el panel administrativo permanece pausado.
+                    Aparece tras {{ formatIdleTime(settings.screensaverIdleMs()) }} sin toques en
+                    pantallas de paciente. En el panel administrativo permanece pausado.
                   </p>
                 </div>
 
                 <!-- Orden de videos (solo si modo === 'video') -->
                 @if (settings.screensaverMode() === 'video') {
                   <div class="space-y-2 pt-2 border-t border-white/10">
-                    <p class="text-xs font-bold uppercase tracking-wider text-neutral-400">Orden de videos de atracción</p>
+                    <p class="text-xs font-bold uppercase tracking-wider text-neutral-400">
+                      Orden de videos de atracción
+                    </p>
                     <div class="grid grid-cols-2 gap-3">
                       <button
                         type="button"
@@ -842,51 +987,78 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     <div class="flex items-center justify-between">
                       <div class="flex items-center gap-2">
                         <app-hero-icon name="video-camera" class="text-base text-yellow-400" />
-                        <p class="text-xs font-bold uppercase tracking-wider text-neutral-300">Videos de atracción</p>
+                        <p class="text-xs font-bold uppercase tracking-wider text-neutral-300">
+                          Videos de atracción
+                        </p>
                       </div>
-                      <span class="text-xs font-mono font-bold px-2.5 py-0.5 rounded-lg bg-yellow-400/10 border border-yellow-400/20 text-yellow-400">
+                      <span
+                        class="text-xs font-mono font-bold px-2.5 py-0.5 rounded-lg bg-yellow-400/10 border border-yellow-400/20 text-yellow-400"
+                      >
                         {{ activeVideosCount() }} de {{ totalVideosCount() }} activos
                       </span>
                     </div>
 
                     <p class="text-[11px] text-neutral-400">
-                      Activa o desactiva los clips para el protector de pantalla. Solo los videos activos serán incluidos en la rotación.
+                      Activa o desactiva los clips para el protector de pantalla. Solo los videos
+                      activos serán incluidos en la rotación.
                     </p>
 
                     <!-- Grupo: Videos Generales -->
                     <div class="space-y-2 rounded-xl bg-black/30 p-3.5 border border-white/10">
-                      <div class="flex items-center justify-between pb-1.5 border-b border-white/10">
-                        <span class="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
+                      <div
+                        class="flex items-center justify-between pb-1.5 border-b border-white/10"
+                      >
+                        <span
+                          class="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5"
+                        >
                           <app-hero-icon name="building-office-2" class="text-xs text-yellow-400" />
                           <span>Videos Generales</span>
                         </span>
-                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-neutral-300">
+                        <span
+                          class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-neutral-300"
+                        >
                           Institucionales
                         </span>
                       </div>
 
                       @if (generalVideos().length === 0) {
-                        <p class="text-xs text-neutral-500 italic py-1">No hay videos generales configurados.</p>
+                        <p class="text-xs text-neutral-500 italic py-1">
+                          No hay videos generales configurados.
+                        </p>
                       }
 
                       @for (video of generalVideos(); track video.source) {
-                        <div class="flex items-center justify-between gap-3 py-2 px-2.5 rounded-lg bg-white/4 hover:bg-white/[0.07] border border-white/5 transition-colors group/row">
+                        <div
+                          class="flex items-center justify-between gap-3 py-2 px-2.5 rounded-lg bg-white/4 hover:bg-white/[0.07] border border-white/5 transition-colors group/row"
+                        >
                           <button
                             type="button"
                             uiSfx="click"
                             (click)="openVideoPreview(video)"
                             class="flex items-center gap-2.5 min-w-0 flex-1 text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 rounded-lg p-1 -m-1 transition-all active:scale-[0.99]"
                             title="Reproducir vista previa del video"
-                            [attr.aria-label]="'Reproducir vista previa de ' + (video.nombre || video.name || 'Video General')"
+                            [attr.aria-label]="
+                              'Reproducir vista previa de ' +
+                              (video.nombre || video.name || 'Video General')
+                            "
                           >
-                            <div class="size-8 rounded-lg bg-yellow-400/15 group-hover/row:bg-yellow-400/25 flex items-center justify-center shrink-0 border border-yellow-400/30 transition-colors">
-                              <app-hero-icon name="play-circle" class="text-base text-yellow-400 group-hover/row:scale-110 transition-transform" />
+                            <div
+                              class="size-8 rounded-lg bg-yellow-400/15 group-hover/row:bg-yellow-400/25 flex items-center justify-center shrink-0 border border-yellow-400/30 transition-colors"
+                            >
+                              <app-hero-icon
+                                name="play-circle"
+                                class="text-base text-yellow-400 group-hover/row:scale-110 transition-transform"
+                              />
                             </div>
                             <div class="min-w-0 flex-1">
-                              <p class="text-xs font-bold text-white group-hover/row:text-yellow-300 transition-colors truncate">
+                              <p
+                                class="text-xs font-bold text-white group-hover/row:text-yellow-300 transition-colors truncate"
+                              >
                                 {{ video.nombre || video.name || 'Video General' }}
                               </p>
-                              <p class="text-[10px] text-neutral-400 truncate">{{ videoMetaLabel(video.source) }}</p>
+                              <p class="text-[10px] text-neutral-400 truncate">
+                                {{ videoMetaLabel(video.source) }}
+                              </p>
                             </div>
                           </button>
 
@@ -894,15 +1066,26 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                             type="button"
                             uiSfx="select"
                             class="relative inline-flex h-8 w-14 shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none"
-                            [class]="video.enabled ? 'bg-emerald-500 border-emerald-400' : 'bg-white/15 border-white/30'"
+                            [class]="
+                              video.enabled
+                                ? 'bg-emerald-500 border-emerald-400'
+                                : 'bg-white/15 border-white/30'
+                            "
                             (click)="toggleGeneralVideo(video)"
-                            [attr.aria-label]="(video.enabled ? 'Desactivar video ' : 'Activar video ') + (video.nombre || video.name)"
+                            [attr.aria-label]="
+                              (video.enabled ? 'Desactivar video ' : 'Activar video ') +
+                              (video.nombre || video.name)
+                            "
                           >
                             <span
                               class="pointer-events-none inline-flex items-center justify-center size-6 rounded-full bg-white shadow-md transform transition duration-200 ease-in-out mt-0.5"
                               [class]="video.enabled ? 'translate-x-6' : 'translate-x-0.5'"
                             >
-                              <app-hero-icon [name]="video.enabled ? 'check' : 'x-mark'" class="text-xs" [class]="video.enabled ? 'text-emerald-600' : 'text-neutral-400'" />
+                              <app-hero-icon
+                                [name]="video.enabled ? 'check' : 'x-mark'"
+                                class="text-xs"
+                                [class]="video.enabled ? 'text-emerald-600' : 'text-neutral-400'"
+                              />
                             </span>
                           </button>
                         </div>
@@ -913,40 +1096,62 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     @for (brand of catalog.rawManifest().brands; track brand.id) {
                       @if (getBrandVideos(brand).length > 0) {
                         <div class="space-y-2 rounded-xl bg-black/30 p-3.5 border border-white/10">
-                          <div class="flex items-center justify-between pb-1.5 border-b border-white/10">
-                            <span class="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
+                          <div
+                            class="flex items-center justify-between pb-1.5 border-b border-white/10"
+                          >
+                            <span
+                              class="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5"
+                            >
                               <app-hero-icon name="tag" class="text-xs text-yellow-400" />
                               <span>{{ cleanText(brand.name) }}</span>
                             </span>
                             @if (!brand.enabled) {
-                              <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/20 border border-rose-400/30 text-rose-300">
+                              <span
+                                class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/20 border border-rose-400/30 text-rose-300"
+                              >
                                 Marca desactivada en kiosco
                               </span>
                             } @else {
-                              <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-neutral-300">
+                              <span
+                                class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-neutral-300"
+                              >
                                 Marca
                               </span>
                             }
                           </div>
 
                           @for (video of getBrandVideos(brand); track video.source) {
-                            <div class="flex items-center justify-between gap-3 py-2 px-2.5 rounded-lg bg-white/4 hover:bg-white/[0.07] border border-white/5 transition-colors group/row">
+                            <div
+                              class="flex items-center justify-between gap-3 py-2 px-2.5 rounded-lg bg-white/4 hover:bg-white/[0.07] border border-white/5 transition-colors group/row"
+                            >
                               <button
                                 type="button"
                                 uiSfx="click"
                                 (click)="openVideoPreview(video, brand)"
                                 class="flex items-center gap-2.5 min-w-0 flex-1 text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 rounded-lg p-1 -m-1 transition-all active:scale-[0.99]"
                                 title="Reproducir vista previa del video"
-                                [attr.aria-label]="'Reproducir vista previa de ' + (video.nombre || video.name || brand.name)"
+                                [attr.aria-label]="
+                                  'Reproducir vista previa de ' +
+                                  (video.nombre || video.name || brand.name)
+                                "
                               >
-                                <div class="size-8 rounded-lg bg-yellow-400/15 group-hover/row:bg-yellow-400/25 flex items-center justify-center shrink-0 border border-yellow-400/30 transition-colors">
-                                  <app-hero-icon name="play-circle" class="text-base text-yellow-400 group-hover/row:scale-110 transition-transform" />
+                                <div
+                                  class="size-8 rounded-lg bg-yellow-400/15 group-hover/row:bg-yellow-400/25 flex items-center justify-center shrink-0 border border-yellow-400/30 transition-colors"
+                                >
+                                  <app-hero-icon
+                                    name="play-circle"
+                                    class="text-base text-yellow-400 group-hover/row:scale-110 transition-transform"
+                                  />
                                 </div>
                                 <div class="min-w-0 flex-1">
-                                  <p class="text-xs font-bold text-white group-hover/row:text-yellow-300 transition-colors truncate">
+                                  <p
+                                    class="text-xs font-bold text-white group-hover/row:text-yellow-300 transition-colors truncate"
+                                  >
                                     {{ video.nombre || video.name || brand.name }}
                                   </p>
-                                  <p class="text-[10px] text-neutral-400 truncate">{{ videoMetaLabel(video.source) }}</p>
+                                  <p class="text-[10px] text-neutral-400 truncate">
+                                    {{ videoMetaLabel(video.source) }}
+                                  </p>
                                 </div>
                               </button>
 
@@ -954,15 +1159,28 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                                 type="button"
                                 uiSfx="select"
                                 class="relative inline-flex h-8 w-14 shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none"
-                                [class]="video.enabled ? 'bg-emerald-500 border-emerald-400' : 'bg-white/15 border-white/30'"
+                                [class]="
+                                  video.enabled
+                                    ? 'bg-emerald-500 border-emerald-400'
+                                    : 'bg-white/15 border-white/30'
+                                "
                                 (click)="toggleBrandVideo(brand.id, video)"
-                                [attr.aria-label]="(video.enabled ? 'Desactivar video ' : 'Activar video ') + (video.nombre || video.name)"
+                                [attr.aria-label]="
+                                  (video.enabled ? 'Desactivar video ' : 'Activar video ') +
+                                  (video.nombre || video.name)
+                                "
                               >
                                 <span
                                   class="pointer-events-none inline-flex items-center justify-center size-6 rounded-full bg-white shadow-md transform transition duration-200 ease-in-out mt-0.5"
                                   [class]="video.enabled ? 'translate-x-6' : 'translate-x-0.5'"
                                 >
-                                  <app-hero-icon [name]="video.enabled ? 'check' : 'x-mark'" class="text-xs" [class]="video.enabled ? 'text-emerald-600' : 'text-neutral-400'" />
+                                  <app-hero-icon
+                                    [name]="video.enabled ? 'check' : 'x-mark'"
+                                    class="text-xs"
+                                    [class]="
+                                      video.enabled ? 'text-emerald-600' : 'text-neutral-400'
+                                    "
+                                  />
                                 </span>
                               </button>
                             </div>
@@ -972,9 +1190,17 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     }
 
                     @if (activeVideosCount() === 0) {
-                      <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-400/20 text-amber-300 text-xs flex items-start gap-2">
-                        <app-hero-icon name="information-circle" class="text-amber-400 shrink-0 mt-0.5 text-sm" />
-                        <span>No hay videos de atracción habilitados. El protector se mantendrá indefinidamente en animación clásica.</span>
+                      <div
+                        class="p-3 rounded-xl bg-amber-500/10 border border-amber-400/20 text-amber-300 text-xs flex items-start gap-2"
+                      >
+                        <app-hero-icon
+                          name="information-circle"
+                          class="text-amber-400 shrink-0 mt-0.5 text-sm"
+                        />
+                        <span
+                          >No hay videos de atracción habilitados. El protector se mantendrá
+                          indefinidamente en animación clásica.</span
+                        >
                       </div>
                     }
                   </div>
@@ -1010,7 +1236,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
           @if (settingsView() === 'brands-global') {
             <div class="space-y-6">
               <div class="space-y-1">
-                <h2 class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400 flex items-center gap-2.5">
+                <h2
+                  class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400 flex items-center gap-2.5"
+                >
                   <app-hero-icon name="swatch" class="text-2xl text-yellow-400" />
                   <span>Marcas y Experiencias</span>
                 </h2>
@@ -1028,10 +1256,15 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     >
                       <span class="size-2 rounded-full" [class]="section.dotClass"></span>
                       {{ section.title }}
-                      <span class="text-neutral-500 font-bold normal-case tracking-normal">({{ section.brands.length }})</span>
+                      <span class="text-neutral-500 font-bold normal-case tracking-normal"
+                        >({{ section.brands.length }})</span
+                      >
                     </h3>
                     @if (section.reorderable && section.brands.length > 1) {
-                      <span class="text-[10px] sm:text-xs text-neutral-500 uppercase tracking-wider font-bold">Arrastra para ordenar</span>
+                      <span
+                        class="text-[10px] sm:text-xs text-neutral-500 uppercase tracking-wider font-bold"
+                        >Arrastra para ordenar</span
+                      >
                     }
                   </div>
 
@@ -1042,12 +1275,16 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       class="brand-drag-list"
                       cdkDropList
                       [cdkDropListData]="section.brands"
-                      (cdkDropListDropped)="onKioskBrandDrop($event, section.id === 'beta' ? 'beta' : 'active')"
+                      (cdkDropListDropped)="
+                        onKioskBrandDrop($event, section.id === 'beta' ? 'beta' : 'active')
+                      "
                     >
                       @for (brand of section.brands; track brand.id) {
                         <div
                           class="brand-drag-row w-full rounded-2xl bg-white/5 border backdrop-blur-md shadow-xl overflow-hidden"
-                          [class]="section.id === 'beta' ? 'border-amber-400/20' : 'border-white/10'"
+                          [class]="
+                            section.id === 'beta' ? 'border-amber-400/20' : 'border-white/10'
+                          "
                           cdkDrag
                           [cdkDragDisabled]="section.brands.length < 2"
                           [cdkDragData]="brand"
@@ -1073,19 +1310,33 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                                   <app-hero-icon name="arrows-up-down" class="text-lg" />
                                 </button>
                               }
-                              <div class="size-11 sm:size-12 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-yellow-400 shrink-0">
+                              <div
+                                class="size-11 sm:size-12 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-yellow-400 shrink-0"
+                              >
                                 <app-hero-icon name="tag" class="text-lg text-yellow-400" />
                               </div>
                               <div class="min-w-0">
                                 <div class="flex items-center gap-2 flex-wrap">
-                                  <h4 class="text-sm sm:text-base font-bold text-white truncate">{{ cleanText(brand.name) }}</h4>
+                                  <h4 class="text-sm sm:text-base font-bold text-white truncate">
+                                    {{ cleanText(brand.name) }}
+                                  </h4>
                                   @if (brand.develop) {
-                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-300">Beta</span>
+                                    <span
+                                      class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-300"
+                                      >Beta</span
+                                    >
                                   }
-                                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-emerald-500/20 border-emerald-400/40 text-emerald-300">Activa</span>
+                                  <span
+                                    class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-emerald-500/20 border-emerald-400/40 text-emerald-300"
+                                    >Activa</span
+                                  >
                                 </div>
                                 <p class="text-xs text-neutral-400 truncate mt-0.5">
-                                  {{ brand.develop ? 'Visible en el kiosco con modo desarrollo activo' : 'Visible en el selector de marcas del kiosco' }}
+                                  {{
+                                    brand.develop
+                                      ? 'Visible en el kiosco con modo desarrollo activo'
+                                      : 'Visible en el selector de marcas del kiosco'
+                                  }}
                                 </p>
                               </div>
                             </div>
@@ -1096,22 +1347,39 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                               (click)="toggleBrand(brand)"
                               [attr.aria-label]="'Desactivar marca ' + cleanText(brand.name)"
                             >
-                              <span class="pointer-events-none inline-flex items-center justify-center size-6 rounded-full bg-white shadow-md translate-x-6 mt-0.5">
+                              <span
+                                class="pointer-events-none inline-flex items-center justify-center size-6 rounded-full bg-white shadow-md translate-x-6 mt-0.5"
+                              >
                                 <app-hero-icon name="check" class="text-xs text-emerald-600" />
                               </span>
                             </button>
                           </div>
 
-                          <div class="px-4 sm:px-5 pb-4 space-y-3 border-t border-white/8 pt-3 ml-2 sm:ml-4">
-                            <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-neutral-500">Experiencias / juegos</p>
-                            @for (expSection of experienceSectionsForBrand(brand.id); track expSection.id) {
+                          <div
+                            class="px-4 sm:px-5 pb-4 space-y-3 border-t border-white/8 pt-3 ml-2 sm:ml-4"
+                          >
+                            <p
+                              class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-neutral-500"
+                            >
+                              Experiencias / juegos
+                            </p>
+                            @for (
+                              expSection of experienceSectionsForBrand(brand.id);
+                              track expSection.id
+                            ) {
                               <div class="space-y-2">
                                 <div class="flex items-center justify-between gap-2">
-                                  <span class="text-[10px] font-extrabold uppercase tracking-wider" [class]="expSection.titleClass">
+                                  <span
+                                    class="text-[10px] font-extrabold uppercase tracking-wider"
+                                    [class]="expSection.titleClass"
+                                  >
                                     {{ expSection.title }} ({{ expSection.items.length }})
                                   </span>
                                   @if (expSection.reorderable && expSection.items.length > 1) {
-                                    <span class="text-[9px] text-neutral-500 uppercase tracking-wider font-bold">Arrastra</span>
+                                    <span
+                                      class="text-[9px] text-neutral-500 uppercase tracking-wider font-bold"
+                                      >Arrastra</span
+                                    >
                                   }
                                 </div>
                                 @if (expSection.items.length === 0) {
@@ -1122,7 +1390,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                                     style="gap: 0.5rem;"
                                     cdkDropList
                                     [cdkDropListData]="expSection.items"
-                                    (cdkDropListDropped)="onKioskExperienceDrop($event, brand.id, expSection.id)"
+                                    (cdkDropListDropped)="
+                                      onKioskExperienceDrop($event, brand.id, expSection.id)
+                                    "
                                   >
                                     @for (exp of expSection.items; track exp.id) {
                                       <div
@@ -1131,9 +1401,14 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                                         [cdkDragDisabled]="expSection.items.length < 2"
                                         [cdkDragData]="exp"
                                       >
-                                        <div class="brand-drag-placeholder min-h-12!" *cdkDragPlaceholder></div>
+                                        <div
+                                          class="brand-drag-placeholder min-h-12!"
+                                          *cdkDragPlaceholder
+                                        ></div>
                                         <div class="brand-drag-preview" *cdkDragPreview>
-                                          <div class="px-3 py-2 text-white text-sm font-bold">{{ experienceLabel(exp) }}</div>
+                                          <div class="px-3 py-2 text-white text-sm font-bold">
+                                            {{ experienceLabel(exp) }}
+                                          </div>
                                         </div>
                                         <div class="flex items-center gap-2 min-w-0 flex-1">
                                           @if (expSection.items.length > 1) {
@@ -1144,21 +1419,36 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                                               aria-label="Arrastrar experiencia"
                                               style="touch-action: none;"
                                             >
-                                              <app-hero-icon name="arrows-up-down" class="text-sm" />
+                                              <app-hero-icon
+                                                name="arrows-up-down"
+                                                class="text-sm"
+                                              />
                                             </button>
                                           }
                                           <app-hero-icon
-                                            [name]="exp.gameId === 'memory' ? 'square-2-stack' : 'squares-2x2'"
+                                            [name]="
+                                              exp.gameId === 'memory'
+                                                ? 'square-2-stack'
+                                                : 'squares-2x2'
+                                            "
                                             class="text-yellow-400 shrink-0"
                                           />
                                           <div class="min-w-0">
                                             <div class="flex items-center gap-1.5 flex-wrap">
-                                              <span class="text-xs sm:text-sm font-bold text-white truncate">{{ experienceLabel(exp) }}</span>
+                                              <span
+                                                class="text-xs sm:text-sm font-bold text-white truncate"
+                                                >{{ experienceLabel(exp) }}</span
+                                              >
                                               @if (exp.develop) {
-                                                <span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-amber-500/20 border border-amber-400/40 text-amber-300">Beta</span>
+                                                <span
+                                                  class="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-amber-500/20 border border-amber-400/40 text-amber-300"
+                                                  >Beta</span
+                                                >
                                               }
                                             </div>
-                                            <p class="text-[10px] text-neutral-500 truncate">{{ exp.id }}</p>
+                                            <p class="text-[10px] text-neutral-500 truncate">
+                                              {{ exp.id }}
+                                            </p>
                                           </div>
                                         </div>
                                         <div class="flex items-center gap-1.5 shrink-0">
@@ -1166,15 +1456,32 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                                             type="button"
                                             uiSfx="select"
                                             class="relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 transition-colors"
-                                            [class]="exp.enabled ? 'bg-emerald-500 border-emerald-400' : 'bg-white/15 border-white/30'"
+                                            [class]="
+                                              exp.enabled
+                                                ? 'bg-emerald-500 border-emerald-400'
+                                                : 'bg-white/15 border-white/30'
+                                            "
                                             (click)="toggleExperience(exp, brand.name)"
-                                            [attr.aria-label]="(exp.enabled ? 'Desactivar ' : 'Activar ') + experienceLabel(exp)"
+                                            [attr.aria-label]="
+                                              (exp.enabled ? 'Desactivar ' : 'Activar ') +
+                                              experienceLabel(exp)
+                                            "
                                           >
                                             <span
                                               class="pointer-events-none inline-flex items-center justify-center size-5 rounded-full bg-white shadow-md mt-0.5 transition-transform"
-                                              [class]="exp.enabled ? 'translate-x-5' : 'translate-x-0.5'"
+                                              [class]="
+                                                exp.enabled ? 'translate-x-5' : 'translate-x-0.5'
+                                              "
                                             >
-                                              <app-hero-icon [name]="exp.enabled ? 'check' : 'x-mark'" class="text-[10px]" [class]="exp.enabled ? 'text-emerald-600' : 'text-neutral-400'" />
+                                              <app-hero-icon
+                                                [name]="exp.enabled ? 'check' : 'x-mark'"
+                                                class="text-[10px]"
+                                                [class]="
+                                                  exp.enabled
+                                                    ? 'text-emerald-600'
+                                                    : 'text-neutral-400'
+                                                "
+                                              />
                                             </span>
                                           </button>
                                         </div>
@@ -1184,20 +1491,34 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                                 } @else {
                                   <div class="flex flex-col gap-2">
                                     @for (exp of expSection.items; track exp.id) {
-                                      <div class="rounded-xl bg-black/20 border border-white/10 px-3 py-2.5 flex items-center justify-between gap-2 opacity-90">
+                                      <div
+                                        class="rounded-xl bg-black/20 border border-white/10 px-3 py-2.5 flex items-center justify-between gap-2 opacity-90"
+                                      >
                                         <div class="flex items-center gap-2 min-w-0 flex-1">
                                           <app-hero-icon
-                                            [name]="exp.gameId === 'memory' ? 'square-2-stack' : 'squares-2x2'"
+                                            [name]="
+                                              exp.gameId === 'memory'
+                                                ? 'square-2-stack'
+                                                : 'squares-2x2'
+                                            "
                                             class="text-neutral-400 shrink-0"
                                           />
                                           <div class="min-w-0">
                                             <div class="flex items-center gap-1.5 flex-wrap">
-                                              <span class="text-xs sm:text-sm font-bold text-neutral-200 truncate">{{ experienceLabel(exp) }}</span>
+                                              <span
+                                                class="text-xs sm:text-sm font-bold text-neutral-200 truncate"
+                                                >{{ experienceLabel(exp) }}</span
+                                              >
                                               @if (exp.develop) {
-                                                <span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-amber-500/15 border border-amber-400/30 text-amber-300/80">Beta</span>
+                                                <span
+                                                  class="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-amber-500/15 border border-amber-400/30 text-amber-300/80"
+                                                  >Beta</span
+                                                >
                                               }
                                             </div>
-                                            <p class="text-[10px] text-neutral-500 truncate">{{ exp.id }}</p>
+                                            <p class="text-[10px] text-neutral-500 truncate">
+                                              {{ exp.id }}
+                                            </p>
                                           </div>
                                         </div>
                                         <div class="flex items-center gap-1.5 shrink-0">
@@ -1208,8 +1529,13 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                                             (click)="toggleExperience(exp, brand.name)"
                                             [attr.aria-label]="'Activar ' + experienceLabel(exp)"
                                           >
-                                            <span class="pointer-events-none inline-flex items-center justify-center size-5 rounded-full bg-white shadow-md translate-x-0.5 mt-0.5">
-                                              <app-hero-icon name="x-mark" class="text-[10px] text-neutral-400" />
+                                            <span
+                                              class="pointer-events-none inline-flex items-center justify-center size-5 rounded-full bg-white shadow-md translate-x-0.5 mt-0.5"
+                                            >
+                                              <app-hero-icon
+                                                name="x-mark"
+                                                class="text-[10px] text-neutral-400"
+                                              />
                                             </span>
                                           </button>
                                         </div>
@@ -1226,21 +1552,37 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                   } @else {
                     <div class="flex flex-col gap-3.5">
                       @for (brand of section.brands; track brand.id) {
-                        <div class="w-full rounded-2xl bg-white/3 border border-white/10 backdrop-blur-md shadow-xl overflow-hidden opacity-95">
+                        <div
+                          class="w-full rounded-2xl bg-white/3 border border-white/10 backdrop-blur-md shadow-xl overflow-hidden opacity-95"
+                        >
                           <div class="px-4 sm:px-5 py-4 flex items-center justify-between gap-3">
                             <div class="flex items-center gap-3.5 min-w-0">
-                              <div class="size-11 sm:size-12 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-neutral-400 shrink-0">
+                              <div
+                                class="size-11 sm:size-12 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-neutral-400 shrink-0"
+                              >
                                 <app-hero-icon name="tag" class="text-lg" />
                               </div>
                               <div class="min-w-0">
                                 <div class="flex items-center gap-2 flex-wrap">
-                                  <h4 class="text-sm sm:text-base font-bold text-neutral-200 truncate">{{ cleanText(brand.name) }}</h4>
+                                  <h4
+                                    class="text-sm sm:text-base font-bold text-neutral-200 truncate"
+                                  >
+                                    {{ cleanText(brand.name) }}
+                                  </h4>
                                   @if (brand.develop) {
-                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/15 border border-amber-400/30 text-amber-300/80">Beta</span>
+                                    <span
+                                      class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/15 border border-amber-400/30 text-amber-300/80"
+                                      >Beta</span
+                                    >
                                   }
-                                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-rose-500/20 border-rose-400/40 text-rose-300">Desactivada</span>
+                                  <span
+                                    class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-rose-500/20 border-rose-400/40 text-rose-300"
+                                    >Desactivada</span
+                                  >
                                 </div>
-                                <p class="text-xs text-neutral-500 truncate mt-0.5">Marca oculta en toda la aplicación</p>
+                                <p class="text-xs text-neutral-500 truncate mt-0.5">
+                                  Marca oculta en toda la aplicación
+                                </p>
                               </div>
                             </div>
                             <button
@@ -1250,16 +1592,30 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                               (click)="toggleBrand(brand)"
                               [attr.aria-label]="'Activar marca ' + cleanText(brand.name)"
                             >
-                              <span class="pointer-events-none inline-flex items-center justify-center size-6 rounded-full bg-white shadow-md translate-x-0.5 mt-0.5">
+                              <span
+                                class="pointer-events-none inline-flex items-center justify-center size-6 rounded-full bg-white shadow-md translate-x-0.5 mt-0.5"
+                              >
                                 <app-hero-icon name="x-mark" class="text-xs text-neutral-400" />
                               </span>
                             </button>
                           </div>
-                          <div class="px-4 sm:px-5 pb-4 space-y-3 border-t border-white/8 pt-3 ml-2 sm:ml-4">
-                            <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-neutral-500">Experiencias / juegos</p>
-                            @for (expSection of experienceSectionsForBrand(brand.id); track expSection.id) {
+                          <div
+                            class="px-4 sm:px-5 pb-4 space-y-3 border-t border-white/8 pt-3 ml-2 sm:ml-4"
+                          >
+                            <p
+                              class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-neutral-500"
+                            >
+                              Experiencias / juegos
+                            </p>
+                            @for (
+                              expSection of experienceSectionsForBrand(brand.id);
+                              track expSection.id
+                            ) {
                               <div class="space-y-2">
-                                <span class="text-[10px] font-extrabold uppercase tracking-wider" [class]="expSection.titleClass">
+                                <span
+                                  class="text-[10px] font-extrabold uppercase tracking-wider"
+                                  [class]="expSection.titleClass"
+                                >
                                   {{ expSection.title }} ({{ expSection.items.length }})
                                 </span>
                                 @if (expSection.items.length === 0) {
@@ -1270,7 +1626,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                                     style="gap: 0.5rem;"
                                     cdkDropList
                                     [cdkDropListData]="expSection.items"
-                                    (cdkDropListDropped)="onKioskExperienceDrop($event, brand.id, expSection.id)"
+                                    (cdkDropListDropped)="
+                                      onKioskExperienceDrop($event, brand.id, expSection.id)
+                                    "
                                   >
                                     @for (exp of expSection.items; track exp.id) {
                                       <div
@@ -1278,22 +1636,62 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                                         cdkDrag
                                         [cdkDragDisabled]="expSection.items.length < 2"
                                       >
-                                        <div class="brand-drag-placeholder min-h-12!" *cdkDragPlaceholder></div>
+                                        <div
+                                          class="brand-drag-placeholder min-h-12!"
+                                          *cdkDragPlaceholder
+                                        ></div>
                                         <div class="flex items-center gap-2 min-w-0 flex-1">
                                           @if (expSection.items.length > 1) {
-                                            <button type="button" cdkDragHandle class="size-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-neutral-400 cursor-grab shrink-0" style="touch-action: none;" aria-label="Arrastrar experiencia">
-                                              <app-hero-icon name="arrows-up-down" class="text-sm" />
+                                            <button
+                                              type="button"
+                                              cdkDragHandle
+                                              class="size-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-neutral-400 cursor-grab shrink-0"
+                                              style="touch-action: none;"
+                                              aria-label="Arrastrar experiencia"
+                                            >
+                                              <app-hero-icon
+                                                name="arrows-up-down"
+                                                class="text-sm"
+                                              />
                                             </button>
                                           }
-                                          <span class="text-xs font-bold text-white truncate">{{ experienceLabel(exp) }}</span>
+                                          <span class="text-xs font-bold text-white truncate">{{
+                                            experienceLabel(exp)
+                                          }}</span>
                                           @if (exp.develop) {
-                                            <span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-amber-500/20 border border-amber-400/40 text-amber-300">Beta</span>
+                                            <span
+                                              class="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-amber-500/20 border border-amber-400/40 text-amber-300"
+                                              >Beta</span
+                                            >
                                           }
                                         </div>
                                         <div class="flex items-center gap-1.5">
-                                          <button type="button" uiSfx="select" class="relative inline-flex h-7 w-12 cursor-pointer rounded-full border-2" [class]="exp.enabled ? 'bg-emerald-500 border-emerald-400' : 'bg-white/15 border-white/30'" (click)="toggleExperience(exp, brand.name)">
-                                            <span class="pointer-events-none inline-flex items-center justify-center size-5 rounded-full bg-white shadow-md mt-0.5" [class]="exp.enabled ? 'translate-x-5' : 'translate-x-0.5'">
-                                              <app-hero-icon [name]="exp.enabled ? 'check' : 'x-mark'" class="text-[10px]" [class]="exp.enabled ? 'text-emerald-600' : 'text-neutral-400'" />
+                                          <button
+                                            type="button"
+                                            uiSfx="select"
+                                            class="relative inline-flex h-7 w-12 cursor-pointer rounded-full border-2"
+                                            [class]="
+                                              exp.enabled
+                                                ? 'bg-emerald-500 border-emerald-400'
+                                                : 'bg-white/15 border-white/30'
+                                            "
+                                            (click)="toggleExperience(exp, brand.name)"
+                                          >
+                                            <span
+                                              class="pointer-events-none inline-flex items-center justify-center size-5 rounded-full bg-white shadow-md mt-0.5"
+                                              [class]="
+                                                exp.enabled ? 'translate-x-5' : 'translate-x-0.5'
+                                              "
+                                            >
+                                              <app-hero-icon
+                                                [name]="exp.enabled ? 'check' : 'x-mark'"
+                                                class="text-[10px]"
+                                                [class]="
+                                                  exp.enabled
+                                                    ? 'text-emerald-600'
+                                                    : 'text-neutral-400'
+                                                "
+                                              />
                                             </span>
                                           </button>
                                         </div>
@@ -1303,16 +1701,34 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                                 } @else {
                                   <div class="flex flex-col gap-2">
                                     @for (exp of expSection.items; track exp.id) {
-                                      <div class="rounded-xl bg-black/20 border border-white/10 px-3 py-2.5 flex items-center justify-between gap-2">
+                                      <div
+                                        class="rounded-xl bg-black/20 border border-white/10 px-3 py-2.5 flex items-center justify-between gap-2"
+                                      >
                                         <div class="flex items-center gap-1.5 min-w-0">
-                                          <span class="text-xs font-bold text-neutral-200 truncate">{{ experienceLabel(exp) }}</span>
+                                          <span
+                                            class="text-xs font-bold text-neutral-200 truncate"
+                                            >{{ experienceLabel(exp) }}</span
+                                          >
                                           @if (exp.develop) {
-                                            <span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-amber-500/15 border border-amber-400/30 text-amber-300/80">Beta</span>
+                                            <span
+                                              class="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-amber-500/15 border border-amber-400/30 text-amber-300/80"
+                                              >Beta</span
+                                            >
                                           }
                                         </div>
-                                        <button type="button" uiSfx="select" class="relative inline-flex h-7 w-12 cursor-pointer rounded-full border-2 bg-white/15 border-white/30" (click)="toggleExperience(exp, brand.name)">
-                                          <span class="pointer-events-none inline-flex items-center justify-center size-5 rounded-full bg-white shadow-md translate-x-0.5 mt-0.5">
-                                            <app-hero-icon name="x-mark" class="text-[10px] text-neutral-400" />
+                                        <button
+                                          type="button"
+                                          uiSfx="select"
+                                          class="relative inline-flex h-7 w-12 cursor-pointer rounded-full border-2 bg-white/15 border-white/30"
+                                          (click)="toggleExperience(exp, brand.name)"
+                                        >
+                                          <span
+                                            class="pointer-events-none inline-flex items-center justify-center size-5 rounded-full bg-white shadow-md translate-x-0.5 mt-0.5"
+                                          >
+                                            <app-hero-icon
+                                              name="x-mark"
+                                              class="text-[10px] text-neutral-400"
+                                            />
                                           </span>
                                         </button>
                                       </div>
@@ -1346,8 +1762,13 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
           @if (settingsView() === 'brands' && selectedGame(); as gameId) {
             <div class="space-y-6">
               <div class="space-y-1">
-                <h2 class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400 flex items-center gap-2.5">
-                  <app-hero-icon [name]="gameId === 'memory' ? 'square-2-stack' : 'squares-2x2'" class="text-2xl text-yellow-400" />
+                <h2
+                  class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400 flex items-center gap-2.5"
+                >
+                  <app-hero-icon
+                    [name]="gameId === 'memory' ? 'square-2-stack' : 'squares-2x2'"
+                    class="text-2xl text-yellow-400"
+                  />
                   <span>
                     {{ selectedGameSettingsTitle() }}
                   </span>
@@ -1358,11 +1779,18 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
               </div>
 
               <!-- Switch Global / Individual -->
-              <div class="p-4 sm:p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div
+                class="p-4 sm:p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+              >
                 <div class="min-w-0">
                   <div class="flex items-center gap-2">
-                    <app-hero-icon name="adjustments-horizontal" class="text-base text-yellow-400" />
-                    <span class="font-extrabold uppercase tracking-wider text-sm kiosk:text-base text-white">
+                    <app-hero-icon
+                      name="adjustments-horizontal"
+                      class="text-base text-yellow-400"
+                    />
+                    <span
+                      class="font-extrabold uppercase tracking-wider text-sm kiosk:text-base text-white"
+                    >
                       Modo de ajustes
                     </span>
                   </div>
@@ -1411,11 +1839,18 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       (click)="openSettingsExperience(brand)"
                     >
                       <div class="flex items-center gap-3.5 min-w-0">
-                        <div class="size-10 sm:size-12 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-yellow-400 font-extrabold text-sm sm:text-base shrink-0">
-                          <app-hero-icon [name]="gameId === 'memory' ? 'square-2-stack' : 'squares-2x2'" class="text-lg text-yellow-400" />
+                        <div
+                          class="size-10 sm:size-12 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-yellow-400 font-extrabold text-sm sm:text-base shrink-0"
+                        >
+                          <app-hero-icon
+                            [name]="gameId === 'memory' ? 'square-2-stack' : 'squares-2x2'"
+                            class="text-lg text-yellow-400"
+                          />
                         </div>
                         <div class="min-w-0">
-                          <h3 class="text-sm sm:text-base font-bold text-white group-hover:text-yellow-400 transition-colors truncate">
+                          <h3
+                            class="text-sm sm:text-base font-bold text-white group-hover:text-yellow-400 transition-colors truncate"
+                          >
                             {{ cleanText(brand.name) }}
                           </h3>
                           <p class="text-xs text-neutral-400 line-clamp-2">
@@ -1426,23 +1861,35 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
 
                       <div class="flex items-center gap-2.5 shrink-0">
                         @if (brand.develop) {
-                          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-300">
+                          <span
+                            class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-300"
+                          >
                             Beta
                           </span>
                         }
                         <span
                           class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border hidden sm:inline-block"
-                          [class]="brand.enabled ? 'bg-white/10 border-white/20 text-neutral-300' : 'bg-rose-500/15 border-rose-400/30 text-rose-300'"
+                          [class]="
+                            brand.enabled
+                              ? 'bg-white/10 border-white/20 text-neutral-300'
+                              : 'bg-rose-500/15 border-rose-400/30 text-rose-300'
+                          "
                         >
                           {{ brand.enabled ? 'Marca activa' : 'Marca inactiva' }}
                         </span>
                         <span
                           class="px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border"
-                          [class]="exp?.enabled ? 'bg-emerald-500/15 border-emerald-400/30 text-emerald-300' : 'bg-rose-500/15 border-rose-400/30 text-rose-300'"
+                          [class]="
+                            exp?.enabled
+                              ? 'bg-emerald-500/15 border-emerald-400/30 text-emerald-300'
+                              : 'bg-rose-500/15 border-rose-400/30 text-rose-300'
+                          "
                         >
                           {{ exp?.enabled ? 'Juego activo' : 'Juego off' }}
                         </span>
-                        <div class="size-7 rounded-full bg-white/5 group-hover:bg-yellow-400/20 flex items-center justify-center text-neutral-400 group-hover:text-yellow-400">
+                        <div
+                          class="size-7 rounded-full bg-white/5 group-hover:bg-yellow-400/20 flex items-center justify-center text-neutral-400 group-hover:text-yellow-400"
+                        >
                           <app-hero-icon name="chevron-right" />
                         </div>
                       </div>
@@ -1453,11 +1900,15 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 <!-- Modo global: configuración de partida compartida -->
                 @if (gameId === 'memory') {
                   @let memConfig = getGlobalMemoryConfig();
-                  <div class="space-y-4 p-5 sm:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl">
+                  <div
+                    class="space-y-4 p-5 sm:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl"
+                  >
                     <div class="flex items-center justify-between gap-3">
                       <div class="flex items-center gap-2">
                         <app-hero-icon name="square-2-stack" class="text-lg text-yellow-400" />
-                        <h3 class="font-extrabold uppercase tracking-wide text-sm kiosk:text-base text-white">
+                        <h3
+                          class="font-extrabold uppercase tracking-wide text-sm kiosk:text-base text-white"
+                        >
                           Configuración de partida
                         </h3>
                       </div>
@@ -1478,8 +1929,13 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
 
                     <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
                       <div class="flex items-center justify-between">
-                        <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">Cantidad de parejas</span>
-                        <span class="text-xs text-neutral-400">({{ memConfig.pairs * 2 }} cartas en tablero)</span>
+                        <span
+                          class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200"
+                          >Cantidad de parejas</span
+                        >
+                        <span class="text-xs text-neutral-400"
+                          >({{ memConfig.pairs * 2 }} cartas en tablero)</span
+                        >
                       </div>
                       <div class="flex items-center justify-between gap-3 pt-1">
                         <button
@@ -1492,9 +1948,16 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                         >
                           <app-hero-icon name="minus" class="text-lg" />
                         </button>
-                        <div class="flex-1 text-center py-2 px-4 rounded-xl bg-white/5 border border-white/10">
-                          <span class="text-xl sm:text-2xl font-black text-yellow-400 tabular-nums">{{ memConfig.pairs }}</span>
-                          <span class="text-xs sm:text-sm uppercase font-bold text-neutral-300 ml-2">
+                        <div
+                          class="flex-1 text-center py-2 px-4 rounded-xl bg-white/5 border border-white/10"
+                        >
+                          <span
+                            class="text-xl sm:text-2xl font-black text-yellow-400 tabular-nums"
+                            >{{ memConfig.pairs }}</span
+                          >
+                          <span
+                            class="text-xs sm:text-sm uppercase font-bold text-neutral-300 ml-2"
+                          >
                             {{ memConfig.pairs === 1 ? 'pareja' : 'parejas' }}
                           </span>
                         </div>
@@ -1513,22 +1976,49 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
 
                     <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
                       <div class="flex items-center justify-between">
-                        <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">Dificultad</span>
+                        <span
+                          class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200"
+                          >Dificultad</span
+                        >
                         @if (memConfig.difficulty === 'custom') {
-                          <span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40">Personalizada</span>
+                          <span
+                            class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40"
+                            >Personalizada</span
+                          >
                         }
                       </div>
                       <div class="grid grid-cols-3 gap-2.5 pt-1">
-                        <button type="button" uiSfx="select" [class]="chipClass(memConfig.difficulty === 'easy')" style="touch-action: manipulation;" (click)="selectGlobalMemoryDifficulty('easy')">
+                        <button
+                          type="button"
+                          uiSfx="select"
+                          [class]="chipClass(memConfig.difficulty === 'easy')"
+                          style="touch-action: manipulation;"
+                          (click)="selectGlobalMemoryDifficulty('easy')"
+                        >
                           <span class="text-xs sm:text-sm font-extrabold uppercase">Fácil</span>
                         </button>
-                        <button type="button" uiSfx="select" [class]="chipClass(memConfig.difficulty === 'medium')" style="touch-action: manipulation;" (click)="selectGlobalMemoryDifficulty('medium')">
+                        <button
+                          type="button"
+                          uiSfx="select"
+                          [class]="chipClass(memConfig.difficulty === 'medium')"
+                          style="touch-action: manipulation;"
+                          (click)="selectGlobalMemoryDifficulty('medium')"
+                        >
                           <div class="flex flex-col items-center justify-center py-0.5">
                             <span class="text-xs sm:text-sm font-extrabold uppercase">Medio</span>
-                            <span class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold">Recomendado</span>
+                            <span
+                              class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold"
+                              >Recomendado</span
+                            >
                           </div>
                         </button>
-                        <button type="button" uiSfx="select" [class]="chipClass(memConfig.difficulty === 'hard')" style="touch-action: manipulation;" (click)="selectGlobalMemoryDifficulty('hard')">
+                        <button
+                          type="button"
+                          uiSfx="select"
+                          [class]="chipClass(memConfig.difficulty === 'hard')"
+                          style="touch-action: manipulation;"
+                          (click)="selectGlobalMemoryDifficulty('hard')"
+                        >
                           <span class="text-xs sm:text-sm font-extrabold uppercase">Difícil</span>
                         </button>
                       </div>
@@ -1536,7 +2026,10 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
 
                     <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
                       <div class="flex items-center justify-between">
-                        <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">Vidas / errores permitidos</span>
+                        <span
+                          class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200"
+                          >Vidas / errores permitidos</span
+                        >
                         <span class="text-xs text-neutral-400">Mínimo 3 vidas</span>
                       </div>
                       <div class="flex items-center justify-between gap-3 pt-1">
@@ -1550,12 +2043,25 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                         >
                           <app-hero-icon name="minus" class="text-lg" />
                         </button>
-                        <div class="flex-1 text-center py-2 px-4 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center gap-2">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-rose-500 drop-shadow-[0_0_6px_rgba(244,63,94,0.6)]">
-                            <path d="m11.645 20.91-.007-.003-.022-.012a15.247 15.247 0 0 1-.383-.218 25.18 25.18 0 0 1-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3.5 7.02 3.5c1.82 0 3.393 1.056 4.23 2.593.837-1.537 2.41-2.593 4.23-2.593 2.306 0 4.77 1.822 4.77 4.75 0 3.924-2.438 7.11-4.739 9.266a25.175 25.175 0 0 1-4.244 3.17 15.247 15.247 0 0 1-.383.219l-.022.012-.007.004-.003.001a.752.752 0 0 1-.704 0l-.003-.001Z" />
+                        <div
+                          class="flex-1 text-center py-2 px-4 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center gap-2"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            class="w-5 h-5 text-rose-500 drop-shadow-[0_0_6px_rgba(244,63,94,0.6)]"
+                          >
+                            <path
+                              d="m11.645 20.91-.007-.003-.022-.012a15.247 15.247 0 0 1-.383-.218 25.18 25.18 0 0 1-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3.5 7.02 3.5c1.82 0 3.393 1.056 4.23 2.593.837-1.537 2.41-2.593 4.23-2.593 2.306 0 4.77 1.822 4.77 4.75 0 3.924-2.438 7.11-4.739 9.266a25.175 25.175 0 0 1-4.244 3.17 15.247 15.247 0 0 1-.383.219l-.022.012-.007.004-.003.001a.752.752 0 0 1-.704 0l-.003-.001Z"
+                            />
                           </svg>
-                          <span class="text-xl sm:text-2xl font-black text-white tabular-nums">{{ memConfig.lives }}</span>
-                          <span class="text-xs sm:text-sm uppercase font-bold text-neutral-300">{{ memConfig.lives === 1 ? 'vida' : 'vidas' }}</span>
+                          <span class="text-xl sm:text-2xl font-black text-white tabular-nums">{{
+                            memConfig.lives
+                          }}</span>
+                          <span class="text-xs sm:text-sm uppercase font-bold text-neutral-300">{{
+                            memConfig.lives === 1 ? 'vida' : 'vidas'
+                          }}</span>
                         </div>
                         <button
                           type="button"
@@ -1569,9 +2075,16 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       </div>
                     </div>
 
-                    <div class="p-3.5 rounded-xl bg-white/4 border border-white/10 text-xs text-neutral-300 flex items-start gap-2.5">
-                      <app-hero-icon name="information-circle" class="text-yellow-400 shrink-0 mt-0.5 text-base" />
-                      <span>{{ memoryConfigExplanation(memConfig, memConfig.isCustomOverride) }}</span>
+                    <div
+                      class="p-3.5 rounded-xl bg-white/4 border border-white/10 text-xs text-neutral-300 flex items-start gap-2.5"
+                    >
+                      <app-hero-icon
+                        name="information-circle"
+                        class="text-yellow-400 shrink-0 mt-0.5 text-base"
+                      />
+                      <span>{{
+                        memoryConfigExplanation(memConfig, memConfig.isCustomOverride)
+                      }}</span>
                     </div>
                   </div>
                 }
@@ -1585,13 +2098,18 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     @let currentFirst = getGlobalTriquiFirstPlayer();
                     @let defaultSymbol = getDefaultTriquiPlayerSymbol(repExp);
                     @let currentSymbol = getGlobalTriquiPlayerSymbol();
-                    @let isTriquiCustom = currentDiff !== null || currentFirst !== null || currentSymbol !== null;
+                    @let isTriquiCustom =
+                      currentDiff !== null || currentFirst !== null || currentSymbol !== null;
 
-                    <div class="space-y-4 p-5 sm:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl">
+                    <div
+                      class="space-y-4 p-5 sm:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl"
+                    >
                       <div class="flex items-center justify-between gap-3">
                         <div class="flex items-center gap-2">
                           <app-hero-icon name="squares-2x2" class="text-lg text-yellow-400" />
-                          <h3 class="font-extrabold uppercase tracking-wide text-sm kiosk:text-base text-white">
+                          <h3
+                            class="font-extrabold uppercase tracking-wide text-sm kiosk:text-base text-white"
+                          >
                             Configuración de partida
                           </h3>
                         </div>
@@ -1612,9 +2130,15 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
 
                       <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
                         <div class="flex items-center justify-between">
-                          <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">Dificultad</span>
+                          <span
+                            class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200"
+                            >Dificultad</span
+                          >
                           @if (currentDiff !== null) {
-                            <span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40">Ajuste Kiosco</span>
+                            <span
+                              class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40"
+                              >Ajuste Kiosco</span
+                            >
                           }
                         </div>
                         <div class="grid grid-cols-3 gap-2.5 pt-1">
@@ -1626,12 +2150,22 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                               uiSfx="select"
                               [class]="chipClass(isActive)"
                               style="touch-action: manipulation;"
-                              (click)="changeGlobalTriquiDifficulty(opt.value === defaultDiff ? null : opt.value, defaultDiff)"
+                              (click)="
+                                changeGlobalTriquiDifficulty(
+                                  opt.value === defaultDiff ? null : opt.value,
+                                  defaultDiff
+                                )
+                              "
                             >
                               <div class="flex flex-col items-center justify-center py-0.5">
-                                <span class="text-xs sm:text-sm font-extrabold uppercase">{{ opt.label }}</span>
+                                <span class="text-xs sm:text-sm font-extrabold uppercase">{{
+                                  opt.label
+                                }}</span>
                                 @if (isDefaultVal) {
-                                  <span class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold">Catálogo</span>
+                                  <span
+                                    class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold"
+                                    >Catálogo</span
+                                  >
                                 }
                               </div>
                             </button>
@@ -1641,9 +2175,15 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
 
                       <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
                         <div class="flex items-center justify-between">
-                          <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">Quién empieza</span>
+                          <span
+                            class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200"
+                            >Quién empieza</span
+                          >
                           @if (currentFirst !== null) {
-                            <span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40">Ajuste Kiosco</span>
+                            <span
+                              class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40"
+                              >Ajuste Kiosco</span
+                            >
                           }
                         </div>
                         <div class="grid grid-cols-3 gap-2.5 pt-1">
@@ -1655,12 +2195,22 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                               uiSfx="select"
                               [class]="chipClass(isActive)"
                               style="touch-action: manipulation;"
-                              (click)="changeGlobalTriquiFirstPlayer(opt.value === defaultFirst ? null : opt.value, defaultFirst)"
+                              (click)="
+                                changeGlobalTriquiFirstPlayer(
+                                  opt.value === defaultFirst ? null : opt.value,
+                                  defaultFirst
+                                )
+                              "
                             >
                               <div class="flex flex-col items-center justify-center py-0.5">
-                                <span class="text-xs sm:text-sm font-extrabold uppercase">{{ opt.label }}</span>
+                                <span class="text-xs sm:text-sm font-extrabold uppercase">{{
+                                  opt.label
+                                }}</span>
                                 @if (isDefaultVal) {
-                                  <span class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold">Catálogo</span>
+                                  <span
+                                    class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold"
+                                    >Catálogo</span
+                                  >
                                 }
                               </div>
                             </button>
@@ -1670,9 +2220,15 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
 
                       <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
                         <div class="flex items-center justify-between">
-                          <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">Figura del Jugador</span>
+                          <span
+                            class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200"
+                            >Figura del Jugador</span
+                          >
                           @if (currentSymbol !== null) {
-                            <span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40">Ajuste Kiosco</span>
+                            <span
+                              class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40"
+                              >Ajuste Kiosco</span
+                            >
                           }
                         </div>
                         <div class="grid grid-cols-3 gap-2.5 pt-1">
@@ -1685,20 +2241,45 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                               uiSfx="select"
                               [class]="chipClass(isActive)"
                               style="touch-action: manipulation;"
-                              (click)="changeGlobalTriquiPlayerSymbol(opt.value === defaultSymbol ? null : opt.value, defaultSymbol)"
+                              (click)="
+                                changeGlobalTriquiPlayerSymbol(
+                                  opt.value === defaultSymbol ? null : opt.value,
+                                  defaultSymbol
+                                )
+                              "
                             >
                               <div class="flex flex-col items-center justify-center py-0.5 gap-0.5">
                                 @if (opt.value === 'random') {
-                                  <span class="text-[10px] font-bold uppercase tracking-wider text-neutral-200">Aleatorio</span>
+                                  <span
+                                    class="text-[10px] font-bold uppercase tracking-wider text-neutral-200"
+                                    >Aleatorio</span
+                                  >
                                 } @else if (markAsset) {
-                                  <img [src]="markAsset" [alt]="opt.value" class="size-6 sm:size-7 object-contain drop-shadow" />
-                                  <span class="text-[10px] font-bold uppercase tracking-wider text-neutral-200">{{ opt.value === 'X' ? 'Cruz' : 'Círculo' }}</span>
+                                  <img
+                                    [src]="markAsset"
+                                    [alt]="opt.value"
+                                    class="size-6 sm:size-7 object-contain drop-shadow"
+                                  />
+                                  <span
+                                    class="text-[10px] font-bold uppercase tracking-wider text-neutral-200"
+                                    >{{ opt.value === 'X' ? 'Cruz' : 'Círculo' }}</span
+                                  >
                                 } @else {
-                                  <span class="text-base sm:text-lg font-black" [class]="opt.value === 'X' ? 'text-cyan-400' : 'text-amber-200'">{{ opt.value }}</span>
-                                  <span class="text-[10px] font-bold uppercase tracking-wider text-neutral-200">{{ opt.value === 'X' ? 'Cruz' : 'Círculo' }}</span>
+                                  <span
+                                    class="text-base sm:text-lg font-black"
+                                    [class]="opt.value === 'X' ? 'text-cyan-400' : 'text-amber-200'"
+                                    >{{ opt.value }}</span
+                                  >
+                                  <span
+                                    class="text-[10px] font-bold uppercase tracking-wider text-neutral-200"
+                                    >{{ opt.value === 'X' ? 'Cruz' : 'Círculo' }}</span
+                                  >
                                 }
                                 @if (isDefaultVal) {
-                                  <span class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold">Catálogo</span>
+                                  <span
+                                    class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold"
+                                    >Catálogo</span
+                                  >
                                 }
                               </div>
                             </button>
@@ -1706,11 +2287,22 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                         </div>
                       </div>
 
-                      <div class="p-3.5 rounded-xl bg-white/4 border border-white/10 text-xs text-neutral-300 flex items-start gap-2.5">
-                        <app-hero-icon name="information-circle" class="text-yellow-400 shrink-0 mt-0.5 text-base" />
+                      <div
+                        class="p-3.5 rounded-xl bg-white/4 border border-white/10 text-xs text-neutral-300 flex items-start gap-2.5"
+                      >
+                        <app-hero-icon
+                          name="information-circle"
+                          class="text-yellow-400 shrink-0 mt-0.5 text-base"
+                        />
                         <div class="space-y-1">
-                          <p><strong>Dificultad:</strong> {{ triquiDifficultyExplanation(currentDiff, defaultDiff) }}</p>
-                          <p><strong>Primer Turno:</strong> {{ triquiFirstPlayerExplanation(currentFirst, defaultFirst) }}</p>
+                          <p>
+                            <strong>Dificultad:</strong>
+                            {{ triquiDifficultyExplanation(currentDiff, defaultDiff) }}
+                          </p>
+                          <p>
+                            <strong>Primer Turno:</strong>
+                            {{ triquiFirstPlayerExplanation(currentFirst, defaultFirst) }}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -1739,12 +2331,19 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 <div class="space-y-6">
                   <div class="space-y-1">
                     <div class="flex flex-wrap items-center gap-3">
-                      <h2 class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400 flex items-center gap-2.5">
-                        <app-hero-icon [name]="gameId === 'memory' ? 'square-2-stack' : 'squares-2x2'" class="text-2xl text-yellow-400" />
+                      <h2
+                        class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400 flex items-center gap-2.5"
+                      >
+                        <app-hero-icon
+                          [name]="gameId === 'memory' ? 'square-2-stack' : 'squares-2x2'"
+                          class="text-2xl text-yellow-400"
+                        />
                         <span>{{ selectedGameSettingsTitle() }} · {{ cleanText(brand.name) }}</span>
                       </h2>
                       @if (exp.develop || brand.develop || catalog.isGameDevelop(gameId)) {
-                        <span class="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/25 border border-amber-400/50 text-amber-300 flex items-center gap-1.5">
+                        <span
+                          class="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/25 border border-amber-400/50 text-amber-300 flex items-center gap-1.5"
+                        >
                           <app-hero-icon name="lock-closed" class="text-xs" />
                           <span>En desarrollo</span>
                         </span>
@@ -1758,11 +2357,15 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                   <!-- Ajustes específicos de Memoria -->
                   @if (gameId === 'memory') {
                     @let memConfig = getEffectiveMemoryConfig(exp);
-                    <div class="space-y-4 p-5 sm:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl">
+                    <div
+                      class="space-y-4 p-5 sm:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl"
+                    >
                       <div class="flex items-center justify-between gap-3">
                         <div class="flex items-center gap-2">
                           <app-hero-icon name="square-2-stack" class="text-lg text-yellow-400" />
-                          <h3 class="font-extrabold uppercase tracking-wide text-sm kiosk:text-base text-white">
+                          <h3
+                            class="font-extrabold uppercase tracking-wide text-sm kiosk:text-base text-white"
+                          >
                             Configuración de partida
                           </h3>
                         </div>
@@ -1781,7 +2384,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       <!-- Control 1: Cantidad de parejas con stepper [-] N [+] -->
                       <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
                         <div class="flex items-center justify-between">
-                          <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">
+                          <span
+                            class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200"
+                          >
                             Cantidad de parejas
                           </span>
                           <span class="text-xs text-neutral-400">
@@ -1801,11 +2406,17 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                             <app-hero-icon name="minus" class="text-lg" />
                           </button>
 
-                          <div class="flex-1 text-center py-2 px-4 rounded-xl bg-white/5 border border-white/10">
-                            <span class="text-xl sm:text-2xl font-black text-yellow-400 tabular-nums">
+                          <div
+                            class="flex-1 text-center py-2 px-4 rounded-xl bg-white/5 border border-white/10"
+                          >
+                            <span
+                              class="text-xl sm:text-2xl font-black text-yellow-400 tabular-nums"
+                            >
                               {{ memConfig.pairs }}
                             </span>
-                            <span class="text-xs sm:text-sm uppercase font-bold text-neutral-300 ml-2">
+                            <span
+                              class="text-xs sm:text-sm uppercase font-bold text-neutral-300 ml-2"
+                            >
                               {{ memConfig.pairs === 1 ? 'pareja' : 'parejas' }}
                             </span>
                           </div>
@@ -1826,11 +2437,15 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       <!-- Control 2: Presets de Dificultad -->
                       <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
                         <div class="flex items-center justify-between">
-                          <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">
+                          <span
+                            class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200"
+                          >
                             Dificultad
                           </span>
                           @if (memConfig.difficulty === 'custom') {
-                            <span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40">
+                            <span
+                              class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40"
+                            >
                               Personalizada
                             </span>
                           }
@@ -1856,7 +2471,10 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                           >
                             <div class="flex flex-col items-center justify-center py-0.5">
                               <span class="text-xs sm:text-sm font-extrabold uppercase">Medio</span>
-                              <span class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold">Recomendado</span>
+                              <span
+                                class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold"
+                                >Recomendado</span
+                              >
                             </div>
                           </button>
 
@@ -1875,12 +2493,12 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       <!-- Control 3: Vidas / errores permitidos con stepper [-] N [+] -->
                       <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
                         <div class="flex items-center justify-between">
-                          <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">
+                          <span
+                            class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200"
+                          >
                             Vidas / errores permitidos
                           </span>
-                          <span class="text-xs text-neutral-400">
-                            Mínimo 3 vidas
-                          </span>
+                          <span class="text-xs text-neutral-400"> Mínimo 3 vidas </span>
                         </div>
 
                         <div class="flex items-center justify-between gap-3 pt-1">
@@ -1895,9 +2513,18 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                             <app-hero-icon name="minus" class="text-lg" />
                           </button>
 
-                          <div class="flex-1 text-center py-2 px-4 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-rose-500 drop-shadow-[0_0_6px_rgba(244,63,94,0.6)]">
-                              <path d="m11.645 20.91-.007-.003-.022-.012a15.247 15.247 0 0 1-.383-.218 25.18 25.18 0 0 1-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3.5 7.02 3.5c1.82 0 3.393 1.056 4.23 2.593.837-1.537 2.41-2.593 4.23-2.593 2.306 0 4.77 1.822 4.77 4.75 0 3.924-2.438 7.11-4.739 9.266a25.175 25.175 0 0 1-4.244 3.17 15.247 15.247 0 0 1-.383.219l-.022.012-.007.004-.003.001a.752.752 0 0 1-.704 0l-.003-.001Z" />
+                          <div
+                            class="flex-1 text-center py-2 px-4 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center gap-2"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 24 24"
+                              fill="currentColor"
+                              class="w-5 h-5 text-rose-500 drop-shadow-[0_0_6px_rgba(244,63,94,0.6)]"
+                            >
+                              <path
+                                d="m11.645 20.91-.007-.003-.022-.012a15.247 15.247 0 0 1-.383-.218 25.18 25.18 0 0 1-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3.5 7.02 3.5c1.82 0 3.393 1.056 4.23 2.593.837-1.537 2.41-2.593 4.23-2.593 2.306 0 4.77 1.822 4.77 4.75 0 3.924-2.438 7.11-4.739 9.266a25.175 25.175 0 0 1-4.244 3.17 15.247 15.247 0 0 1-.383.219l-.022.012-.007.004-.003.001a.752.752 0 0 1-.704 0l-.003-.001Z"
+                              />
                             </svg>
                             <span class="text-xl sm:text-2xl font-black text-white tabular-nums">
                               {{ memConfig.lives }}
@@ -1920,9 +2547,16 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       </div>
 
                       <!-- Explicación contextual -->
-                      <div class="p-3.5 rounded-xl bg-white/4 border border-white/10 text-xs text-neutral-300 flex items-start gap-2.5">
-                        <app-hero-icon name="information-circle" class="text-yellow-400 shrink-0 mt-0.5 text-base" />
-                        <span>{{ memoryConfigExplanation(memConfig, memConfig.isCustomOverride) }}</span>
+                      <div
+                        class="p-3.5 rounded-xl bg-white/4 border border-white/10 text-xs text-neutral-300 flex items-start gap-2.5"
+                      >
+                        <app-hero-icon
+                          name="information-circle"
+                          class="text-yellow-400 shrink-0 mt-0.5 text-base"
+                        />
+                        <span>{{
+                          memoryConfigExplanation(memConfig, memConfig.isCustomOverride)
+                        }}</span>
                       </div>
                     </div>
                   }
@@ -1935,14 +2569,19 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     @let currentFirst = settings.getExperienceTriquiFirstPlayer(exp.id);
                     @let defaultSymbol = getDefaultTriquiPlayerSymbol(exp);
                     @let currentSymbol = settings.getExperienceTriquiPlayerSymbol(exp.id);
-                    @let isTriquiCustom = currentDiff !== null || currentFirst !== null || currentSymbol !== null;
+                    @let isTriquiCustom =
+                      currentDiff !== null || currentFirst !== null || currentSymbol !== null;
 
-                    <div class="space-y-4 p-5 sm:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl">
+                    <div
+                      class="space-y-4 p-5 sm:p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-xl"
+                    >
                       <!-- Encabezado unificado de Configuración de Partida -->
                       <div class="flex items-center justify-between gap-3">
                         <div class="flex items-center gap-2">
                           <app-hero-icon name="squares-2x2" class="text-lg text-yellow-400" />
-                          <h3 class="font-extrabold uppercase tracking-wide text-sm kiosk:text-base text-white">
+                          <h3
+                            class="font-extrabold uppercase tracking-wide text-sm kiosk:text-base text-white"
+                          >
                             Configuración de partida
                           </h3>
                         </div>
@@ -1961,11 +2600,15 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       <!-- Control 1: Dificultad (3 columnas como en Memoria) -->
                       <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
                         <div class="flex items-center justify-between">
-                          <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">
+                          <span
+                            class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200"
+                          >
                             Dificultad
                           </span>
                           @if (currentDiff !== null) {
-                            <span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40">
+                            <span
+                              class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40"
+                            >
                               Ajuste Kiosco
                             </span>
                           }
@@ -1980,12 +2623,24 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                               uiSfx="select"
                               [class]="chipClass(isActive)"
                               style="touch-action: manipulation;"
-                              (click)="changeExperienceTriquiDifficulty(exp.id, opt.value === defaultDiff ? null : opt.value, brand.name, defaultDiff)"
+                              (click)="
+                                changeExperienceTriquiDifficulty(
+                                  exp.id,
+                                  opt.value === defaultDiff ? null : opt.value,
+                                  brand.name,
+                                  defaultDiff
+                                )
+                              "
                             >
                               <div class="flex flex-col items-center justify-center py-0.5">
-                                <span class="text-xs sm:text-sm font-extrabold uppercase">{{ opt.label }}</span>
+                                <span class="text-xs sm:text-sm font-extrabold uppercase">{{
+                                  opt.label
+                                }}</span>
                                 @if (isDefaultVal) {
-                                  <span class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold">Catálogo</span>
+                                  <span
+                                    class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold"
+                                    >Catálogo</span
+                                  >
                                 }
                               </div>
                             </button>
@@ -1996,11 +2651,15 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       <!-- Control 2: Quién empieza (3 columnas como en Memoria) -->
                       <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
                         <div class="flex items-center justify-between">
-                          <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">
+                          <span
+                            class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200"
+                          >
                             Quién empieza
                           </span>
                           @if (currentFirst !== null) {
-                            <span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40">
+                            <span
+                              class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40"
+                            >
                               Ajuste Kiosco
                             </span>
                           }
@@ -2015,12 +2674,24 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                               uiSfx="select"
                               [class]="chipClass(isActive)"
                               style="touch-action: manipulation;"
-                              (click)="changeExperienceTriquiFirstPlayer(exp.id, opt.value === defaultFirst ? null : opt.value, brand.name, defaultFirst)"
+                              (click)="
+                                changeExperienceTriquiFirstPlayer(
+                                  exp.id,
+                                  opt.value === defaultFirst ? null : opt.value,
+                                  brand.name,
+                                  defaultFirst
+                                )
+                              "
                             >
                               <div class="flex flex-col items-center justify-center py-0.5">
-                                <span class="text-xs sm:text-sm font-extrabold uppercase">{{ opt.label }}</span>
+                                <span class="text-xs sm:text-sm font-extrabold uppercase">{{
+                                  opt.label
+                                }}</span>
                                 @if (isDefaultVal) {
-                                  <span class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold">Catálogo</span>
+                                  <span
+                                    class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold"
+                                    >Catálogo</span
+                                  >
                                 }
                               </div>
                             </button>
@@ -2031,11 +2702,15 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       <!-- Control 3: Figura del Jugador (X u O) -->
                       <div class="p-4 rounded-xl bg-white/3 border border-white/10 space-y-2">
                         <div class="flex items-center justify-between">
-                          <span class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200">
+                          <span
+                            class="text-xs sm:text-sm font-bold uppercase tracking-wider text-neutral-200"
+                          >
                             Figura del Jugador
                           </span>
                           @if (currentSymbol !== null) {
-                            <span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40">
+                            <span
+                              class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40"
+                            >
                               Ajuste Kiosco
                             </span>
                           }
@@ -2051,24 +2726,61 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                               uiSfx="select"
                               [class]="chipClass(isActive)"
                               style="touch-action: manipulation;"
-                              (click)="changeExperienceTriquiPlayerSymbol(exp.id, opt.value === defaultSymbol ? null : opt.value, brand.name, defaultSymbol)"
+                              (click)="
+                                changeExperienceTriquiPlayerSymbol(
+                                  exp.id,
+                                  opt.value === defaultSymbol ? null : opt.value,
+                                  brand.name,
+                                  defaultSymbol
+                                )
+                              "
                             >
                               <div class="flex flex-col items-center justify-center py-0.5 gap-0.5">
                                 @if (opt.value === 'random') {
-                                  <svg xmlns="http://www.w3.org/2000/svg" class="size-6 sm:size-7 drop-shadow text-amber-300" fill="currentColor" viewBox="0 0 16 16">
-                                    <path fill-rule="evenodd" d="M0 3.5A.5.5 0 0 1 .5 3H1c2.202 0 3.827 1.24 4.874 2.418.49.552.865 1.102 1.126 1.532.26-.43.636-.98 1.126-1.532C9.173 4.24 10.798 3 13 3v1c-1.798 0-3.173 1.01-4.126 2.082A9.6 9.6 0 0 0 7.556 8a9.6 9.6 0 0 0 1.317 1.918C9.828 10.99 11.204 12 13 12v1c-2.202 0-3.827-1.24-4.874-2.418A10.6 10.6 0 0 1 7 9.05c-.26.43-.636.98-1.126 1.532C4.827 11.76 3.202 13 1 13H.5a.5.5 0 0 1 0-1H1c1.798 0 3.173-1.01 4.126-2.082A9.6 9.6 0 0 0 6.444 8a9.6 9.6 0 0 0-1.317-1.918C4.172 5.01 2.796 4 1 4H.5a.5.5 0 0 1-.5-.5"/>
-                                    <path d="M13 5.466V1.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384l-2.36 1.966a.25.25 0 0 1-.41-.192m0 9v-3.932a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384l-2.36 1.966a.25.25 0 0 1-.41-.192"/>
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    class="size-6 sm:size-7 drop-shadow text-amber-300"
+                                    fill="currentColor"
+                                    viewBox="0 0 16 16"
+                                  >
+                                    <path
+                                      fill-rule="evenodd"
+                                      d="M0 3.5A.5.5 0 0 1 .5 3H1c2.202 0 3.827 1.24 4.874 2.418.49.552.865 1.102 1.126 1.532.26-.43.636-.98 1.126-1.532C9.173 4.24 10.798 3 13 3v1c-1.798 0-3.173 1.01-4.126 2.082A9.6 9.6 0 0 0 7.556 8a9.6 9.6 0 0 0 1.317 1.918C9.828 10.99 11.204 12 13 12v1c-2.202 0-3.827-1.24-4.874-2.418A10.6 10.6 0 0 1 7 9.05c-.26.43-.636.98-1.126 1.532C4.827 11.76 3.202 13 1 13H.5a.5.5 0 0 1 0-1H1c1.798 0 3.173-1.01 4.126-2.082A9.6 9.6 0 0 0 6.444 8a9.6 9.6 0 0 0-1.317-1.918C4.172 5.01 2.796 4 1 4H.5a.5.5 0 0 1-.5-.5"
+                                    />
+                                    <path
+                                      d="M13 5.466V1.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384l-2.36 1.966a.25.25 0 0 1-.41-.192m0 9v-3.932a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384l-2.36 1.966a.25.25 0 0 1-.41-.192"
+                                    />
                                   </svg>
-                                  <span class="text-[10px] font-bold uppercase tracking-wider text-neutral-200">Aleatorio</span>
+                                  <span
+                                    class="text-[10px] font-bold uppercase tracking-wider text-neutral-200"
+                                    >Aleatorio</span
+                                  >
                                 } @else if (markAsset) {
-                                  <img [src]="markAsset" [alt]="opt.value" class="size-6 sm:size-7 object-contain drop-shadow" />
-                                  <span class="text-[10px] font-bold uppercase tracking-wider text-neutral-200">{{ opt.value === 'X' ? 'Cruz' : 'Círculo' }}</span>
+                                  <img
+                                    [src]="markAsset"
+                                    [alt]="opt.value"
+                                    class="size-6 sm:size-7 object-contain drop-shadow"
+                                  />
+                                  <span
+                                    class="text-[10px] font-bold uppercase tracking-wider text-neutral-200"
+                                    >{{ opt.value === 'X' ? 'Cruz' : 'Círculo' }}</span
+                                  >
                                 } @else {
-                                  <span class="text-base sm:text-lg font-black" [class]="opt.value === 'X' ? 'text-cyan-400' : 'text-amber-200'">{{ opt.value }}</span>
-                                  <span class="text-[10px] font-bold uppercase tracking-wider text-neutral-200">{{ opt.value === 'X' ? 'Cruz' : 'Círculo' }}</span>
+                                  <span
+                                    class="text-base sm:text-lg font-black"
+                                    [class]="opt.value === 'X' ? 'text-cyan-400' : 'text-amber-200'"
+                                    >{{ opt.value }}</span
+                                  >
+                                  <span
+                                    class="text-[10px] font-bold uppercase tracking-wider text-neutral-200"
+                                    >{{ opt.value === 'X' ? 'Cruz' : 'Círculo' }}</span
+                                  >
                                 }
                                 @if (isDefaultVal) {
-                                  <span class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold">Catálogo</span>
+                                  <span
+                                    class="text-[9px] uppercase tracking-wider text-yellow-300 font-semibold"
+                                    >Catálogo</span
+                                  >
                                 }
                               </div>
                             </button>
@@ -2077,32 +2789,63 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       </div>
 
                       <!-- Explicación contextual -->
-                      <div class="p-3.5 rounded-xl bg-white/4 border border-white/10 text-xs text-neutral-300 flex items-start gap-2.5">
-                        <app-hero-icon name="information-circle" class="text-yellow-400 shrink-0 mt-0.5 text-base" />
+                      <div
+                        class="p-3.5 rounded-xl bg-white/4 border border-white/10 text-xs text-neutral-300 flex items-start gap-2.5"
+                      >
+                        <app-hero-icon
+                          name="information-circle"
+                          class="text-yellow-400 shrink-0 mt-0.5 text-base"
+                        />
                         <div class="space-y-1">
-                          <p><strong>Dificultad:</strong> {{ triquiDifficultyExplanation(currentDiff, defaultDiff) }}</p>
-                          <p><strong>Primer Turno:</strong> {{ triquiFirstPlayerExplanation(currentFirst, defaultFirst) }}</p>
+                          <p>
+                            <strong>Dificultad:</strong>
+                            {{ triquiDifficultyExplanation(currentDiff, defaultDiff) }}
+                          </p>
+                          <p>
+                            <strong>Primer Turno:</strong>
+                            {{ triquiFirstPlayerExplanation(currentFirst, defaultFirst) }}
+                          </p>
                           <p class="leading-normal">
                             <strong>Figura:</strong>
                             @let activePlayerSym = currentSymbol ?? defaultSymbol;
                             @if (activePlayerSym === 'random') {
-                              <span>Sorteo aleatorio por ronda (50% ✕, 50% ○). La inteligencia artificial jugará con la figura contraria en cada ronda.</span>
+                              <span
+                                >Sorteo aleatorio por ronda (50% ✕, 50% ○). La inteligencia
+                                artificial jugará con la figura contraria en cada ronda.</span
+                              >
                             } @else {
                               El jugador utiliza la marca
                               @let activeAiSym = activePlayerSym === 'X' ? 'O' : 'X';
                               @let playerAsset = getExperienceMarkAsset(exp, activePlayerSym);
                               @if (playerAsset) {
-                                <img [src]="playerAsset" alt="Jugador" class="inline-block size-4.5 object-contain align-middle mx-0.5 drop-shadow" />
+                                <img
+                                  [src]="playerAsset"
+                                  alt="Jugador"
+                                  class="inline-block size-4.5 object-contain align-middle mx-0.5 drop-shadow"
+                                />
                               } @else {
-                                <strong [class]="activePlayerSym === 'X' ? 'text-cyan-400' : 'text-amber-200'">{{ activePlayerSym === 'X' ? '✕' : '○' }}</strong>
+                                <strong
+                                  [class]="
+                                    activePlayerSym === 'X' ? 'text-cyan-400' : 'text-amber-200'
+                                  "
+                                  >{{ activePlayerSym === 'X' ? '✕' : '○' }}</strong
+                                >
                               }
                               y la inteligencia artificial juega con la marca
                               @let aiAsset = getExperienceMarkAsset(exp, activeAiSym);
                               @if (aiAsset) {
-                                <img [src]="aiAsset" alt="IA" class="inline-block size-4.5 object-contain align-middle mx-0.5 drop-shadow" />
+                                <img
+                                  [src]="aiAsset"
+                                  alt="IA"
+                                  class="inline-block size-4.5 object-contain align-middle mx-0.5 drop-shadow"
+                                />
                               } @else {
-                                <strong [class]="activeAiSym === 'X' ? 'text-cyan-400' : 'text-amber-200'">{{ activeAiSym === 'X' ? '✕' : '○' }}</strong>
-                              }.
+                                <strong
+                                  [class]="activeAiSym === 'X' ? 'text-cyan-400' : 'text-amber-200'"
+                                  >{{ activeAiSym === 'X' ? '✕' : '○' }}</strong
+                                >
+                              }
+                              .
                             }
                           </p>
                         </div>
@@ -2131,7 +2874,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
         @if (activeSection() === 'diagnostics') {
           <div class="space-y-6">
             <div class="space-y-1">
-              <h2 class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400 flex items-center gap-2.5">
+              <h2
+                class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400 flex items-center gap-2.5"
+              >
                 <app-hero-icon name="cpu-chip" class="text-2xl text-yellow-400" />
                 <span>Diagnóstico del Sistema</span>
               </h2>
@@ -2140,7 +2885,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
               </p>
             </div>
 
-            <div class="rounded-2xl border border-white/15 bg-white/5 backdrop-blur-md p-5 sm:p-6 space-y-2.5 text-sm sm:text-base kiosk:text-lg font-mono">
+            <div
+              class="rounded-2xl border border-white/15 bg-white/5 backdrop-blur-md p-5 sm:p-6 space-y-2.5 text-sm sm:text-base kiosk:text-lg font-mono"
+            >
               <div class="flex justify-between py-1 border-b border-white/10 items-center">
                 <span class="text-neutral-400 flex items-center gap-2">
                   <app-hero-icon name="device-phone-mobile" class="text-sm text-yellow-400" />
@@ -2178,12 +2925,20 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
               </div>
             </div>
 
-            <div class="p-5 sm:p-6 rounded-2xl border backdrop-blur-md space-y-4"
-              [class]="catalog.developMode() ? 'border-amber-400/35 bg-amber-500/10' : 'border-white/15 bg-white/5'">
+            <div
+              class="p-5 sm:p-6 rounded-2xl border backdrop-blur-md space-y-4"
+              [class]="
+                catalog.developMode()
+                  ? 'border-amber-400/35 bg-amber-500/10'
+                  : 'border-white/15 bg-white/5'
+              "
+            >
               <div class="flex items-start justify-between gap-4">
                 <div class="min-w-0 space-y-1.5">
-                  <p class="font-extrabold uppercase tracking-wider text-sm sm:text-base flex items-center gap-2"
-                    [class]="catalog.developMode() ? 'text-amber-300' : 'text-yellow-400'">
+                  <p
+                    class="font-extrabold uppercase tracking-wider text-sm sm:text-base flex items-center gap-2"
+                    [class]="catalog.developMode() ? 'text-amber-300' : 'text-yellow-400'"
+                  >
                     <app-hero-icon name="beaker" class="text-lg" />
                     <span>Modo desarrollo</span>
                   </p>
@@ -2191,15 +2946,18 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                     @if (catalog.developMode()) {
                       Activo: el kiosco y este panel muestran marcas, juegos y experiencias beta.
                     } @else {
-                      Inactivo: el contenido y las configuraciones beta permanecen ocultos en toda la aplicación.
+                      Inactivo: el contenido y las configuraciones beta permanecen ocultos en toda
+                      la aplicación.
                     }
                   </p>
                 </div>
                 <span
                   class="shrink-0 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider border"
-                  [class]="catalog.developMode()
-                    ? 'bg-amber-500/20 border-amber-400/40 text-amber-300'
-                    : 'bg-white/10 border-white/20 text-neutral-400'"
+                  [class]="
+                    catalog.developMode()
+                      ? 'bg-amber-500/20 border-amber-400/40 text-amber-300'
+                      : 'bg-white/10 border-white/20 text-neutral-400'
+                  "
                 >
                   {{ catalog.developMode() ? 'ON' : 'OFF' }}
                 </span>
@@ -2209,36 +2967,59 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 type="button"
                 uiSfx="select"
                 class="w-full min-h-14 px-4 rounded-xl border backdrop-blur-md text-sm sm:text-base font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.99]"
-                [class]="catalog.developMode()
-                  ? 'bg-white/5 hover:bg-white/10 border-white/20 text-neutral-200'
-                  : 'bg-amber-500/15 hover:bg-amber-500/25 border-amber-400/40 text-amber-200'"
+                [class]="
+                  catalog.developMode()
+                    ? 'bg-white/5 hover:bg-white/10 border-white/20 text-neutral-200'
+                    : 'bg-amber-500/15 hover:bg-amber-500/25 border-amber-400/40 text-amber-200'
+                "
                 style="touch-action: manipulation;"
                 (click)="onDevelopModeToggle()"
               >
-                <app-hero-icon [name]="catalog.developMode() ? 'eye-slash' : 'lock-closed'" class="text-lg" />
-                <span>{{ catalog.developMode() ? 'Desactivar modo desarrollo' : 'Activar modo desarrollo' }}</span>
+                <app-hero-icon
+                  [name]="catalog.developMode() ? 'eye-slash' : 'lock-closed'"
+                  class="text-lg"
+                />
+                <span>{{
+                  catalog.developMode() ? 'Desactivar modo desarrollo' : 'Activar modo desarrollo'
+                }}</span>
               </button>
             </div>
 
-            <div class="space-y-5 p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+            <div
+              class="space-y-5 p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md"
+            >
               <div class="space-y-3">
-                <p class="font-bold uppercase tracking-wider text-xs sm:text-sm text-yellow-400 flex items-center gap-2">
+                <p
+                  class="font-bold uppercase tracking-wider text-xs sm:text-sm text-yellow-400 flex items-center gap-2"
+                >
                   <app-hero-icon name="swatch" class="text-sm text-yellow-400" />
                   <span>Marcas</span>
-                  <span class="text-neutral-500 font-bold normal-case tracking-normal">({{ catalog.rawManifest().brands.length }})</span>
+                  <span class="text-neutral-500 font-bold normal-case tracking-normal"
+                    >({{ catalog.rawManifest().brands.length }})</span
+                  >
                 </p>
                 <ul class="space-y-2">
                   @for (brand of catalog.rawManifest().brands; track brand.id) {
-                    <li class="rounded-xl border border-white/10 bg-white/3 px-3.5 py-3 flex items-start justify-between gap-3">
+                    <li
+                      class="rounded-xl border border-white/10 bg-white/3 px-3.5 py-3 flex items-start justify-between gap-3"
+                    >
                       <div class="min-w-0 space-y-1">
-                        <p class="text-sm sm:text-base font-bold text-white truncate">{{ cleanText(brand.name) }}</p>
-                        <p class="text-[11px] sm:text-xs font-mono text-neutral-500 truncate">{{ brand.id }}</p>
+                        <p class="text-sm sm:text-base font-bold text-white truncate">
+                          {{ cleanText(brand.name) }}
+                        </p>
+                        <p class="text-[11px] sm:text-xs font-mono text-neutral-500 truncate">
+                          {{ brand.id }}
+                        </p>
                       </div>
                       <div class="shrink-0 flex flex-col items-end gap-1.5">
-                        <span class="text-[11px] sm:text-xs font-mono text-neutral-300">v{{ brand.version }}</span>
+                        <span class="text-[11px] sm:text-xs font-mono text-neutral-300"
+                          >v{{ brand.version }}</span
+                        >
                         <div class="flex items-center gap-1.5 flex-wrap justify-end">
                           @if (brand.develop) {
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-300">
+                            <span
+                              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-300"
+                            >
                               <app-hero-icon name="fire" class="text-[10px]" />
                               Beta
                             </span>
@@ -2258,23 +3039,37 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
               </div>
 
               <div class="pt-2 border-t border-white/10 space-y-3">
-                <p class="font-bold uppercase tracking-wider text-xs sm:text-sm text-yellow-400 flex items-center gap-2">
+                <p
+                  class="font-bold uppercase tracking-wider text-xs sm:text-sm text-yellow-400 flex items-center gap-2"
+                >
                   <app-hero-icon name="cube" class="text-sm text-yellow-400" />
                   <span>Motores</span>
-                  <span class="text-neutral-500 font-bold normal-case tracking-normal">({{ catalog.rawManifest().games.length }})</span>
+                  <span class="text-neutral-500 font-bold normal-case tracking-normal"
+                    >({{ catalog.rawManifest().games.length }})</span
+                  >
                 </p>
                 <ul class="space-y-2">
                   @for (game of catalog.rawManifest().games; track game.id) {
-                    <li class="rounded-xl border border-white/10 bg-white/3 px-3.5 py-3 flex items-start justify-between gap-3">
+                    <li
+                      class="rounded-xl border border-white/10 bg-white/3 px-3.5 py-3 flex items-start justify-between gap-3"
+                    >
                       <div class="min-w-0 space-y-1">
-                        <p class="text-sm sm:text-base font-bold text-white truncate">{{ diagnosticGameName(game) }}</p>
-                        <p class="text-[11px] sm:text-xs font-mono text-neutral-500 truncate">{{ game.id }}</p>
+                        <p class="text-sm sm:text-base font-bold text-white truncate">
+                          {{ diagnosticGameName(game) }}
+                        </p>
+                        <p class="text-[11px] sm:text-xs font-mono text-neutral-500 truncate">
+                          {{ game.id }}
+                        </p>
                       </div>
                       <div class="shrink-0 flex flex-col items-end gap-1.5">
-                        <span class="text-[11px] sm:text-xs font-mono text-neutral-300">v{{ game.version }}</span>
+                        <span class="text-[11px] sm:text-xs font-mono text-neutral-300"
+                          >v{{ game.version }}</span
+                        >
                         <div class="flex items-center gap-1.5 flex-wrap justify-end">
                           @if (game.develop) {
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-300">
+                            <span
+                              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-300"
+                            >
                               <app-hero-icon name="fire" class="text-[10px]" />
                               Beta
                             </span>
@@ -2294,28 +3089,47 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
               </div>
 
               <div class="pt-2 border-t border-white/10 space-y-3">
-                <p class="font-bold uppercase tracking-wider text-xs sm:text-sm text-yellow-400 flex items-center gap-2">
+                <p
+                  class="font-bold uppercase tracking-wider text-xs sm:text-sm text-yellow-400 flex items-center gap-2"
+                >
                   <app-hero-icon name="sparkles" class="text-sm text-yellow-400" />
                   <span>Experiencias</span>
-                  <span class="text-neutral-500 font-bold normal-case tracking-normal">({{ catalog.rawManifest().experiences.length }})</span>
+                  <span class="text-neutral-500 font-bold normal-case tracking-normal"
+                    >({{ catalog.rawManifest().experiences.length }})</span
+                  >
                 </p>
                 <ul class="space-y-2">
                   @for (exp of catalog.rawManifest().experiences; track exp.id) {
-                    <li class="rounded-xl border border-white/10 bg-white/3 px-3.5 py-3 flex items-start justify-between gap-3">
+                    <li
+                      class="rounded-xl border border-white/10 bg-white/3 px-3.5 py-3 flex items-start justify-between gap-3"
+                    >
                       <div class="min-w-0 space-y-1">
-                        <p class="text-sm sm:text-base font-bold text-white truncate">{{ experienceLabel(exp) }}</p>
-                        <p class="text-[11px] sm:text-xs font-mono text-neutral-500 truncate">{{ exp.id }}</p>
+                        <p class="text-sm sm:text-base font-bold text-white truncate">
+                          {{ experienceLabel(exp) }}
+                        </p>
+                        <p class="text-[11px] sm:text-xs font-mono text-neutral-500 truncate">
+                          {{ exp.id }}
+                        </p>
                       </div>
                       <div class="shrink-0 flex flex-col items-end gap-1.5">
-                        <span class="text-[11px] sm:text-xs font-mono text-neutral-300">v{{ exp.version }}</span>
+                        <span class="text-[11px] sm:text-xs font-mono text-neutral-300"
+                          >v{{ exp.version }}</span
+                        >
                         <div class="flex items-center gap-1.5 flex-wrap justify-end">
                           @if (catalog.isExperienceDevelop(exp)) {
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-300">
+                            <span
+                              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-300"
+                            >
                               <app-hero-icon name="fire" class="text-[10px]" />
                               Beta
                             </span>
                           }
-                          @let expVis = diagnosticVisibility(exp.enabled, catalog.isExperienceDevelop(exp), 'f');
+                          @let expVis =
+                            diagnosticVisibility(
+                              exp.enabled,
+                              catalog.isExperienceDevelop(exp),
+                              'f'
+                            );
                           <span
                             class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider border"
                             [class]="expVis.className"
@@ -2336,7 +3150,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
         @if (activeSection() === 'updates') {
           <div class="space-y-6">
             <div class="space-y-1">
-              <h2 class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400 flex items-center gap-2.5">
+              <h2
+                class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400 flex items-center gap-2.5"
+              >
                 <app-hero-icon name="cloud-arrow-down" class="text-2xl text-yellow-400" />
                 <span>Actualizaciones</span>
               </h2>
@@ -2345,17 +3161,33 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
               </p>
             </div>
 
-            <div class="p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md space-y-3">
-              <p class="text-neutral-300 text-sm sm:text-base font-medium">{{ updateStatusCopy() }}</p>
+            <div
+              class="p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md space-y-3"
+            >
+              <p class="text-neutral-300 text-sm sm:text-base font-medium">
+                {{ updateStatusCopy() }}
+              </p>
 
               @if (snapshot().errorMessage) {
-                <div class="p-3.5 rounded-xl bg-rose-500/10 border border-rose-400/25 text-rose-200 text-sm">
+                <div
+                  class="p-3.5 rounded-xl bg-rose-500/10 border border-rose-400/25 text-rose-200 text-sm"
+                >
                   {{ snapshot().errorMessage }}
                 </div>
               }
 
+              @if (snapshot().note) {
+                <div
+                  class="p-3.5 rounded-xl bg-yellow-500/10 border border-yellow-400/25 text-yellow-200 text-sm"
+                >
+                  {{ snapshot().note }}
+                </div>
+              }
+
               @if (snapshot().appUpdateAvailable) {
-                <div class="p-3.5 rounded-xl bg-yellow-500/10 border border-yellow-400/25 text-yellow-200 text-sm">
+                <div
+                  class="p-3.5 rounded-xl bg-yellow-500/10 border border-yellow-400/25 text-yellow-200 text-sm"
+                >
                   App {{ snapshot().appVersion }}
                   @if (snapshot().remoteAppVersion) {
                     → {{ snapshot().remoteAppVersion }}
@@ -2366,15 +3198,19 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
 
               @if (visibleDiff().length > 0) {
                 <div class="pt-2">
-                  <p class="font-bold text-xs uppercase tracking-wider text-neutral-400 mb-2">Cambios detectados:</p>
+                  <p class="font-bold text-xs uppercase tracking-wider text-neutral-400 mb-2">
+                    Cambios detectados:
+                  </p>
                   <ul class="space-y-1.5 text-sm kiosk:text-base text-neutral-200">
                     @for (item of visibleDiff(); track item.collection + item.id) {
                       <li class="flex items-center gap-2">
                         <span class="size-1.5 rounded-full bg-yellow-400"></span>
-                        <span>{{ collectionLabel(item) }} <strong>{{ item.id }}</strong> · {{ kindLabel(item) }}
-                        @if (item.fromVersion && item.toVersion && item.kind === 'updated') {
-                          ({{ item.fromVersion }} → {{ item.toVersion }})
-                        }
+                        <span
+                          >{{ collectionLabel(item) }} <strong>{{ item.id }}</strong> ·
+                          {{ kindLabel(item) }}
+                          @if (item.fromVersion && item.toVersion && item.kind === 'updated') {
+                            ({{ item.fromVersion }} → {{ item.toVersion }})
+                          }
                         </span>
                       </li>
                     }
@@ -2383,19 +3219,48 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
               }
 
               @if ((snapshot().pendingAssets?.length ?? 0) > 0) {
-                <p class="text-neutral-400 text-xs sm:text-sm pt-2 border-t border-white/10">
-                  Assets pendientes (sin descarga a disco en esta fase):
-                  {{ snapshot().pendingAssets?.length }}
-                </p>
+                <div
+                  class="text-neutral-400 text-xs sm:text-sm pt-2 border-t border-white/10 space-y-1"
+                >
+                  @if (isNative()) {
+                    <p>
+                      Se descargarán {{ snapshot().pendingAssets?.length }} archivo(s) al disco
+                      @if (pendingHasVideoFiles()) {
+                        <span> (incluye video; puede tardar)</span>
+                      }
+                      .
+                    </p>
+                    @if (
+                      snapshot().status === 'downloading' && snapshot().downloadProgress;
+                      as progress
+                    ) {
+                      <p class="font-medium text-neutral-300">
+                        Descargando {{ progress.completed }} de {{ progress.total }}
+                        @if (progress.currentPath) {
+                          <span class="font-mono text-[11px]"> · {{ progress.currentPath }}</span>
+                        }
+                      </p>
+                    }
+                  } @else {
+                    <p>
+                      {{ snapshot().pendingAssets?.length }} archivo(s) nuevo(s). Los packs OTA solo
+                      se descargan en la app de escritorio; el JSON sí puede aplicarse (assets de
+                      semilla siguen en el bundle).
+                    </p>
+                  }
+                </div>
               }
             </div>
 
-            <app-kiosk-button
-              variant="primary"
-              [disabled]="updateBusy()"
-              (click)="onUpdateCta()"
-            >
-              <app-hero-icon [name]="snapshot().appUpdateAvailable || (snapshot().catalogDiff?.items?.length ?? 0) > 0 ? 'arrow-down-tray' : 'arrow-path'" class="text-yellow-400" />
+            <app-kiosk-button variant="primary" [disabled]="updateBusy()" (click)="onUpdateCta()">
+              <app-hero-icon
+                [name]="
+                  snapshot().appUpdateAvailable || (snapshot().catalogDiff?.items?.length ?? 0) > 0
+                    ? 'arrow-down-tray'
+                    : 'arrow-path'
+                "
+                class="text-yellow-400"
+              />
               {{ updateCtaLabel() }}
             </app-kiosk-button>
           </div>
@@ -2405,7 +3270,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
         @if (activeSection() === 'pin') {
           <div class="space-y-6">
             <div class="space-y-1">
-              <h2 class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400 flex items-center gap-2.5">
+              <h2
+                class="text-xl sm:text-2xl kiosk:text-3xl font-extrabold uppercase tracking-wide font-['Montserrat'] text-yellow-400 flex items-center gap-2.5"
+              >
                 <app-hero-icon name="key" class="text-2xl text-yellow-400" />
                 <span>Cambiar PIN</span>
               </h2>
@@ -2439,16 +3306,23 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       [attr.aria-label]="showPinDigits().current ? 'Ocultar PIN' : 'Ver PIN'"
                       (click)="togglePinVisibility('current', $event)"
                     >
-                      <app-hero-icon [name]="showPinDigits().current ? 'eye-slash' : 'eye'" class="text-base" />
+                      <app-hero-icon
+                        [name]="showPinDigits().current ? 'eye-slash' : 'eye'"
+                        class="text-base"
+                      />
                     </button>
                     @if (pinField() === 'current') {
-                      <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-yellow-400/20 text-yellow-400 border border-yellow-400/30">
+                      <span
+                        class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-yellow-400/20 text-yellow-400 border border-yellow-400/30"
+                      >
                         Editando
                       </span>
                     }
                   </div>
                 </div>
-                <div class="mt-2 text-2xl font-mono tracking-[0.4em] text-white overflow-hidden text-ellipsis whitespace-nowrap">
+                <div
+                  class="mt-2 text-2xl font-mono tracking-[0.4em] text-white overflow-hidden text-ellipsis whitespace-nowrap"
+                >
                   {{ formatPinDisplay('current') }}
                 </div>
               </div>
@@ -2476,16 +3350,23 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       [attr.aria-label]="showPinDigits().next ? 'Ocultar PIN' : 'Ver PIN'"
                       (click)="togglePinVisibility('next', $event)"
                     >
-                      <app-hero-icon [name]="showPinDigits().next ? 'eye-slash' : 'eye'" class="text-base" />
+                      <app-hero-icon
+                        [name]="showPinDigits().next ? 'eye-slash' : 'eye'"
+                        class="text-base"
+                      />
                     </button>
                     @if (pinField() === 'next') {
-                      <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-yellow-400/20 text-yellow-400 border border-yellow-400/30">
+                      <span
+                        class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-yellow-400/20 text-yellow-400 border border-yellow-400/30"
+                      >
                         Editando
                       </span>
                     }
                   </div>
                 </div>
-                <div class="mt-2 text-2xl font-mono tracking-[0.4em] text-white overflow-hidden text-ellipsis whitespace-nowrap">
+                <div
+                  class="mt-2 text-2xl font-mono tracking-[0.4em] text-white overflow-hidden text-ellipsis whitespace-nowrap"
+                >
                   {{ formatPinDisplay('next') }}
                 </div>
               </div>
@@ -2513,23 +3394,33 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                       [attr.aria-label]="showPinDigits().confirm ? 'Ocultar PIN' : 'Ver PIN'"
                       (click)="togglePinVisibility('confirm', $event)"
                     >
-                      <app-hero-icon [name]="showPinDigits().confirm ? 'eye-slash' : 'eye'" class="text-base" />
+                      <app-hero-icon
+                        [name]="showPinDigits().confirm ? 'eye-slash' : 'eye'"
+                        class="text-base"
+                      />
                     </button>
                     @if (pinField() === 'confirm') {
-                      <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-yellow-400/20 text-yellow-400 border border-yellow-400/30">
+                      <span
+                        class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-yellow-400/20 text-yellow-400 border border-yellow-400/30"
+                      >
                         Editando
                       </span>
                     }
                   </div>
                 </div>
-                <div class="mt-2 text-2xl font-mono tracking-[0.4em] text-white overflow-hidden text-ellipsis whitespace-nowrap">
+                <div
+                  class="mt-2 text-2xl font-mono tracking-[0.4em] text-white overflow-hidden text-ellipsis whitespace-nowrap"
+                >
                   {{ formatPinDisplay('confirm') }}
                 </div>
               </div>
 
               <!-- Campo 4: Frase de recordación (opcional) -->
               <div class="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2 select-none">
-                <label for="pin-hint-input" class="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-2 cursor-pointer">
+                <label
+                  for="pin-hint-input"
+                  class="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-2 cursor-pointer"
+                >
                   <app-hero-icon name="light-bulb" class="text-sm text-yellow-400" />
                   <span>4. Frase de recordación (opcional)</span>
                 </label>
@@ -2589,14 +3480,20 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 type="button"
                 uiSfx="click"
                 [disabled]="!canSavePin()"
-                [class]="canSavePin()
-                  ? 'bg-yellow-400/25 hover:bg-yellow-400/35 border-yellow-400/50 text-yellow-300 active:scale-95 cursor-pointer'
-                  : 'bg-white/5 border-white/10 text-neutral-500 opacity-40 cursor-not-allowed pointer-events-none'"
+                [class]="
+                  canSavePin()
+                    ? 'bg-yellow-400/25 hover:bg-yellow-400/35 border-yellow-400/50 text-yellow-300 active:scale-95 cursor-pointer'
+                    : 'bg-white/5 border-white/10 text-neutral-500 opacity-40 cursor-not-allowed pointer-events-none'
+                "
                 class="min-h-14 sm:min-h-16 rounded-2xl border text-[10px] sm:text-xs font-extrabold uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 text-center"
                 style="touch-action: manipulation;"
                 (click)="requestPinChange()"
               >
-                <app-hero-icon name="check" class="text-xl" [class]="canSavePin() ? 'text-yellow-300' : 'text-neutral-500'" />
+                <app-hero-icon
+                  name="check"
+                  class="text-xl"
+                  [class]="canSavePin() ? 'text-yellow-300' : 'text-neutral-500'"
+                />
                 <span>Guardar</span>
               </button>
             </div>
@@ -2617,7 +3514,6 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
             }
           </div>
         }
-
       </div>
     </main>
 
@@ -2625,7 +3521,31 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
       <app-admin-confirm
         [title]="confirmTitle(kind)"
         [message]="confirmMessage(kind)"
-        [confirmLabel]="kind === 'applyUpdate' ? 'Instalar' : kind === 'changePin' ? 'Confirmar y cambiar' : kind === 'switchToGlobal' ? 'Activar global' : (kind === 'resetDefaults' || kind === 'resetAudio' || kind === 'resetScreensaver' || kind === 'resetGeneral' || kind === 'resetBrands' || kind === 'resetExperience' || kind === 'resetGlobalGame') ? 'Restaurar' : kind === 'restart' ? 'Reiniciar' : kind === 'exit' ? 'Cerrar' : kind === 'enterKiosk' ? 'Activar' : kind === 'leaveKiosk' ? 'Salir' : 'Confirmar'"
+        [confirmLabel]="
+          kind === 'applyUpdate'
+            ? 'Instalar'
+            : kind === 'changePin'
+              ? 'Confirmar y cambiar'
+              : kind === 'switchToGlobal'
+                ? 'Activar global'
+                : kind === 'resetDefaults' ||
+                    kind === 'resetAudio' ||
+                    kind === 'resetScreensaver' ||
+                    kind === 'resetGeneral' ||
+                    kind === 'resetBrands' ||
+                    kind === 'resetExperience' ||
+                    kind === 'resetGlobalGame'
+                  ? 'Restaurar'
+                  : kind === 'restart'
+                    ? 'Reiniciar'
+                    : kind === 'exit'
+                      ? 'Cerrar'
+                      : kind === 'enterKiosk'
+                        ? 'Activar'
+                        : kind === 'leaveKiosk'
+                          ? 'Salir'
+                          : 'Confirmar'
+        "
         (confirmed)="onConfirm()"
         (cancelled)="onConfirmCancelled()"
       />
@@ -2646,7 +3566,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
         style="background: rgba(3, 7, 18, 0.78); backdrop-filter: blur(16px);"
         role="dialog"
         aria-modal="true"
-        [attr.aria-label]="'Vista previa: ' + (preview.video.nombre || preview.video.name || 'Video')"
+        [attr.aria-label]="
+          'Vista previa: ' + (preview.video.nombre || preview.video.name || 'Video')
+        "
         (click)="closeVideoPreview()"
       >
         <div
@@ -2656,15 +3578,20 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
           <!-- Header del Modal -->
           <div class="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
             <div class="flex items-center gap-3 min-w-0">
-              <div class="size-10 rounded-2xl bg-yellow-400/15 flex items-center justify-center text-yellow-400 shrink-0 border border-yellow-400/30">
+              <div
+                class="size-10 rounded-2xl bg-yellow-400/15 flex items-center justify-center text-yellow-400 shrink-0 border border-yellow-400/30"
+              >
                 <app-hero-icon name="play-circle" class="text-2xl text-yellow-400" />
               </div>
               <div class="min-w-0">
-                <h3 class="text-base sm:text-lg font-extrabold text-white truncate font-['Montserrat']">
+                <h3
+                  class="text-base sm:text-lg font-extrabold text-white truncate font-['Montserrat']"
+                >
                   {{ preview.video.nombre || preview.video.name || 'Vista previa de video' }}
                 </h3>
                 <p class="text-xs text-neutral-400 font-mono truncate">
-                  {{ preview.brandName ? 'Marca: ' + preview.brandName + ' · ' : 'Institucional · ' }}{{ preview.video.source }}
+                  {{ preview.brandName ? 'Marca: ' + preview.brandName + ' · ' : 'Institucional · '
+                  }}{{ preview.video.source }}
                 </p>
               </div>
             </div>
@@ -2682,7 +3609,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
           </div>
 
           <!-- Video Player -->
-          <div class="relative w-full aspect-video rounded-2xl overflow-hidden bg-black flex items-center justify-center border border-white/10 shadow-inner">
+          <div
+            class="relative w-full aspect-video rounded-2xl overflow-hidden bg-black flex items-center justify-center border border-white/10 shadow-inner"
+          >
             <video
               [src]="preview.video.source"
               controls
@@ -2695,16 +3624,22 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
           </div>
 
           <!-- Footer con Estado y Acciones para tomar decisión -->
-          <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1 border-t border-white/10">
+          <div
+            class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1 border-t border-white/10"
+          >
             <div class="flex items-center gap-2.5 self-start sm:self-center">
               <span class="text-xs text-neutral-300 font-medium">Estado en protector:</span>
               @if (isPreviewVideoEnabled()) {
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                <span
+                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                >
                   <app-hero-icon name="check" class="text-xs" />
                   Habilitado
                 </span>
               } @else {
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                <span
+                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40"
+                >
                   <app-hero-icon name="x-mark" class="text-xs" />
                   Deshabilitado
                 </span>
@@ -2717,10 +3652,19 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 uiSfx="select"
                 (click)="togglePreviewVideo()"
                 class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer"
-                [class]="isPreviewVideoEnabled() ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/40' : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-500/40'"
+                [class]="
+                  isPreviewVideoEnabled()
+                    ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/40'
+                    : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-500/40'
+                "
               >
-                <app-hero-icon [name]="isPreviewVideoEnabled() ? 'x-mark' : 'check'" class="text-sm" />
-                <span>{{ isPreviewVideoEnabled() ? 'Deshabilitar video' : 'Habilitar video' }}</span>
+                <app-hero-icon
+                  [name]="isPreviewVideoEnabled() ? 'x-mark' : 'check'"
+                  class="text-sm"
+                />
+                <span>{{
+                  isPreviewVideoEnabled() ? 'Deshabilitar video' : 'Habilitar video'
+                }}</span>
               </button>
 
               <button
@@ -2746,6 +3690,7 @@ export class AdminPanel {
   private readonly session = inject(AdminSession);
   private readonly router = inject(Router);
   private readonly updates = inject(UpdateCoordinator);
+  private readonly contentPack = inject(ContentPack);
   private readonly mediaPlayer = inject(MediaPlayer);
   private readonly destroyRef = inject(DestroyRef);
   private readonly superadminAuth = inject(SuperadminAuthService);
@@ -2838,8 +3783,17 @@ export class AdminPanel {
   protected readonly pinError = signal(false);
   protected readonly viewport = signal({ width: 0, height: 0 });
 
-  protected readonly pinModel = signal<{ current: string; next: string; confirm: string; hint?: string }>({ current: '', next: '', confirm: '', hint: '' });
-  protected readonly showPinDigits = signal<Record<PinField, boolean>>({ current: false, next: false, confirm: false });
+  protected readonly pinModel = signal<{
+    current: string;
+    next: string;
+    confirm: string;
+    hint?: string;
+  }>({ current: '', next: '', confirm: '', hint: '' });
+  protected readonly showPinDigits = signal<Record<PinField, boolean>>({
+    current: false,
+    next: false,
+    confirm: false,
+  });
 
   protected readonly isPinFieldFull = computed(() => {
     const field = this.pinField();
@@ -2863,8 +3817,14 @@ export class AdminPanel {
     (this.snapshot().catalogDiff?.items ?? []).filter((item) => item.kind !== 'unchanged'),
   );
 
+  protected pendingHasVideoFiles(): boolean {
+    return pendingHasVideos(this.snapshot().pendingAssets ?? []);
+  }
+
   // ─── Toast Reactivo ──────────────────────────────────────────────────────────
-  protected readonly toast = signal<{ title: string; message: string; exiting?: boolean } | null>(null);
+  protected readonly toast = signal<{ title: string; message: string; exiting?: boolean } | null>(
+    null,
+  );
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
   private toastExitTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -2876,9 +3836,9 @@ export class AdminPanel {
   } | null>(null);
 
   /** Metadatos (peso/duración) de videos de atracción indexados por `source`. */
-  private readonly videoMetaBySource = signal<
-    Record<string, VideoFileMeta | 'loading' | 'error'>
-  >({});
+  private readonly videoMetaBySource = signal<Record<string, VideoFileMeta | 'loading' | 'error'>>(
+    {},
+  );
   private readonly videoMetaProbing = new Set<string>();
 
   private readonly attractionVideoSources = computed(() => {
@@ -2896,7 +3856,12 @@ export class AdminPanel {
 
   constructor() {
     this.refreshViewport();
-    this.pinModel.set({ current: '', next: '', confirm: '', hint: this.session.getPinHint?.() ?? '' });
+    this.pinModel.set({
+      current: '',
+      next: '',
+      confirm: '',
+      hint: this.session.getPinHint?.() ?? '',
+    });
     const onResize = () => this.refreshViewport();
     if (typeof window !== 'undefined') {
       window.addEventListener('resize', onResize);
@@ -3021,13 +3986,9 @@ export class AdminPanel {
     this.showToast('Marca ' + name, nextState ? 'Marca activada' : 'Marca desactivada');
   }
 
-  protected onKioskBrandDrop(
-    event: CdkDragDrop<Brand[]>,
-    group: 'active' | 'beta',
-  ): void {
+  protected onKioskBrandDrop(event: CdkDragDrop<Brand[]>, group: 'active' | 'beta'): void {
     if (event.previousIndex === event.currentIndex) return;
-    const source =
-      group === 'active' ? this.activeKioskBrands() : this.betaKioskBrands();
+    const source = group === 'active' ? this.activeKioskBrands() : this.betaKioskBrands();
     if (source.length < 2) return;
     const next = source.slice();
     moveItemInArray(next, event.previousIndex, event.currentIndex);
@@ -3225,7 +4186,9 @@ export class AdminPanel {
       const v = brand?.attractionVideos?.find((item) => item.source === current.video.source);
       return v ? v.enabled !== false : current.video.enabled !== false;
     }
-    const v = this.catalog.rawManifest().app?.protector?.attractionVideos?.find((item) => item.source === current.video.source);
+    const v = this.catalog
+      .rawManifest()
+      .app?.protector?.attractionVideos?.find((item) => item.source === current.video.source);
     return v ? v.enabled !== false : current.video.enabled !== false;
   }
 
@@ -3234,10 +4197,16 @@ export class AdminPanel {
     if (!current) return;
     if (current.brandId) {
       const brand = this.catalog.rawManifest().brands.find((b) => b.id === current.brandId);
-      const v = brand?.attractionVideos?.find((item) => item.source === current.video.source) ?? current.video;
+      const v =
+        brand?.attractionVideos?.find((item) => item.source === current.video.source) ??
+        current.video;
       this.toggleBrandVideo(current.brandId, v);
     } else {
-      const v = this.catalog.rawManifest().app?.protector?.attractionVideos?.find((item) => item.source === current.video.source) ?? current.video;
+      const v =
+        this.catalog
+          .rawManifest()
+          .app?.protector?.attractionVideos?.find((item) => item.source === current.video.source) ??
+        current.video;
       this.toggleGeneralVideo(v);
     }
   }
@@ -3389,9 +4358,9 @@ export class AdminPanel {
   // ─── Helpers de Experiencias y Catálogo ──────────────────────────────────────
 
   protected getExperienceForBrandGame(brandId: string, gameId: string): GameExperience | undefined {
-    return this.catalog.rawManifest().experiences.find(
-      (e) => e.brandId === brandId && e.gameId === gameId,
-    );
+    return this.catalog
+      .rawManifest()
+      .experiences.find((e) => e.brandId === brandId && e.gameId === gameId);
   }
 
   /** Marcas que tienen experiencia del juego seleccionado (modo individual). */
@@ -3441,7 +4410,8 @@ export class AdminPanel {
     const first =
       this.settings.getExperienceTriquiFirstPlayer(exp.id) ?? this.getDefaultTriquiFirstPlayer(exp);
     const symbol =
-      this.settings.getExperienceTriquiPlayerSymbol(exp.id) ?? this.getDefaultTriquiPlayerSymbol(exp);
+      this.settings.getExperienceTriquiPlayerSymbol(exp.id) ??
+      this.getDefaultTriquiPlayerSymbol(exp);
     return `Dificultad: ${this.difficultyLabel(diff)} · Inicia: ${this.firstPlayerLabel(first)} · Figura: ${this.playerSymbolLabel(symbol)}`;
   }
 
@@ -3486,7 +4456,9 @@ export class AdminPanel {
       return { pairs: 3, lives: 3, difficulty: 'medium', isCustomOverride: false };
     }
     const resolved = this.getEffectiveMemoryConfig(first);
-    const isCustomOverride = exps.some((exp) => this.settings.getExperienceMemoryConfig(exp.id) !== null);
+    const isCustomOverride = exps.some(
+      (exp) => this.settings.getExperienceMemoryConfig(exp.id) !== null,
+    );
     return { ...resolved, isCustomOverride };
   }
 
@@ -3569,18 +4541,27 @@ export class AdminPanel {
       this.settings.setExperienceTriquiDifficulty(exp.id, diff);
     }
     if (diff === null) {
-      this.showToast('Triqui · Global', `Opción por defecto (${this.difficultyLabel(defaultDiff)})`);
+      this.showToast(
+        'Triqui · Global',
+        `Opción por defecto (${this.difficultyLabel(defaultDiff)})`,
+      );
     } else {
       this.showToast('Triqui · Global', `Dificultad: ${this.difficultyLabel(diff)}`);
     }
   }
 
-  protected changeGlobalTriquiFirstPlayer(player: FirstPlayer | null, defaultFirst: FirstPlayer): void {
+  protected changeGlobalTriquiFirstPlayer(
+    player: FirstPlayer | null,
+    defaultFirst: FirstPlayer,
+  ): void {
     for (const exp of this.getExperiencesForSelectedGame()) {
       this.settings.setExperienceTriquiFirstPlayer(exp.id, player);
     }
     if (player === null) {
-      this.showToast('Triqui · Global', `Opción por defecto (${this.firstPlayerLabel(defaultFirst)})`);
+      this.showToast(
+        'Triqui · Global',
+        `Opción por defecto (${this.firstPlayerLabel(defaultFirst)})`,
+      );
     } else {
       this.showToast('Triqui · Global', `Primer jugador: ${this.firstPlayerLabel(player)}`);
     }
@@ -3594,7 +4575,10 @@ export class AdminPanel {
       this.settings.setExperienceTriquiPlayerSymbol(exp.id, symbol);
     }
     if (symbol === null) {
-      this.showToast('Triqui · Global', `Opción por defecto (${this.playerSymbolLabel(defaultSymbol)})`);
+      this.showToast(
+        'Triqui · Global',
+        `Opción por defecto (${this.playerSymbolLabel(defaultSymbol)})`,
+      );
     } else {
       this.showToast('Triqui · Global', `Figura: ${this.playerSymbolLabel(symbol)}`);
     }
@@ -3722,7 +4706,9 @@ export class AdminPanel {
 
   // ─── Setters de Ajustes con Toast ──────────────────────────────────────────
 
-  protected getEffectiveMemoryConfig(exp: GameExperience): MemoryConfig & { isCustomOverride: boolean } {
+  protected getEffectiveMemoryConfig(
+    exp: GameExperience,
+  ): MemoryConfig & { isCustomOverride: boolean } {
     const override = this.settings.getExperienceMemoryConfig(exp.id);
     const resolved = resolveMemoryConfig({
       kioskOverride: override,
@@ -3772,7 +4758,11 @@ export class AdminPanel {
     this.showToast(`Memoria · ${cleanBrand}`, `${nextLives} vidas (Personalizada)`);
   }
 
-  protected selectMemoryDifficulty(exp: GameExperience, difficulty: MemoryDifficulty, brandName: string): void {
+  protected selectMemoryDifficulty(
+    exp: GameExperience,
+    difficulty: MemoryDifficulty,
+    brandName: string,
+  ): void {
     const current = this.getEffectiveMemoryConfig(exp);
     const recommendedLives = getRecommendedLives(current.pairs, difficulty);
 
@@ -3783,7 +4773,10 @@ export class AdminPanel {
     });
 
     const cleanBrand = this.cleanText(brandName);
-    this.showToast(`Memoria · ${cleanBrand}`, `Dificultad ${this.memoryDifficultyLabel(difficulty)} (${recommendedLives} vidas)`);
+    this.showToast(
+      `Memoria · ${cleanBrand}`,
+      `Dificultad ${this.memoryDifficultyLabel(difficulty)} (${recommendedLives} vidas)`,
+    );
   }
 
   protected resetExperienceMemoryToDefault(exp: GameExperience, brandName: string): void {
@@ -3845,7 +4838,10 @@ export class AdminPanel {
     this.settings.setExperienceTriquiDifficulty(experienceId, diff);
     const cleanBrand = this.cleanText(brandName);
     if (diff === null) {
-      this.showToast(`Triqui · ${cleanBrand}`, `Opción por defecto (${this.difficultyLabel(defaultDiff)})`);
+      this.showToast(
+        `Triqui · ${cleanBrand}`,
+        `Opción por defecto (${this.difficultyLabel(defaultDiff)})`,
+      );
     } else {
       this.showToast(`Triqui · ${cleanBrand}`, `Dificultad: ${this.difficultyLabel(diff)}`);
     }
@@ -3860,7 +4856,10 @@ export class AdminPanel {
     this.settings.setExperienceTriquiFirstPlayer(experienceId, player);
     const cleanBrand = this.cleanText(brandName);
     if (player === null) {
-      this.showToast(`Triqui · ${cleanBrand}`, `Opción por defecto (${this.firstPlayerLabel(defaultFirst)})`);
+      this.showToast(
+        `Triqui · ${cleanBrand}`,
+        `Opción por defecto (${this.firstPlayerLabel(defaultFirst)})`,
+      );
     } else {
       this.showToast(`Triqui · ${cleanBrand}`, `Primer jugador: ${this.firstPlayerLabel(player)}`);
     }
@@ -3875,7 +4874,10 @@ export class AdminPanel {
     this.settings.setExperienceTriquiPlayerSymbol(experienceId, symbol);
     const cleanBrand = this.cleanText(brandName);
     if (symbol === null) {
-      this.showToast(`Triqui · ${cleanBrand}`, `Opción por defecto (${this.playerSymbolLabel(defaultSymbol)})`);
+      this.showToast(
+        `Triqui · ${cleanBrand}`,
+        `Opción por defecto (${this.playerSymbolLabel(defaultSymbol)})`,
+      );
     } else {
       this.showToast(`Triqui · ${cleanBrand}`, `Figura: ${this.playerSymbolLabel(symbol)}`);
     }
@@ -3961,7 +4963,10 @@ export class AdminPanel {
     }
   }
 
-  protected triquiFirstPlayerExplanation(player: FirstPlayer | null, defaultFirst: FirstPlayer): string {
+  protected triquiFirstPlayerExplanation(
+    player: FirstPlayer | null,
+    defaultFirst: FirstPlayer,
+  ): string {
     if (player === null) {
       return `Opción por defecto: Respeta la regla de primer jugador del catálogo (${this.firstPlayerLabel(defaultFirst)}).`;
     }
@@ -4018,7 +5023,10 @@ export class AdminPanel {
     const current = this.settings.screensaverIdleMs();
     const next = current + deltaMs;
     this.settings.setScreensaverIdleMs(next);
-    this.showToast('Tiempo Protector', `Aparece tras: ${this.formatIdleTime(this.settings.screensaverIdleMs())}`);
+    this.showToast(
+      'Tiempo Protector',
+      `Aparece tras: ${this.formatIdleTime(this.settings.screensaverIdleMs())}`,
+    );
   }
 
   protected changeVideoOrder(order: ScreensaverVideoOrder): void {
@@ -4044,19 +5052,13 @@ export class AdminPanel {
   protected toggleCoverReduceMotion(): void {
     const next = !this.settings.coverReduceMotion();
     this.settings.setCoverReduceMotion(next);
-    this.showToast(
-      'Cover Flow',
-      next ? 'Movimiento reducido activado' : 'Cover Flow 3D activado',
-    );
+    this.showToast('Cover Flow', next ? 'Movimiento reducido activado' : 'Cover Flow 3D activado');
   }
 
   protected toggleAtmosphereMotion(): void {
     const next = !this.settings.atmosphereMotionEnabled();
     this.settings.setAtmosphereMotionEnabled(next);
-    this.showToast(
-      'Atmósfera',
-      next ? 'Animación activada' : 'Atmósfera estática',
-    );
+    this.showToast('Atmósfera', next ? 'Animación activada' : 'Atmósfera estática');
   }
 
   protected onBgmVolumeInput(event: Event): void {
@@ -4097,7 +5099,9 @@ export class AdminPanel {
     playUiSfx(this.mediaPlayer, 'select');
   }
 
-  protected pendingExperienceToReset = signal<{ exp: GameExperience; brandName: string } | null>(null);
+  protected pendingExperienceToReset = signal<{ exp: GameExperience; brandName: string } | null>(
+    null,
+  );
 
   protected askConfirmResetExperience(exp: GameExperience, brandName: string): void {
     this.pendingExperienceToReset.set({ exp, brandName });
@@ -4160,19 +5164,18 @@ export class AdminPanel {
         'La ventana pasará a pantalla completa sin bordes ni decoraciones.',
         'La aplicación pasará a modo pantalla completa en el navegador.',
       ),
-      applyUpdate: this.snapshot().appUpdateAvailable
-        ? 'Primero se aplica el catálogo y después el ejecutable, que puede reiniciar la app.'
-        : 'Se aplicará el catálogo publicado. El anterior se conserva si el nuevo no es válido.',
+      applyUpdate: this.applyUpdateConfirmMessage(),
       changePin: `Va a generar un nuevo PIN: "${this.pinModel().next}". ¿Desea confirmar el cambio?`,
       resetDefaults:
-        'Se restablecerán marcas, juegos, audio y parámetros a los valores definidos en el catálogo original (content-manifest.json).',
+        'Se restablecerán marcas, juegos, audio y parámetros a los valores definidos en el catálogo original (content-manifest.json). En escritorio también se vacían los packs OTA descargados; el bundle de la app se conserva.',
       resetAudio:
         'Se restablecerán los niveles de volumen (BGM, SFX) y el estado del sonido a sus valores por defecto.',
       resetScreensaver:
         'Se restablecerá el modo, tiempo de inactividad, orden de videos, activación de clips y volumen del protector de pantalla a sus valores por defecto.',
       resetGeneral:
         'Se restablecerán todos los ajustes de audio, protector de pantalla y activación de clips a sus valores por defecto.',
-      resetBrands: 'Se restablecerán marcas y experiencias (activación y orden) a los valores del catálogo.',
+      resetBrands:
+        'Se restablecerán marcas y experiencias (activación y orden) a los valores del catálogo.',
       resetExperience: this.resetExperienceConfirmMessage(),
       switchToGlobal: `Se perderá la configuración individual de ${game} por cada marca. Las reglas de partida y la activación de experiencias volverán a los valores del catálogo (content-manifest.json), y a partir de entonces los ajustes de partida se aplicarán a todas las marcas.`,
       resetGlobalGame: `Se restablecerá la configuración de partida de ${game} y la activación del juego en cada marca a los valores del catálogo.`,
@@ -4186,6 +5189,26 @@ export class AdminPanel {
 
   private nativeOrWeb(nativeText: string, webText: string): string {
     return this.isNative() ? nativeText : webText;
+  }
+
+  private applyUpdateConfirmMessage(): string {
+    const pending = this.snapshot().pendingAssets?.length ?? 0;
+    const hasVideos = this.pendingHasVideoFiles();
+    const appTail = this.snapshot().appUpdateAvailable
+      ? ' Después se instala el ejecutable, que puede reiniciar la app.'
+      : '';
+    if (!this.isNative()) {
+      return pending > 0
+        ? `Se aplicará el catálogo publicado. Los ${pending} archivo(s) nuevos no se descargan en el navegador.${appTail}`
+        : `Se aplicará el catálogo publicado. El anterior se conserva si el nuevo no es válido.${appTail}`;
+    }
+    if (pending === 0) {
+      return this.snapshot().appUpdateAvailable
+        ? 'Primero se aplica el catálogo y después el ejecutable, que puede reiniciar la app.'
+        : 'Se aplicará el catálogo publicado. El anterior se conserva si el nuevo no es válido.';
+    }
+    const videoNote = hasVideos ? ' (incluye video; puede tardar)' : '';
+    return `Se descargarán ${pending} archivo(s)${videoNote} y luego se aplicará el catálogo. Si algo falla se conserva lo anterior.${appTail}`;
   }
 
   private resetExperienceConfirmMessage(): string {
@@ -4212,12 +5235,13 @@ export class AdminPanel {
     const actions: Record<Exclude<ConfirmKind, null>, () => void | Promise<void>> = {
       switchToGlobal: () => this.applySwitchToGlobalMode(),
       resetGlobalGame: () => this.resetGlobalGameToDefault(),
-      resetDefaults: () => {
+      resetDefaults: async () => {
         this.catalog.resetToDefault();
         this.settings.resetToDefault();
+        await this.contentPack.clearInstalled();
         this.showToast(
           'Valores restaurados',
-          'Ajustes y catálogo restablecidos a los definidos en content-manifest.json',
+          'Ajustes, catálogo y packs OTA restablecidos a fábrica',
         );
       },
       resetAudio: () => this.resetAudioSettings(),
@@ -4375,7 +5399,12 @@ export class AdminPanel {
     if (ok) {
       this.pinMessage.set('PIN actualizado en este equipo.');
       this.showToast('Seguridad', 'PIN actualizado con éxito');
-      this.pinModel.set({ current: '', next: '', confirm: '', hint: this.session.getPinHint?.() ?? '' });
+      this.pinModel.set({
+        current: '',
+        next: '',
+        confirm: '',
+        hint: this.session.getPinHint?.() ?? '',
+      });
       this.pinField.set('current');
     } else {
       this.pinMessage.set('El PIN anterior no coincide.');
