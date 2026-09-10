@@ -27,7 +27,7 @@ Kiosco interactivo táctil para consultorios (**9:16** / diseño base **1080×19
 3. **WebView2** (Windows 10/11)
 4. Node con `packageManager: npm@12.0.2`
 
-Videos de atracción: masters en `resources/videos/` (gitignored). Comprimir con `npm run videos:compress` (ffmpeg); antes del build: `npm run copy:videos`. Pack CI: Release `content-videos` (3 MP4 ligeros).
+Videos de atracción: masters en `resources/videos/` (mismo basename que `source` en el manifiesto). Comprimir con `npm run videos:compress` (ffmpeg, máx. 1080p); antes del build: `npm run copy:videos`. Pack CI: Release `content-videos`.
 
 ---
 

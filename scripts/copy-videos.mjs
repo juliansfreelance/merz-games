@@ -1,113 +1,77 @@
 #!/usr/bin/env node
 /**
- * Copia los MP4 de atracción a public/content/videos/ antes de tauri build.
+ * Copia los MP4 de atracción definidos en content-manifest.json
+ * hacia public/content/videos/ antes de tauri build.
  *
- * Orígenes (en orden):
+ * Orígenes (en orden, por cada basename del manifiesto):
  * 1. CONTENT_VIDEOS_DIR (env)
- * 2. resources/videos/ (masters / pack kiosco, gitignored)
- * 3. public/content/videos/ ya poblado
+ * 2. resources/videos/
+ * 3. public/content/videos/ (ya presente)
  *
- * Catálogo canónico: general1 + radiesse + ultherapy (1 clip por marca).
+ * Sin aliases ni lista fija: el manifiesto es la fuente de verdad.
+ * `source: "/content/videos/ultherapy.mp4"` → `resources/videos/ultherapy.mp4`.
  *
  * No falla si faltan archivos en modo desarrollo (COPY_VIDEOS_STRICT≠1).
  * En CI de release: COPY_VIDEOS_STRICT=1.
  */
-import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
-import { basename, join, resolve } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { listAttractionVideosFromManifest } from './manifest-videos.mjs';
 
 const root = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
 const destDir = join(root, 'public', 'content', 'videos');
 const strict = process.env.COPY_VIDEOS_STRICT === '1';
 
-/** Rutas esperadas por content-manifest.json (basename). */
-const REQUIRED = ['general1.mp4', 'radiesse.mp4', 'ultherapy.mp4'];
-
-/** Alias de masters / fallbacks ligeros → destinos del catálogo. */
-const MASTER_MAP = {
-  'Radiesse.mp4': ['radiesse.mp4'],
-  'radiesse.mp4': ['radiesse.mp4'],
-  'radiesse2.mp4': ['radiesse.mp4'],
-  'Ultherapy.mp4': ['ultherapy.mp4'],
-  'ultherapy.mp4': ['ultherapy.mp4'],
-  'ultherapy2.mp4': ['ultherapy.mp4'],
-  'general1.mp4': ['general1.mp4'],
-  'General 1.mp4': ['general1.mp4'],
-  'General1.mp4': ['general1.mp4'],
-};
-
-function listMp4(dir) {
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir)
-    .filter((name) => name.toLowerCase().endsWith('.mp4'))
-    .map((name) => join(dir, name))
-    .filter((path) => statSync(path).isFile());
-}
-
-function ensureDest() {
-  mkdirSync(destDir, { recursive: true });
-}
-
-function copyMapped(sourcePath) {
-  const name = basename(sourcePath);
-  const targets = MASTER_MAP[name] ?? [name.toLowerCase()];
-  for (const target of targets) {
-    if (!REQUIRED.includes(target)) continue;
-    const dest = join(destDir, target);
-    copyFileSync(sourcePath, dest);
-    console.log(`[copy-videos] ${name} → ${target}`);
-  }
-}
-
-const candidates = [];
+const searchDirs = [];
 if (process.env.CONTENT_VIDEOS_DIR) {
-  candidates.push(resolve(process.env.CONTENT_VIDEOS_DIR));
+  searchDirs.push(resolve(process.env.CONTENT_VIDEOS_DIR));
 }
-candidates.push(join(root, 'resources', 'videos'));
-candidates.push(destDir);
+searchDirs.push(join(root, 'resources', 'videos'));
 
-ensureDest();
+const required = listAttractionVideosFromManifest(root);
 
-let copied = 0;
-for (const dir of candidates) {
-  const files = listMp4(dir);
-  if (files.length === 0) continue;
-  if (dir === destDir && REQUIRED.every((name) => existsSync(join(destDir, name)))) {
-    console.log(`[copy-videos] destino ya tiene ${REQUIRED.length} MP4 canónicos; nada que hacer`);
-    break;
-  }
-  for (const file of files) {
-    if (dir === destDir && !MASTER_MAP[basename(file)]) continue;
-    copyMapped(file);
-    copied += 1;
-  }
-  if (copied > 0) break;
+if (required.length === 0) {
+  console.warn('[copy-videos] el manifiesto no declara attractionVideos; nada que copiar');
+  process.exit(0);
 }
 
-// Preferir *2 ligeros sobre masters pesados si ambos existen en resources
-const resourcesDir = join(root, 'resources', 'videos');
-for (const [light, target] of [
-  ['radiesse2.mp4', 'radiesse.mp4'],
-  ['ultherapy2.mp4', 'ultherapy.mp4'],
-]) {
-  const lightPath = join(resourcesDir, light);
-  const heavyPath = join(resourcesDir, target);
-  const dest = join(destDir, target);
-  if (!existsSync(lightPath)) continue;
-  const lightSize = statSync(lightPath).size;
-  const heavySize = existsSync(heavyPath) ? statSync(heavyPath).size : Infinity;
-  if (lightSize < heavySize) {
-    copyFileSync(lightPath, dest);
-    console.log(`[copy-videos] preferir ligero ${light} → ${target}`);
+mkdirSync(destDir, { recursive: true });
+
+function findSource(fileName) {
+  for (const dir of searchDirs) {
+    const candidate = join(dir, fileName);
+    if (existsSync(candidate)) return candidate;
   }
+  return null;
 }
 
-const present = REQUIRED.filter((name) => existsSync(join(destDir, name)));
-const missing = REQUIRED.filter((name) => !existsSync(join(destDir, name)));
+const present = [];
+const missing = [];
 
-console.log(`[copy-videos] presentes ${present.length}/${REQUIRED.length}`);
+for (const { fileName, source } of required) {
+  const dest = join(destDir, fileName);
+  if (existsSync(dest)) {
+    console.log(`[copy-videos] ya en destino: ${fileName}`);
+    present.push(fileName);
+    continue;
+  }
+
+  const src = findSource(fileName);
+  if (!src) {
+    missing.push(fileName);
+    console.warn(`[copy-videos] falta ${fileName} (manifiesto: ${source})`);
+    continue;
+  }
+
+  copyFileSync(src, dest);
+  console.log(`[copy-videos] ${fileName}`);
+  present.push(fileName);
+}
+
+console.log(`[copy-videos] presentes ${present.length}/${required.length}`);
 if (missing.length) {
-  const msg = `[copy-videos] faltan: ${missing.join(', ')}. Coloca masters en resources/videos/, npm run videos:compress, o CONTENT_VIDEOS_DIR.`;
+  const msg = `[copy-videos] faltan: ${missing.join(', ')}. Colócalos en resources/videos/ (mismo basename que el source del manifiesto), npm run videos:compress, o CONTENT_VIDEOS_DIR.`;
   if (strict) {
     console.error(msg);
     process.exit(1);

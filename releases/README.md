@@ -34,11 +34,10 @@ Canal de **contenido** (JSON): ver `CONTENT_MANIFEST_URL` en
 
 ## Videos de atracción (Release `content-videos`)
 
-Pack canónico (ligero, 1 clip por marca):
+Pack = todos los basenames de `attractionVideos` en
+`content/manifests/content-manifest.json` (hoy: `general1`, `radiesse`,
+`radiesse2`, `ultherapy`, `ultherapy2`).
 
-- `general1.mp4`
-- `radiesse.mp4`
-- `ultherapy.mp4`
-
-Local: `npm run videos:compress` (ffmpeg) y/o `npm run copy:videos`.
+Local: masters en `resources/videos/` → `npm run videos:compress` (ffmpeg,
+máx. 1080p) y/o `npm run copy:videos` → `public/content/videos/`.
 CI Release descarga este Release auxiliar antes de `tauri build`.

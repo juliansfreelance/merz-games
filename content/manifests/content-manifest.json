@@ -98,7 +98,7 @@
     "cover": {
       "enableReflection": false,
       "enableClickToSnap": true,
-      "enableScroll": true,
+      "enableScroll": false,
       "enableAudio": true,
       "reduceMotion": false,
       "stackSpacing": 80,
@@ -123,6 +123,11 @@
         {
           "nombre": "Radiesse Promocional",
           "source": "/content/videos/radiesse.mp4",
+          "enabled": true
+        },
+        {
+          "nombre": "Radiesse Promocional 2",
+          "source": "/content/videos/radiesse2.mp4",
           "enabled": true
         }
       ],
@@ -172,6 +177,11 @@
         {
           "nombre": "Ultherapy Promocional",
           "source": "/content/videos/ultherapy.mp4",
+          "enabled": true
+        },
+        {
+          "nombre": "Ultherapy Promocional 2",
+          "source": "/content/videos/ultherapy2.mp4",
           "enabled": true
         }
       ],
@@ -334,7 +344,7 @@
         "win": {
           "title": "¡GANASTE!",
           "description": "Completaste el reto con éxito.<br>Gracias por ser parte de esta experiencia Merz Aesthetics.",
-          "note": "Conquistaste el tablero y descubriste más sobre la estética."
+          "note": "Conquistaste el tablero y descubriste más sobre la estética.<br><strong>Reclama tu premio en recepción.</strong>"
         },
         "out-of-lives": {
           "title": "SIN MÁS INTENTOS",
@@ -376,7 +386,7 @@
         "win": {
           "title": "¡GANASTE!",
           "description": "Completaste el reto con éxito.<br>Gracias por ser parte de esta experiencia Merz Aesthetics.",
-          "note": "Conquistaste el tablero y descubriste más sobre la estética."
+          "note": "Conquistaste el tablero y descubriste más sobre la estética.<br><strong>Reclama tu premio en recepción.</strong>"
         },
         "lose": {
           "title": "PERDISTE ESTA RONDA",
@@ -460,7 +470,7 @@
         "win": {
           "title": "¡GANASTE!",
           "description": "Completaste el reto con éxito.<br>Gracias por ser parte de esta experiencia Merz Aesthetics.",
-          "note": "Conquistaste el tablero y descubriste más sobre el lifting facial."
+          "note": "Conquistaste el tablero y descubriste más sobre el lifting facial.<br><strong>Reclama tu premio en recepción.</strong>"
         },
         "out-of-lives": {
           "title": "SIN MÁS INTENTOS",
@@ -502,7 +512,7 @@
         "win": {
           "title": "¡GANASTE!",
           "description": "Completaste el reto con éxito.<br>Gracias por ser parte de esta experiencia Merz Aesthetics.",
-          "note": "Conquistaste el tablero y descubriste más sobre el lifting facial."
+          "note": "Conquistaste el tablero y descubriste más sobre el lifting facial.<br><strong>Reclama tu premio en recepción.</strong>"
         },
         "lose": {
           "title": "PERDISTE ESTA RONDA",

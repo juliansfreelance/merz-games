@@ -46,7 +46,7 @@ function isSameAtmosphere(a?: Atmosphere | null, b?: Atmosphere | null): boolean
     <!-- Blob 1: Superior izquierdo / halo alto -->
     @if (pair1(); as p1) {
       <div
-        class="absolute -top-[10%] -left-[10%] w-[70%] h-[40%] rounded-full blur-[70px] pointer-events-none"
+        class="absolute top-[-10%] left-[-10%] w-[70%] h-[40%] rounded-full blur-[70px] pointer-events-none"
         [class.animate-float-1]="animated()"
       >
         <div
@@ -75,7 +75,7 @@ function isSameAtmosphere(a?: Atmosphere | null, b?: Atmosphere | null): boolean
     <!-- Blob 2: Superior derecho / medio-alto -->
     @if (pair2(); as p2) {
       <div
-        class="absolute top-[8%] -right-[10%] w-[65%] h-[38%] rounded-full blur-[75px] pointer-events-none"
+        class="absolute top-[8%] right-[-10%] w-[65%] h-[38%] rounded-full blur-[75px] pointer-events-none"
         [class.animate-float-4]="animated()"
       >
         <div
@@ -133,7 +133,7 @@ function isSameAtmosphere(a?: Atmosphere | null, b?: Atmosphere | null): boolean
     <!-- Blob 4: Medio-bajo derecho -->
     @if (pair4(); as p4) {
       <div
-        class="absolute top-[54%] -right-[5%] w-[68%] h-[38%] rounded-full blur-[75px] pointer-events-none"
+        class="absolute top-[54%] right-[-5%] w-[68%] h-[38%] rounded-full blur-[75px] pointer-events-none"
         [class.animate-float-2]="animated()"
       >
         <div
@@ -162,7 +162,7 @@ function isSameAtmosphere(a?: Atmosphere | null, b?: Atmosphere | null): boolean
     <!-- Blob 5: Base inferior izquierda -->
     @if (pair5(); as p5) {
       <div
-        class="absolute -bottom-[8%] -left-[8%] w-[70%] h-[40%] rounded-full blur-[70px] pointer-events-none"
+        class="absolute bottom-[-8%] left-[-8%] w-[70%] h-[40%] rounded-full blur-[70px] pointer-events-none"
         [class.animate-float-5]="animated()"
       >
         <div
@@ -229,13 +229,13 @@ export class AtmosphereBlobs {
   },
   template: `
     <div
-      class="absolute inset-0 w-full h-full transition-colors duration-[2500ms] ease-in-out overflow-hidden"
+      class="absolute inset-0 w-full h-full transition-colors duration-2500 ease-in-out overflow-hidden"
       [style.backgroundColor]="baseColor()"
     >
       <!-- Capa A -->
       @if (layerA(); as la) {
         <div
-          class="absolute inset-0 w-full h-full transition-opacity duration-[2500ms] ease-in-out pointer-events-none"
+          class="absolute inset-0 w-full h-full transition-opacity duration-2500 ease-in-out pointer-events-none"
           [class.opacity-100]="activeSlot() === 'A'"
           [class.opacity-0]="activeSlot() !== 'A'"
         >
@@ -246,7 +246,7 @@ export class AtmosphereBlobs {
       <!-- Capa B -->
       @if (layerB(); as lb) {
         <div
-          class="absolute inset-0 w-full h-full transition-opacity duration-[2500ms] ease-in-out pointer-events-none"
+          class="absolute inset-0 w-full h-full transition-opacity duration-2500 ease-in-out pointer-events-none"
           [class.opacity-100]="activeSlot() === 'B'"
           [class.opacity-0]="activeSlot() !== 'B'"
         >

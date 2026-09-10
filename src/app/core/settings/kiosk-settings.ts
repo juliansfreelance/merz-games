@@ -2,8 +2,8 @@ import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { PlatformService } from '../platform/platform.service';
 import { AppLogger } from '../logging/app-error';
 import { CatalogService } from '../catalog/catalog';
-import { Difficulty, FirstPlayer, Mark, PlayerSymbolChoice } from '../games/triqui/triqui.model';
-import { MemoryConfig, MemoryConfigOverride, MemoryDifficulty } from '../games/memory/memory.model';
+import { Difficulty, FirstPlayer, PlayerSymbolChoice } from '../games/triqui/triqui.model';
+import { MemoryConfigOverride, MemoryDifficulty } from '../games/memory/memory.model';
 
 /** Clave de localStorage para los ajustes del kiosco. */
 const SETTINGS_STORAGE_KEY = 'merz-games.kiosk-settings';
@@ -100,6 +100,52 @@ const DEFAULT_SETTINGS: KioskSettingsData = {
   atmosphereMotionEnabled: true,
   experienceOverrides: {},
 };
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && !Number.isNaN(value);
+}
+
+function clamp01(value: unknown, fallback: number): number {
+  return isFiniteNumber(value) ? Math.max(0, Math.min(1, value)) : fallback;
+}
+
+function pick<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return allowed.includes(value as T) ? (value as T) : fallback;
+}
+
+function pickOrNull<T extends string>(value: unknown, allowed: readonly T[]): T | null {
+  return allowed.includes(value as T) ? (value as T) : null;
+}
+
+function parseBoolean(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+function parseMemoryPairs(value: unknown, fallback: number | null): number | null {
+  if (value === null) return null;
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 2 && value <= 6) {
+    return value;
+  }
+  return fallback;
+}
+
+function parseIdleMs(value: unknown, fallback: number): number {
+  if (
+    isFiniteNumber(value) &&
+    value >= SCREENSAVER_IDLE_MIN_MS &&
+    value <= SCREENSAVER_IDLE_MAX_MS
+  ) {
+    return Math.round(value);
+  }
+  return fallback;
+}
+
+function parseExperienceOverrides(value: unknown): Record<string, ExperienceSettingsOverride> {
+  if (typeof value === 'object' && value !== null) {
+    return value as Record<string, ExperienceSettingsOverride>;
+  }
+  return {};
+}
 
 /**
  * Servicio de ajustes locales del kiosco.
@@ -235,22 +281,15 @@ export class KioskSettings {
   }
 
   setScreensaverIdleMs(idleMs: number): void {
-    const sanitized =
-      typeof idleMs === 'number' && !isNaN(idleMs)
-        ? Math.max(
-            SCREENSAVER_IDLE_MIN_MS,
-            Math.min(SCREENSAVER_IDLE_MAX_MS, Math.round(idleMs)),
-          )
-        : SCREENSAVER_IDLE_DEFAULT_MS;
+    const sanitized = isFiniteNumber(idleMs)
+      ? Math.max(SCREENSAVER_IDLE_MIN_MS, Math.min(SCREENSAVER_IDLE_MAX_MS, Math.round(idleMs)))
+      : SCREENSAVER_IDLE_DEFAULT_MS;
     this._patch({ screensaverIdleMs: sanitized });
     this.logger.info('KioskSettings', `Tiempo de inactividad cambiado a: ${sanitized} ms`);
   }
 
   setVideoVolume(volume: number): void {
-    const clamped =
-      typeof volume === 'number' && !isNaN(volume)
-        ? Math.max(0, Math.min(1, volume))
-        : DEFAULT_SETTINGS.videoVolume;
+    const clamped = clamp01(volume, DEFAULT_SETTINGS.videoVolume);
     this._patch({ videoVolume: clamped });
     this.logger.info('KioskSettings', `Volumen video cambiado a: ${clamped}`);
   }
@@ -405,11 +444,8 @@ export class KioskSettings {
    * o el override global si no hay override por experiencia.
    */
   getExperienceMemoryPairs(experienceId: string): number | null {
-    const overrides = this._data().experienceOverrides;
-    if (overrides && overrides[experienceId]?.memoryPairs !== undefined) {
-      return overrides[experienceId].memoryPairs!;
-    }
-    return this._data().memoryPairs;
+    const pairs = this._data().experienceOverrides?.[experienceId]?.memoryPairs;
+    return pairs !== undefined ? pairs : this._data().memoryPairs;
   }
 
   /**
@@ -435,11 +471,8 @@ export class KioskSettings {
    * o el override global si no hay override por experiencia.
    */
   getExperienceTriquiDifficulty(experienceId: string): Difficulty | null {
-    const overrides = this._data().experienceOverrides;
-    if (overrides && overrides[experienceId]?.triquiDifficulty !== undefined) {
-      return overrides[experienceId].triquiDifficulty!;
-    }
-    return this._data().triquiDifficulty;
+    const diff = this._data().experienceOverrides?.[experienceId]?.triquiDifficulty;
+    return diff !== undefined ? diff : this._data().triquiDifficulty;
   }
 
   /**
@@ -465,11 +498,8 @@ export class KioskSettings {
    * o el override global si no hay override por experiencia.
    */
   getExperienceTriquiFirstPlayer(experienceId: string): FirstPlayer | null {
-    const overrides = this._data().experienceOverrides;
-    if (overrides && overrides[experienceId]?.triquiFirstPlayer !== undefined) {
-      return overrides[experienceId].triquiFirstPlayer!;
-    }
-    return this._data().triquiFirstPlayer;
+    const player = this._data().experienceOverrides?.[experienceId]?.triquiFirstPlayer;
+    return player !== undefined ? player : this._data().triquiFirstPlayer;
   }
 
   /**
@@ -495,11 +525,8 @@ export class KioskSettings {
    * o el override global si no hay override por experiencia.
    */
   getExperienceTriquiPlayerSymbol(experienceId: string): PlayerSymbolChoice | null {
-    const overrides = this._data().experienceOverrides;
-    if (overrides && overrides[experienceId]?.triquiPlayerSymbol !== undefined) {
-      return overrides[experienceId].triquiPlayerSymbol!;
-    }
-    return this._data().triquiPlayerSymbol;
+    const symbol = this._data().experienceOverrides?.[experienceId]?.triquiPlayerSymbol;
+    return symbol !== undefined ? symbol : this._data().triquiPlayerSymbol;
   }
 
   /**
@@ -645,106 +672,32 @@ export class KioskSettings {
 
     try {
       const parsed = JSON.parse(raw) as Partial<KioskSettingsData>;
-
-      const screensaverMode: ScreensaverMode =
-        parsed.screensaverMode === 'classic' || parsed.screensaverMode === 'video'
-          ? parsed.screensaverMode
-          : defaults.screensaverMode;
-
-      const soundEnabled: boolean =
-        typeof parsed.soundEnabled === 'boolean'
-          ? parsed.soundEnabled
-          : defaults.soundEnabled;
-
-      const bgmVolume: number =
-        typeof parsed.bgmVolume === 'number' && !isNaN(parsed.bgmVolume)
-          ? Math.max(0, Math.min(1, parsed.bgmVolume))
-          : defaults.bgmVolume;
-
-      const sfxVolume: number =
-        typeof parsed.sfxVolume === 'number' && !isNaN(parsed.sfxVolume)
-          ? Math.max(0, Math.min(1, parsed.sfxVolume))
-          : defaults.sfxVolume;
-
-      const memoryPairs: number | null =
-        parsed.memoryPairs === null
-          ? null
-          : typeof parsed.memoryPairs === 'number' &&
-            Number.isInteger(parsed.memoryPairs) &&
-            parsed.memoryPairs >= 2 &&
-            parsed.memoryPairs <= 6
-          ? parsed.memoryPairs
-          : defaults.memoryPairs;
-
-      const triquiDifficulty: Difficulty | null =
-        parsed.triquiDifficulty === 'easy' ||
-        parsed.triquiDifficulty === 'medium' ||
-        parsed.triquiDifficulty === 'hard'
-          ? parsed.triquiDifficulty
-          : null;
-
-      const triquiFirstPlayer: FirstPlayer | null =
-        parsed.triquiFirstPlayer === 'patient' ||
-        parsed.triquiFirstPlayer === 'alternate' ||
-        parsed.triquiFirstPlayer === 'random'
-          ? parsed.triquiFirstPlayer
-          : null;
-
-      const screensaverVideoOrder: ScreensaverVideoOrder =
-        parsed.screensaverVideoOrder === 'random' || parsed.screensaverVideoOrder === 'sequential'
-          ? parsed.screensaverVideoOrder
-          : defaults.screensaverVideoOrder;
-
-      const screensaverIdleMs: number =
-        typeof parsed.screensaverIdleMs === 'number' &&
-        !isNaN(parsed.screensaverIdleMs) &&
-        parsed.screensaverIdleMs >= SCREENSAVER_IDLE_MIN_MS &&
-        parsed.screensaverIdleMs <= SCREENSAVER_IDLE_MAX_MS
-          ? Math.round(parsed.screensaverIdleMs)
-          : defaults.screensaverIdleMs;
-
-      const videoVolume: number =
-        typeof parsed.videoVolume === 'number' && !isNaN(parsed.videoVolume)
-          ? Math.max(0, Math.min(1, parsed.videoVolume))
-          : defaults.videoVolume;
-
-      const triquiPlayerSymbol: PlayerSymbolChoice | null =
-        parsed.triquiPlayerSymbol === 'X' ||
-        parsed.triquiPlayerSymbol === 'O' ||
-        parsed.triquiPlayerSymbol === 'random'
-          ? parsed.triquiPlayerSymbol
-          : null;
-
-      const experienceOverrides: Record<string, ExperienceSettingsOverride> =
-        typeof parsed.experienceOverrides === 'object' && parsed.experienceOverrides !== null
-          ? parsed.experienceOverrides
-          : {};
-
-      const coverReduceMotion: boolean =
-        typeof parsed.coverReduceMotion === 'boolean'
-          ? parsed.coverReduceMotion
-          : defaults.coverReduceMotion;
-
-      const atmosphereMotionEnabled: boolean =
-        typeof parsed.atmosphereMotionEnabled === 'boolean'
-          ? parsed.atmosphereMotionEnabled
-          : defaults.atmosphereMotionEnabled;
-
       return {
-        screensaverMode,
-        screensaverVideoOrder,
-        screensaverIdleMs,
-        videoVolume,
-        soundEnabled,
-        bgmVolume,
-        sfxVolume,
-        memoryPairs,
-        triquiDifficulty,
-        triquiFirstPlayer,
-        triquiPlayerSymbol,
-        coverReduceMotion,
-        atmosphereMotionEnabled,
-        experienceOverrides,
+        screensaverMode: pick(parsed.screensaverMode, ['classic', 'video'] as const, defaults.screensaverMode),
+        screensaverVideoOrder: pick(
+          parsed.screensaverVideoOrder,
+          ['random', 'sequential'] as const,
+          defaults.screensaverVideoOrder,
+        ),
+        screensaverIdleMs: parseIdleMs(parsed.screensaverIdleMs, defaults.screensaverIdleMs),
+        videoVolume: clamp01(parsed.videoVolume, defaults.videoVolume),
+        soundEnabled: parseBoolean(parsed.soundEnabled, defaults.soundEnabled),
+        bgmVolume: clamp01(parsed.bgmVolume, defaults.bgmVolume),
+        sfxVolume: clamp01(parsed.sfxVolume, defaults.sfxVolume),
+        memoryPairs: parseMemoryPairs(parsed.memoryPairs, defaults.memoryPairs),
+        triquiDifficulty: pickOrNull(parsed.triquiDifficulty, ['easy', 'medium', 'hard'] as const),
+        triquiFirstPlayer: pickOrNull(parsed.triquiFirstPlayer, [
+          'patient',
+          'alternate',
+          'random',
+        ] as const),
+        triquiPlayerSymbol: pickOrNull(parsed.triquiPlayerSymbol, ['X', 'O', 'random'] as const),
+        coverReduceMotion: parseBoolean(parsed.coverReduceMotion, defaults.coverReduceMotion),
+        atmosphereMotionEnabled: parseBoolean(
+          parsed.atmosphereMotionEnabled,
+          defaults.atmosphereMotionEnabled,
+        ),
+        experienceOverrides: parseExperienceOverrides(parsed.experienceOverrides),
       };
     } catch {
       this.logger.warn('KioskSettings', 'Ajustes persistidos corruptos, usando defaults.');

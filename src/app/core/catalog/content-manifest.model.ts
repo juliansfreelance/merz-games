@@ -100,6 +100,12 @@ export const DEFAULT_APP_COVER_CONFIG: Required<AppCoverConfig> = {
   scrollThreshold: 100,
 };
 
+/** Espaciado Cover Flow cuando el panel activa `coverReduceMotion`. */
+export const PANEL_REDUCE_MOTION_COVER_SPACING = {
+  stackSpacing: 60,
+  centerGap: 170,
+} as const;
+
 export function resolveAppCoverConfig(
   partial?: AppCoverConfig | null,
 ): Required<AppCoverConfig> {

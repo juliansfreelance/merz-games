@@ -4,11 +4,11 @@ import { CatalogService } from '../../core/catalog/catalog';
 import { AssetSrc } from '../../core/platform/asset-src';
 
 /**
- * KioskDisclaimer — Sticky Footer unificado para todas las pantallas del kiosco.
+ * KioskDisclaimer — Footer unificado para todas las pantallas del kiosco.
  *
  * Características:
- * - Se ancla naturalmente en la parte inferior de la ventana cuando el contenido es corto (sticky footer).
- * - Desciende de forma natural con scroll fluido si el contenido es largo, evitando cualquier solapamiento.
+ * - Se ancla en la parte inferior cuando el contenido es más bajo que el viewport (`mt-auto`).
+ * - Viaja con el scroll de página si el contenido es más alto, sin solaparse.
  * - Incluye opcionalmente:
  *   1. Logo/Icono de la marca al 30% de ancho con altura automática y margin-bottom.
  *   2. Botón de acción/retorno (ng-content) con margin-bottom para separarse del disclaimer.

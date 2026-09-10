@@ -2,6 +2,7 @@ import { Component, computed, effect, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CatalogService } from '../../core/catalog/catalog';
 import { GameExperience } from '../../core/catalog/game-experience.model';
+import { PANEL_REDUCE_MOTION_COVER_SPACING } from '../../core/catalog/content-manifest.model';
 import { KioskSettings } from '../../core/settings/kiosk-settings';
 import { KioskButton } from '../shared/kiosk-button';
 import { KioskCard } from '../shared/kiosk-card';
@@ -13,7 +14,8 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs/operators';
 
 /**
- * Selector de experiencias con Cover Flow 3D horizontal (sin scroll vertical de cards).
+ * Selector de experiencias con Cover Flow 3D horizontal.
+ * El host scrollea la página completa; el footer viaja con el contenido.
  * El contenido beta solo aparece cuando `app.developMode` está activo.
  */
 @Component({
@@ -27,10 +29,11 @@ import { map } from 'rxjs/operators';
     HeroIcon,
   ],
   host: {
-    class: 'flex flex-col flex-1 w-full h-full min-h-0 overflow-hidden',
+    class: 'flex flex-col flex-1 w-full h-full min-h-0 overflow-y-auto overscroll-contain',
+    style: 'touch-action: pan-y; -webkit-overflow-scrolling: touch;',
   },
   template: `
-    <div class="flex flex-col h-full min-h-0 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 kiosk:py-10 text-white select-none gap-4">
+    <div class="flex flex-col flex-1 min-h-full w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 kiosk:py-10 text-white select-none gap-4">
 
       <!-- Encabezado con marca activa -->
       <header class="text-center space-y-2 sm:space-y-3 kiosk:space-y-6 shrink-0 pt-1">
@@ -48,7 +51,7 @@ import { map } from 'rxjs/operators';
       </header>
 
       <!-- Zona Cover Flow -->
-      <div class="flex-1 min-h-[55vh] w-full my-1 sm:my-2 kiosk:my-4">
+      <div class="flex-1 min-h-[55vh] lg:min-h-145 w-full my-1 sm:my-2 kiosk:my-4">
         @if (experiences().length === 0) {
           <div class="w-full h-full flex items-center justify-center px-4">
             <app-kiosk-card class="w-full max-w-md">
@@ -65,8 +68,8 @@ import { map } from 'rxjs/operators';
             [items]="experiences()"
             [itemTemplate]="gameCardTemplate"
             [initialIndex]="catalog.coverConfig().initialIndex"
-            [stackSpacing]="catalog.coverConfig().stackSpacing"
-            [centerGap]="catalog.coverConfig().centerGap"
+            [stackSpacing]="coverStackSpacing()"
+            [centerGap]="coverCenterGap()"
             [rotation]="catalog.coverConfig().rotation"
             [enableReflection]="catalog.coverConfig().enableReflection"
             [enableClickToSnap]="catalog.coverConfig().enableClickToSnap"
@@ -95,9 +98,8 @@ import { map } from 'rxjs/operators';
         />
       </ng-template>
 
-      <!-- Sticky Footer unificado con logo, botón volver y disclaimers -->
+      <!-- Footer unificado con logo, botón volver y disclaimers -->
       <app-kiosk-disclaimer
-        class="shrink-0"
         [logo]="brandLogo()"
         [logoAlt]="brandName()"
         [brandDisclaimer]="brandDisclaimer()"
@@ -121,6 +123,18 @@ export class ExperienceSelect {
 
   protected readonly coverReduceMotion = computed(
     () => this.settings.coverReduceMotion() || this.catalog.coverConfig().reduceMotion,
+  );
+
+  protected readonly coverStackSpacing = computed(() =>
+    this.settings.coverReduceMotion()
+      ? PANEL_REDUCE_MOTION_COVER_SPACING.stackSpacing
+      : this.catalog.coverConfig().stackSpacing,
+  );
+
+  protected readonly coverCenterGap = computed(() =>
+    this.settings.coverReduceMotion()
+      ? PANEL_REDUCE_MOTION_COVER_SPACING.centerGap
+      : this.catalog.coverConfig().centerGap,
   );
 
   private readonly brandId = toSignal(

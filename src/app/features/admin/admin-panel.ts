@@ -2,8 +2,10 @@ import {
   Component,
   computed,
   DestroyRef,
+  effect,
   inject,
   signal,
+  untracked,
 } from '@angular/core';
 import { Router } from '@angular/router';
 import {
@@ -20,10 +22,10 @@ import { AttractionVideo } from '../../core/catalog/content-manifest.model';
 import { CatalogDiffItem } from '../../core/catalog/compare-catalogs';
 import { UpdateStatus } from '../../core/catalog/update.model';
 import { KioskSettings, ScreensaverMode, ScreensaverVideoOrder } from '../../core/settings/kiosk-settings';
-import { PlatformService } from '../../core/platform/platform.service';
+import { PlatformService, KioskCommandResult } from '../../core/platform/platform.service';
 import { AssetSrc } from '../../core/platform/asset-src';
 import { UpdateCoordinator } from '../../core/update/update-coordinator';
-import { Difficulty, FirstPlayer, Mark, PlayerSymbolChoice } from '../../core/games/triqui/triqui.model';
+import { Difficulty, FirstPlayer, PlayerSymbolChoice } from '../../core/games/triqui/triqui.model';
 import {
   resolveTriquiDifficulty,
   resolveTriquiFirstPlayer,
@@ -38,6 +40,11 @@ import {
   resolveMemoryConfig,
 } from '../../core/games/memory/memory-config';
 import { MediaPlayer } from '../../core/media/media-player';
+import {
+  formatVideoMetaLabel,
+  probeVideoFileMeta,
+  type VideoFileMeta,
+} from '../../core/media/video-file-meta';
 import { AdminSession } from './admin-session';
 import { AdminConfirm } from './admin-confirm';
 import { SuperadminAuthService } from './superadmin-auth.service';
@@ -113,6 +120,26 @@ type ConfirmKind =
   | 'switchToGlobal'
   | 'resetGlobalGame'
   | null;
+
+type CatalogGroupId = 'active' | 'beta' | 'inactive';
+
+interface KioskBrandSection {
+  id: CatalogGroupId;
+  title: string;
+  titleClass: string;
+  dotClass: string;
+  emptyLabel: string;
+  reorderable: boolean;
+  brands: Brand[];
+}
+
+interface ExperienceGroupSection {
+  id: CatalogGroupId;
+  title: string;
+  titleClass: string;
+  reorderable: boolean;
+  items: GameExperience[];
+}
 
 const MEMORY_PAIR_OPTIONS = [
   { label: '2 parejas', value: 2 },
@@ -190,149 +217,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
     '[style.--panel-primary-color]': 'catalog.panelPrimaryColor()',
     '[style.--panel-secondary-color]': 'catalog.panelSecondaryColor()',
   },
-  styles: [`
-    :host {
-      --panel-primary: var(--panel-primary-color, #fdc700);
-      --panel-secondary: var(--panel-secondary-color, #ff637e);
-    }
-
-    .text-yellow-400,
-    .text-yellow-300 {
-      color: var(--panel-primary) !important;
-    }
-
-    .bg-yellow-400\\/10,
-    .bg-yellow-400\\/15,
-    .bg-yellow-400\\/20,
-    .bg-yellow-500\\/10 {
-      background-color: color-mix(in srgb, var(--panel-primary) 15%, transparent) !important;
-    }
-
-    .border-yellow-400\\/20,
-    .border-yellow-400\\/25,
-    .border-yellow-400\\/30,
-    .border-yellow-400\\/40,
-    .border-yellow-400\\/50 {
-      border-color: color-mix(in srgb, var(--panel-primary) 40%, transparent) !important;
-    }
-
-    .hover\\:border-yellow-400\\/40:hover,
-    .hover\\:border-yellow-400\\/50:hover {
-      border-color: color-mix(in srgb, var(--panel-primary) 60%, transparent) !important;
-    }
-
-    .hover\\:bg-yellow-400\\/20:hover,
-    .hover\\:bg-yellow-400\\/25:hover,
-    .hover\\:bg-yellow-400\\/35:hover {
-      background-color: color-mix(in srgb, var(--panel-primary) 25%, transparent) !important;
-    }
-
-    .active\\:bg-yellow-400\\/35:active {
-      background-color: color-mix(in srgb, var(--panel-primary) 35%, transparent) !important;
-    }
-
-    .hover\\:text-yellow-300:hover,
-    .hover\\:text-yellow-400:hover,
-    .group:hover .group-hover\\:text-yellow-400 {
-      color: var(--panel-primary) !important;
-    }
-
-    .group:hover .group-hover\\:bg-yellow-400\\/20 {
-      background-color: color-mix(in srgb, var(--panel-primary) 25%, transparent) !important;
-    }
-
-    .shadow-yellow-400\\/10 {
-      box-shadow: 0 1px 2px 0 color-mix(in srgb, var(--panel-primary) 10%, transparent) !important;
-    }
-
-    .text-rose-400,
-    .text-rose-300,
-    .text-rose-200 {
-      color: var(--panel-secondary) !important;
-    }
-
-    .bg-rose-500\\/10,
-    .bg-rose-500\\/20,
-    .bg-rose-500\\/25,
-    .bg-rose-500\\[0\\.08\\] {
-      background-color: color-mix(in srgb, var(--panel-secondary) 12%, transparent) !important;
-    }
-
-    .border-rose-400\\/30,
-    .border-rose-400\\/50 {
-      border-color: color-mix(in srgb, var(--panel-secondary) 40%, transparent) !important;
-    }
-
-    .hover\\:border-rose-400\\/50:hover {
-      border-color: color-mix(in srgb, var(--panel-secondary) 60%, transparent) !important;
-    }
-
-    .hover\\:text-rose-200:hover,
-    .group:hover .group-hover\\:text-rose-100 {
-      color: var(--panel-secondary) !important;
-    }
-
-    @keyframes toast-slide-in {
-      from {
-        opacity: 0;
-        transform: translateX(110%) scale(0.95);
-      }
-      to {
-        opacity: 1;
-        transform: translateX(0) scale(1);
-      }
-    }
-
-    @keyframes toast-slide-out {
-      from {
-        opacity: 1;
-        transform: translateX(0) scale(1);
-      }
-      to {
-        opacity: 0;
-        transform: translateX(110%) scale(0.95);
-      }
-    }
-
-    .animate-toast-in {
-      animation: toast-slide-in 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-
-    .animate-toast-out {
-      animation: toast-slide-out 300ms cubic-bezier(0.7, 0, 0.84, 0) forwards;
-    }
-
-    .brand-drag-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.875rem;
-      min-height: 0.5rem;
-    }
-
-    .brand-drag-preview {
-      box-sizing: border-box;
-      border-radius: 1rem;
-      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
-      background: rgba(15, 23, 42, 0.92);
-      border: 1px solid rgba(250, 204, 21, 0.35);
-    }
-
-    .brand-drag-placeholder {
-      min-height: 4.5rem;
-      border-radius: 1rem;
-      border: 1px dashed rgba(250, 204, 21, 0.35);
-      background: rgba(250, 204, 21, 0.08);
-      transition: transform 200ms ease;
-    }
-
-    .cdk-drag-animating {
-      transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
-    }
-
-    .brand-drag-list.cdk-drop-list-dragging .brand-drag-row:not(.cdk-drag-placeholder) {
-      transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
-    }
-  `],
+  styleUrl: './admin-panel.css',
   template: `
     <!-- Toast de Ajustes Superior Derecho (Animado Entrada y Salida con Blur Blanco del Header) -->
     @if (toast(); as t) {
@@ -1001,7 +886,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                               <p class="text-xs font-bold text-white group-hover/row:text-yellow-300 transition-colors truncate">
                                 {{ video.nombre || video.name || 'Video General' }}
                               </p>
-                              <p class="text-[10px] text-neutral-400 font-mono truncate">{{ video.source }}</p>
+                              <p class="text-[10px] text-neutral-400 truncate">{{ videoMetaLabel(video.source) }}</p>
                             </div>
                           </button>
 
@@ -1061,7 +946,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                                   <p class="text-xs font-bold text-white group-hover/row:text-yellow-300 transition-colors truncate">
                                     {{ video.nombre || video.name || brand.name }}
                                   </p>
-                                  <p class="text-[10px] text-neutral-400 font-mono truncate">{{ video.source }}</p>
+                                  <p class="text-[10px] text-neutral-400 truncate">{{ videoMetaLabel(video.source) }}</p>
                                 </div>
                               </button>
 
@@ -2908,15 +2793,7 @@ export class AdminPanel {
 
   /** Secciones Activas / Beta / Inactivas del árbol de marcas. */
   protected readonly kioskBrandSections = computed(() => {
-    const sections: Array<{
-      id: 'active' | 'beta' | 'inactive';
-      title: string;
-      titleClass: string;
-      dotClass: string;
-      emptyLabel: string;
-      reorderable: boolean;
-      brands: Brand[];
-    }> = [
+    const sections: KioskBrandSection[] = [
       {
         id: 'active',
         title: 'Activas',
@@ -2998,6 +2875,25 @@ export class AdminPanel {
     brandName?: string;
   } | null>(null);
 
+  /** Metadatos (peso/duración) de videos de atracción indexados por `source`. */
+  private readonly videoMetaBySource = signal<
+    Record<string, VideoFileMeta | 'loading' | 'error'>
+  >({});
+  private readonly videoMetaProbing = new Set<string>();
+
+  private readonly attractionVideoSources = computed(() => {
+    const sources = new Set<string>();
+    for (const v of this.generalVideos()) {
+      if (v.source) sources.add(v.source);
+    }
+    for (const brand of this.catalog.rawManifest().brands) {
+      for (const v of this.getBrandVideos(brand)) {
+        if (v.source) sources.add(v.source);
+      }
+    }
+    return [...sources];
+  });
+
   constructor() {
     this.refreshViewport();
     this.pinModel.set({ current: '', next: '', confirm: '', hint: this.session.getPinHint?.() ?? '' });
@@ -3014,6 +2910,43 @@ export class AdminPanel {
       }
       this.session.logout();
     });
+
+    effect(() => {
+      const sources = this.attractionVideoSources();
+      untracked(() => {
+        for (const source of sources) {
+          this.ensureVideoMeta(source);
+        }
+      });
+    });
+  }
+
+  protected videoMetaLabel(source: string): string {
+    const entry = this.videoMetaBySource()[source];
+    if (!entry || entry === 'loading') return 'Consultando…';
+    if (entry === 'error') return 'Metadatos no disponibles';
+    return formatVideoMetaLabel(entry);
+  }
+
+  private ensureVideoMeta(source: string): void {
+    if (!source || this.videoMetaProbing.has(source)) return;
+    const current = this.videoMetaBySource()[source];
+    if (current && current !== 'loading') return;
+    if (current === 'loading') return;
+
+    this.videoMetaProbing.add(source);
+    this.videoMetaBySource.update((map) => ({ ...map, [source]: 'loading' }));
+
+    void probeVideoFileMeta(source)
+      .then((meta) => {
+        this.videoMetaBySource.update((map) => ({ ...map, [source]: meta }));
+      })
+      .catch(() => {
+        this.videoMetaBySource.update((map) => ({ ...map, [source]: 'error' }));
+      })
+      .finally(() => {
+        this.videoMetaProbing.delete(source);
+      });
   }
 
   protected showToast(title: string, message: string): void {
@@ -3149,13 +3082,7 @@ export class AdminPanel {
   }
 
   /** Experiencias de una marca agrupadas en Activas / Beta / Inactivas. */
-  protected experienceSectionsForBrand(brandId: string): Array<{
-    id: 'active' | 'beta' | 'inactive';
-    title: string;
-    titleClass: string;
-    reorderable: boolean;
-    items: GameExperience[];
-  }> {
+  protected experienceSectionsForBrand(brandId: string): ExperienceGroupSection[] {
     const showBeta = this.catalog.developMode();
     const all = this.catalog
       .rawManifest()
@@ -3167,13 +3094,7 @@ export class AdminPanel {
     const beta = all.filter((e) => e.enabled && !!e.develop);
     const inactive = all.filter((e) => !e.enabled);
 
-    const sections: Array<{
-      id: 'active' | 'beta' | 'inactive';
-      title: string;
-      titleClass: string;
-      reorderable: boolean;
-      items: GameExperience[];
-    }> = [
+    const sections: ExperienceGroupSection[] = [
       {
         id: 'active',
         title: 'Activas',
@@ -3207,7 +3128,7 @@ export class AdminPanel {
   protected onKioskExperienceDrop(
     event: CdkDragDrop<GameExperience[]>,
     brandId: string,
-    sectionId: 'active' | 'beta' | 'inactive',
+    sectionId: CatalogGroupId,
   ): void {
     if (event.previousIndex === event.currentIndex) return;
     const section = this.experienceSectionsForBrand(brandId).find((s) => s.id === sectionId);
@@ -3416,7 +3337,20 @@ export class AdminPanel {
   }
 
   protected cleanText(text: string): string {
-    return text.replace(/<[^>]*>/g, '').trim();
+    let out = '';
+    let insideTag = false;
+    for (const ch of text) {
+      if (ch === '<') {
+        insideTag = true;
+        continue;
+      }
+      if (ch === '>') {
+        insideTag = false;
+        continue;
+      }
+      if (!insideTag) out += ch;
+    }
+    return out.trim();
   }
 
   protected viewportLabel(): string {
@@ -4127,7 +4061,7 @@ export class AdminPanel {
 
   protected onBgmVolumeInput(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const vol = parseFloat(input.value) / 100;
+    const vol = Number.parseFloat(input.value) / 100;
     this.settings.setBgmVolume(vol);
   }
 
@@ -4138,7 +4072,7 @@ export class AdminPanel {
 
   protected onSfxVolumeInput(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const vol = parseFloat(input.value) / 100;
+    const vol = Number.parseFloat(input.value) / 100;
     this.settings.setSfxVolume(vol);
   }
 
@@ -4150,7 +4084,7 @@ export class AdminPanel {
 
   protected onVideoVolumeInput(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const vol = parseFloat(input.value) / 100;
+    const vol = Number.parseFloat(input.value) / 100;
     this.settings.setVideoVolume(vol);
   }
 
@@ -4211,52 +4145,56 @@ export class AdminPanel {
   }
 
   protected confirmMessage(kind: Exclude<ConfirmKind, null>): string {
-    switch (kind) {
-      case 'restart':
-        return this.isNative() ? 'La aplicación se reiniciará en este equipo.' : 'La aplicación se recargará y volverá a la pantalla inicial.';
-      case 'exit':
-        return 'Se cerrará Merz Games. Habrá que abrirla de nuevo.';
-      case 'leaveKiosk':
-        return this.isNative()
-          ? 'Se quita pantalla completa y vuelven las decoraciones de ventana.'
-          : 'Se saldrá del modo de pantalla completa en el navegador.';
-      case 'enterKiosk':
-        return this.isNative()
-          ? 'La ventana pasará a pantalla completa sin bordes ni decoraciones.'
-          : 'La aplicación pasará a modo pantalla completa en el navegador.';
-      case 'applyUpdate':
-        return this.snapshot().appUpdateAvailable
-          ? 'Primero se aplica el catálogo y después el ejecutable, que puede reiniciar la app.'
-          : 'Se aplicará el catálogo publicado. El anterior se conserva si el nuevo no es válido.';
-      case 'changePin':
-        return `Va a generar un nuevo PIN: "${this.pinModel().next}". ¿Desea confirmar el cambio?`;
-      case 'resetDefaults':
-        return 'Se restablecerán marcas, juegos, audio y parámetros a los valores definidos en el catálogo original (content-manifest.json).';
-      case 'resetAudio':
-        return 'Se restablecerán los niveles de volumen (BGM, SFX) y el estado del sonido a sus valores por defecto.';
-      case 'resetScreensaver':
-        return 'Se restablecerá el modo, tiempo de inactividad, orden de videos, activación de clips y volumen del protector de pantalla a sus valores por defecto.';
-      case 'resetGeneral':
-        return 'Se restablecerán todos los ajustes de audio, protector de pantalla y activación de clips a sus valores por defecto.';
-      case 'resetBrands':
-        return 'Se restablecerán marcas y experiencias (activación y orden) a los valores del catálogo.';
-      case 'resetExperience': {
-        const pending = this.pendingExperienceToReset();
-        if (pending) {
-          const gameTitle = pending.exp.gameId === 'memory' ? 'Memoria' : 'Triqui';
-          return `Se restablecerá la configuración de la partida de ${gameTitle} (${this.cleanText(pending.brandName)}) a los valores por defecto.`;
-        }
-        return 'Se restablecerá la configuración de la partida de este juego a los valores por defecto.';
-      }
-      case 'switchToGlobal': {
-        const gameTitle = this.selectedGame() === 'memory' ? 'Memoria' : 'Triqui';
-        return `Se perderá la configuración individual de ${gameTitle} por cada marca. Las reglas de partida y la activación de experiencias volverán a los valores del catálogo (content-manifest.json), y a partir de entonces los ajustes de partida se aplicarán a todas las marcas.`;
-      }
-      case 'resetGlobalGame': {
-        const gameTitle = this.selectedGame() === 'memory' ? 'Memoria' : 'Triqui';
-        return `Se restablecerá la configuración de partida de ${gameTitle} y la activación del juego en cada marca a los valores del catálogo.`;
-      }
+    const game = this.selectedGameTitle();
+    const messages: Record<Exclude<ConfirmKind, null>, string> = {
+      restart: this.nativeOrWeb(
+        'La aplicación se reiniciará en este equipo.',
+        'La aplicación se recargará y volverá a la pantalla inicial.',
+      ),
+      exit: 'Se cerrará Merz Games. Habrá que abrirla de nuevo.',
+      leaveKiosk: this.nativeOrWeb(
+        'Se quita pantalla completa y vuelven las decoraciones de ventana.',
+        'Se saldrá del modo de pantalla completa en el navegador.',
+      ),
+      enterKiosk: this.nativeOrWeb(
+        'La ventana pasará a pantalla completa sin bordes ni decoraciones.',
+        'La aplicación pasará a modo pantalla completa en el navegador.',
+      ),
+      applyUpdate: this.snapshot().appUpdateAvailable
+        ? 'Primero se aplica el catálogo y después el ejecutable, que puede reiniciar la app.'
+        : 'Se aplicará el catálogo publicado. El anterior se conserva si el nuevo no es válido.',
+      changePin: `Va a generar un nuevo PIN: "${this.pinModel().next}". ¿Desea confirmar el cambio?`,
+      resetDefaults:
+        'Se restablecerán marcas, juegos, audio y parámetros a los valores definidos en el catálogo original (content-manifest.json).',
+      resetAudio:
+        'Se restablecerán los niveles de volumen (BGM, SFX) y el estado del sonido a sus valores por defecto.',
+      resetScreensaver:
+        'Se restablecerá el modo, tiempo de inactividad, orden de videos, activación de clips y volumen del protector de pantalla a sus valores por defecto.',
+      resetGeneral:
+        'Se restablecerán todos los ajustes de audio, protector de pantalla y activación de clips a sus valores por defecto.',
+      resetBrands: 'Se restablecerán marcas y experiencias (activación y orden) a los valores del catálogo.',
+      resetExperience: this.resetExperienceConfirmMessage(),
+      switchToGlobal: `Se perderá la configuración individual de ${game} por cada marca. Las reglas de partida y la activación de experiencias volverán a los valores del catálogo (content-manifest.json), y a partir de entonces los ajustes de partida se aplicarán a todas las marcas.`,
+      resetGlobalGame: `Se restablecerá la configuración de partida de ${game} y la activación del juego en cada marca a los valores del catálogo.`,
+    };
+    return messages[kind];
+  }
+
+  private selectedGameTitle(): string {
+    return this.selectedGame() === 'memory' ? 'Memoria' : 'Triqui';
+  }
+
+  private nativeOrWeb(nativeText: string, webText: string): string {
+    return this.isNative() ? nativeText : webText;
+  }
+
+  private resetExperienceConfirmMessage(): string {
+    const pending = this.pendingExperienceToReset();
+    if (!pending) {
+      return 'Se restablecerá la configuración de la partida de este juego a los valores por defecto.';
     }
+    const gameTitle = pending.exp.gameId === 'memory' ? 'Memoria' : 'Triqui';
+    return `Se restablecerá la configuración de la partida de ${gameTitle} (${this.cleanText(pending.brandName)}) a los valores por defecto.`;
   }
 
   protected onConfirmCancelled(): void {
@@ -4267,98 +4205,65 @@ export class AdminPanel {
     const kind = this.confirmKind();
     this.confirmKind.set(null);
     if (!kind) return;
+    await this.runConfirmedAction(kind);
+  }
 
-    if (kind === 'switchToGlobal') {
-      this.applySwitchToGlobalMode();
+  private async runConfirmedAction(kind: Exclude<ConfirmKind, null>): Promise<void> {
+    const actions: Record<Exclude<ConfirmKind, null>, () => void | Promise<void>> = {
+      switchToGlobal: () => this.applySwitchToGlobalMode(),
+      resetGlobalGame: () => this.resetGlobalGameToDefault(),
+      resetDefaults: () => {
+        this.catalog.resetToDefault();
+        this.settings.resetToDefault();
+        this.showToast(
+          'Valores restaurados',
+          'Ajustes y catálogo restablecidos a los definidos en content-manifest.json',
+        );
+      },
+      resetAudio: () => this.resetAudioSettings(),
+      resetScreensaver: () => this.resetScreensaverSettings(),
+      resetGeneral: () => this.resetGeneralSettings(),
+      resetBrands: () => this.resetBrandsSettings(),
+      resetExperience: () => this.finishResetExperience(),
+      changePin: () => this.executePinChange(),
+      applyUpdate: () => this.updates.apply(),
+      enterKiosk: () =>
+        this.applyCommandResult(this.platform.enterKiosk(), {
+          error: 'No se pudo activar pantalla completa.',
+          success: 'Modo kiosco (pantalla completa) activado.',
+        }),
+      leaveKiosk: () =>
+        this.applyCommandResult(this.platform.leaveKiosk(), {
+          error: 'No se pudo salir del modo kiosco.',
+          success: 'Modo kiosco desactivado.',
+        }),
+      restart: () =>
+        this.applyCommandResult(this.platform.restart(), { error: 'No se pudo reiniciar.' }),
+      exit: () =>
+        this.applyCommandResult(this.platform.exit(), {
+          error: 'No se pudo cerrar la aplicación.',
+        }),
+    };
+    await actions[kind]();
+  }
+
+  private finishResetExperience(): void {
+    const pending = this.pendingExperienceToReset();
+    if (!pending) return;
+    this.resetCurrentGameExperienceToDefault(pending.exp, pending.brandName);
+    this.pendingExperienceToReset.set(null);
+  }
+
+  private async applyCommandResult(
+    op: Promise<KioskCommandResult>,
+    copy: { error: string; success?: string },
+  ): Promise<void> {
+    const result = await op;
+    if (!result.ok) {
+      this.opMessage.set(result.message ?? copy.error);
       return;
     }
-
-    if (kind === 'resetGlobalGame') {
-      this.resetGlobalGameToDefault();
-      return;
-    }
-
-    if (kind === 'resetDefaults') {
-      this.catalog.resetToDefault();
-      this.settings.resetToDefault();
-      this.showToast('Valores restaurados', 'Ajustes y catálogo restablecidos a los definidos en content-manifest.json');
-      return;
-    }
-
-    if (kind === 'resetAudio') {
-      this.resetAudioSettings();
-      return;
-    }
-
-    if (kind === 'resetScreensaver') {
-      this.resetScreensaverSettings();
-      return;
-    }
-
-    if (kind === 'resetGeneral') {
-      this.resetGeneralSettings();
-      return;
-    }
-
-    if (kind === 'resetBrands') {
-      this.resetBrandsSettings();
-      return;
-    }
-
-    if (kind === 'resetExperience') {
-      const pending = this.pendingExperienceToReset();
-      if (pending) {
-        this.resetCurrentGameExperienceToDefault(pending.exp, pending.brandName);
-        this.pendingExperienceToReset.set(null);
-      }
-      return;
-    }
-
-    if (kind === 'changePin') {
-      await this.executePinChange();
-      return;
-    }
-
-    if (kind === 'applyUpdate') {
-      await this.updates.apply();
-      return;
-    }
-
-    if (kind === 'enterKiosk') {
-      const result = await this.platform.enterKiosk();
-      if (!result.ok) {
-        this.opMessage.set(result.message ?? 'No se pudo activar pantalla completa.');
-      } else {
-        this.opMessage.set('Modo kiosco (pantalla completa) activado.');
-      }
-      return;
-    }
-
-    if (kind === 'leaveKiosk') {
-      const result = await this.platform.leaveKiosk();
-      if (!result.ok) {
-        this.opMessage.set(result.message ?? 'No se pudo salir del modo kiosco.');
-      } else {
-        this.opMessage.set('Modo kiosco desactivado.');
-      }
-      return;
-    }
-
-    if (kind === 'restart') {
-      const result = await this.platform.restart();
-      if (!result.ok) {
-        this.opMessage.set(result.message ?? 'No se pudo reiniciar.');
-      }
-      return;
-    }
-
-    if (kind === 'exit') {
-      const result = await this.platform.exit();
-      if (!result.ok) {
-        this.opMessage.set(result.message ?? 'No se pudo cerrar la aplicación.');
-      }
-      return;
-    }
+    if (copy.success) this.opMessage.set(copy.success);
   }
 
   // ─── Actualizaciones ────────────────────────────────────────────────────────

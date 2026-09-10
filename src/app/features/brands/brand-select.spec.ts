@@ -56,4 +56,17 @@ describe('BrandSelect Component', () => {
 
     expect(catalog.brands().some((b) => b.id === 'belotero' && !!b.develop)).toBe(true);
   });
+
+  it('scrollea la página completa y no recorta el footer', () => {
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.classList.contains('overflow-y-auto')).toBe(true);
+    expect(el.classList.contains('overflow-hidden')).toBe(false);
+
+    const cover = Array.from(el.querySelectorAll<HTMLElement>('div')).find((node) =>
+      node.classList.contains('min-h-[55vh]'),
+    );
+    expect(cover).toBeTruthy();
+    expect(cover!.classList.contains('overflow-y-auto')).toBe(false);
+    expect(el.querySelector('app-kiosk-disclaimer')).toBeTruthy();
+  });
 });

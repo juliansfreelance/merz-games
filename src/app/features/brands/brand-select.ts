@@ -2,6 +2,7 @@ import { Component, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { CatalogService } from '../../core/catalog/catalog';
 import { Brand } from '../../core/catalog/brand.model';
+import { PANEL_REDUCE_MOTION_COVER_SPACING } from '../../core/catalog/content-manifest.model';
 import { KioskSettings } from '../../core/settings/kiosk-settings';
 import { ImageCacheService, IMAGE_CACHE_CRITICAL_URLS } from '../../core/media/image-cache.service';
 import { KioskButton } from '../shared/kiosk-button';
@@ -12,7 +13,8 @@ import { KioskDisclaimer } from '../shared/kiosk-disclaimer';
 import { HeroIcon } from '../shared/hero-icon';
 
 /**
- * Selector de marcas con Cover Flow 3D horizontal (sin scroll vertical de cards).
+ * Selector de marcas con Cover Flow 3D horizontal.
+ * El host scrollea la página completa; el footer viaja con el contenido.
  * El contenido beta solo aparece cuando `app.developMode` está activo.
  */
 @Component({
@@ -26,10 +28,11 @@ import { HeroIcon } from '../shared/hero-icon';
     HeroIcon,
   ],
   host: {
-    class: 'flex flex-col flex-1 w-full h-full min-h-0 overflow-hidden',
+    class: 'flex flex-col flex-1 w-full h-full min-h-0 overflow-y-auto overscroll-contain',
+    style: 'touch-action: pan-y; -webkit-overflow-scrolling: touch;',
   },
   template: `
-    <div class="flex flex-col h-full min-h-0 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 kiosk:py-10 text-white select-none gap-4">
+    <div class="flex flex-col flex-1 min-h-full w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 kiosk:py-10 text-white select-none gap-4">
 
       <!-- Encabezado con estética de agencia -->
       <header class="text-center space-y-2 sm:space-y-3 kiosk:space-y-6 shrink-0 pt-1">
@@ -61,8 +64,8 @@ import { HeroIcon } from '../shared/hero-icon';
             [items]="catalog.brands()"
             [itemTemplate]="brandCardTemplate"
             [initialIndex]="catalog.coverConfig().initialIndex"
-            [stackSpacing]="catalog.coverConfig().stackSpacing"
-            [centerGap]="catalog.coverConfig().centerGap"
+            [stackSpacing]="coverStackSpacing()"
+            [centerGap]="coverCenterGap()"
             [rotation]="catalog.coverConfig().rotation"
             [enableReflection]="catalog.coverConfig().enableReflection"
             [enableClickToSnap]="catalog.coverConfig().enableClickToSnap"
@@ -90,8 +93,8 @@ import { HeroIcon } from '../shared/hero-icon';
         />
       </ng-template>
 
-      <!-- Sticky Footer unificado con botón volver y disclaimers -->
-      <app-kiosk-disclaimer class="shrink-0">
+      <!-- Footer unificado con botón volver y disclaimers -->
+      <app-kiosk-disclaimer>
         <div class="w-full max-w-xs sm:max-w-md kiosk:max-w-lg">
           <app-kiosk-button variant="ghost" (click)="goBack()">
             <app-hero-icon name="arrow-left" />
@@ -112,6 +115,19 @@ export class BrandSelect {
   /** Panel gana sobre el manifest: reduceMotion ON si cualquiera lo pide. */
   protected readonly coverReduceMotion = computed(
     () => this.settings.coverReduceMotion() || this.catalog.coverConfig().reduceMotion,
+  );
+
+  /** Con reduceMotion del panel: espaciado más compacto para el layout plano. */
+  protected readonly coverStackSpacing = computed(() =>
+    this.settings.coverReduceMotion()
+      ? PANEL_REDUCE_MOTION_COVER_SPACING.stackSpacing
+      : this.catalog.coverConfig().stackSpacing,
+  );
+
+  protected readonly coverCenterGap = computed(() =>
+    this.settings.coverReduceMotion()
+      ? PANEL_REDUCE_MOTION_COVER_SPACING.centerGap
+      : this.catalog.coverConfig().centerGap,
   );
 
   constructor() {

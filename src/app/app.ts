@@ -1,4 +1,4 @@
-import { Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
+import { afterNextRender, Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map, startWith } from 'rxjs/operators';
@@ -19,6 +19,10 @@ const DEFAULT_BGM_VOLUME = 0.35;
 
 /** Gesto oculto: mantener pulsado el badge de versión. */
 const ADMIN_LONG_PRESS_MS = 2000;
+
+const BRAND_GAMES_ROUTE = /^\/brands\/([^/]+)\/games/;
+const PLAY_ROUTE = /^\/play\/([^/]+)/;
+const RESULT_ROUTE = /^\/result\/([^/]+)/;
 
 @Component({
   imports: [RouterOutlet, FloatingGradient, Screensaver, HeroIcon, UiSfx, QuickSettingsDialog],
@@ -84,19 +88,19 @@ export class App {
     }
 
     // 1. Selector de juegos de una marca: /brands/:brandId/games
-    const brandGamesMatch = url.match(/^\/brands\/([^/]+)\/games/);
+    const brandGamesMatch = BRAND_GAMES_ROUTE.exec(url);
     if (brandGamesMatch) {
       return this.catalog.atmosphereForBrand(brandGamesMatch[1]);
     }
 
     // 2. Ejecución de un juego: /play/:experienceId
-    const playMatch = url.match(/^\/play\/([^/]+)/);
+    const playMatch = PLAY_ROUTE.exec(url);
     if (playMatch) {
       return this.catalog.atmosphereForExperience(playMatch[1]);
     }
 
     // 3. Resultado de juego: /result/:experienceId/:result
-    const resultMatch = url.match(/^\/result\/([^/]+)/);
+    const resultMatch = RESULT_ROUTE.exec(url);
     if (resultMatch) {
       return this.catalog.atmosphereForExperience(resultMatch[1]);
     }
@@ -112,19 +116,19 @@ export class App {
     const url = this.currentUrl();
 
     // 1. Selector de juegos de una marca: /brands/:brandId/games
-    const brandGamesMatch = url.match(/^\/brands\/([^/]+)\/games/);
+    const brandGamesMatch = BRAND_GAMES_ROUTE.exec(url);
     if (brandGamesMatch) {
       return this.catalog.disclaimerForBrand(brandGamesMatch[1]);
     }
 
     // 2. Ejecución de un juego: /play/:experienceId
-    const playMatch = url.match(/^\/play\/([^/]+)/);
+    const playMatch = PLAY_ROUTE.exec(url);
     if (playMatch) {
       return this.catalog.disclaimerForExperience(playMatch[1]);
     }
 
     // 3. Resultado de juego: /result/:experienceId/:result
-    const resultMatch = url.match(/^\/result\/([^/]+)/);
+    const resultMatch = RESULT_ROUTE.exec(url);
     if (resultMatch) {
       return this.catalog.disclaimerForExperience(resultMatch[1]);
     }
@@ -139,10 +143,7 @@ export class App {
     this.mediaPlayer.preload(UI_SFX.back);
     this.mediaPlayer.preload(UI_SFX.select);
 
-    // Entrar al modo kiosco nativo en Tauri al iniciar
-    if (this.platformService.isNative) {
-      void this.platformService.enterKiosk();
-    }
+    afterNextRender(() => this.enterNativeKiosk());
 
     // Configurar el BGM desde el manifest en cuanto el catálogo esté disponible.
     // La reproducción NO arranca aquí: espera el primer gesto (onFirstGesture).
@@ -154,6 +155,14 @@ export class App {
         this.mediaPlayer.setBgm(bgm, volume);
       }
     });
+  }
+
+  /**
+   * En Tauri, activa el modo kiosco nativo tras el primer render.
+   */
+  private enterNativeKiosk(): void {
+    if (!this.platformService.isNative) return;
+    void this.platformService.enterKiosk();
   }
 
   /**
