@@ -1,6 +1,6 @@
 [package]
 name = "merz-games"
-version = "0.1.2"
+version = "0.1.3"
 description = "Merz Games"
 authors = ["Julian's Freelance"]
 edition = "2021"
