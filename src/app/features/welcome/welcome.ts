@@ -38,7 +38,7 @@ import { AssetSrc } from '../../core/platform/asset-src';
                 <img
                   src="/content/images/MerzAestheticsLogo.svg"
                   alt="Merz Aesthetics"
-                  class="w-full max-w-[260px] sm:max-w-[340px] md:max-w-[420px] lg:max-w-[480px] kiosk:max-w-[620px] kiosk-tall:max-w-[700px] h-auto object-contain drop-shadow-md select-none pointer-events-none"
+                  class="w-full max-w-65 sm:max-w-85 md:max-w-105 lg:max-w-120 kiosk:max-w-155 kiosk-tall:max-w-175 h-auto object-contain drop-shadow-md select-none pointer-events-none"
                 />
               </div>
               <span class="inline-block text-xs sm:text-sm kiosk:text-base font-bold font-['Montserrat'] tracking-[0.4em] uppercase text-neutral-300/80 select-none">
@@ -49,7 +49,7 @@ import { AssetSrc } from '../../core/platform/asset-src';
                 <img
                   src="/content/images/merzGamesLogotipo.png"
                   alt="Merz Games"
-                  class="w-full max-w-[210px] sm:max-w-[280px] md:max-w-[340px] lg:max-w-[390px] kiosk:max-w-[500px] kiosk-tall:max-w-[560px] h-auto object-contain select-none pointer-events-none"
+                  class="w-full max-w-52.5 sm:max-w-70 md:max-w-85 lg:max-w-97.5 kiosk:max-w-125 kiosk-tall:max-w-140 h-auto object-contain select-none pointer-events-none"
                 />
               </div>
             </div>

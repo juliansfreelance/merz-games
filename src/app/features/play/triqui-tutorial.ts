@@ -33,7 +33,7 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
   template: `
     @if (visible()) {
       <div
-        class="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+        class="fixed inset-0 z-60 flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
         style="background: rgba(3, 7, 18, 0.65); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);"
         role="dialog"
         aria-modal="true"
@@ -70,38 +70,38 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
 
           <!-- Escena de Demostración: Mini Tablero 3x3 Animado -->
           <div class="demo-scene relative w-44 h-44 flex items-center justify-center py-2">
-            <div class="grid grid-cols-3 gap-2 w-full h-full p-2 bg-white/[0.03] border border-white/10 rounded-2xl">
+            <div class="grid grid-cols-3 gap-2 w-full h-full p-2 bg-white/3 border border-white/10 rounded-2xl">
               <!-- Celdas de demostración -->
               <!-- Fila 0 -->
-              <div class="demo-cell border border-white/15 bg-white/[0.04] rounded-xl flex items-center justify-center p-1.5">
+              <div class="demo-cell border border-white/15 bg-white/4 rounded-xl flex items-center justify-center p-1.5">
                 @if (playerMarkUrl()) {
                   <img [src]="playerMarkUrl()" [alt]="playerSymbolText()" class="w-7 h-7 object-contain drop-shadow" />
                 } @else {
                   <span class="font-bold text-xl" [class]="playerSymbol() === 'X' ? 'text-cyan-400' : 'text-amber-200'">{{ playerSymbolText() }}</span>
                 }
               </div>
-              <div class="demo-cell border border-white/15 bg-white/[0.04] rounded-xl flex items-center justify-center p-1.5">
+              <div class="demo-cell border border-white/15 bg-white/4 rounded-xl flex items-center justify-center p-1.5">
                 @if (aiMarkUrl()) {
                   <img [src]="aiMarkUrl()" [alt]="aiSymbolText()" class="w-7 h-7 object-contain drop-shadow" />
                 } @else {
                   <span class="font-bold text-xl" [class]="playerSymbol() === 'X' ? 'text-amber-200' : 'text-cyan-400'">{{ aiSymbolText() }}</span>
                 }
               </div>
-              <div class="demo-cell border border-white/15 bg-white/[0.04] rounded-xl flex items-center justify-center text-neutral-600 font-bold text-xs">
+              <div class="demo-cell border border-white/15 bg-white/4 rounded-xl flex items-center justify-center text-neutral-600 font-bold text-xs">
                 ·
               </div>
               <!-- Fila 1 -->
-              <div class="demo-cell border border-white/15 bg-white/[0.04] rounded-xl flex items-center justify-center text-neutral-600 font-bold text-xs">
+              <div class="demo-cell border border-white/15 bg-white/4 rounded-xl flex items-center justify-center text-neutral-600 font-bold text-xs">
                 ·
               </div>
-              <div class="demo-cell border border-white/15 bg-white/[0.04] rounded-xl flex items-center justify-center p-1.5">
+              <div class="demo-cell border border-white/15 bg-white/4 rounded-xl flex items-center justify-center p-1.5">
                 @if (playerMarkUrl()) {
                   <img [src]="playerMarkUrl()" [alt]="playerSymbolText()" class="w-7 h-7 object-contain drop-shadow" />
                 } @else {
                   <span class="font-bold text-xl" [class]="playerSymbol() === 'X' ? 'text-cyan-400' : 'text-amber-200'">{{ playerSymbolText() }}</span>
                 }
               </div>
-              <div class="demo-cell border border-white/15 bg-white/[0.04] rounded-xl flex items-center justify-center p-1.5">
+              <div class="demo-cell border border-white/15 bg-white/4 rounded-xl flex items-center justify-center p-1.5">
                 @if (aiMarkUrl()) {
                   <img [src]="aiMarkUrl()" [alt]="aiSymbolText()" class="w-7 h-7 object-contain drop-shadow" />
                 } @else {
@@ -109,10 +109,10 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
                 }
               </div>
               <!-- Fila 2: Celda 8 ganadora animada -->
-              <div class="demo-cell border border-white/15 bg-white/[0.04] rounded-xl flex items-center justify-center text-neutral-600 font-bold text-xs">
+              <div class="demo-cell border border-white/15 bg-white/4 rounded-xl flex items-center justify-center text-neutral-600 font-bold text-xs">
                 ·
               </div>
-              <div class="demo-cell border border-white/15 bg-white/[0.04] rounded-xl flex items-center justify-center text-neutral-600 font-bold text-xs">
+              <div class="demo-cell border border-white/15 bg-white/4 rounded-xl flex items-center justify-center text-neutral-600 font-bold text-xs">
                 ·
               </div>
               <div
@@ -135,7 +135,7 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
               <svg
                 viewBox="0 0 602 634"
                 aria-hidden="true"
-                class="demo-hand filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]"
+                class="demo-hand"
               >
                 <path
                   fill="#ffffff"
@@ -146,7 +146,7 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
           </div>
 
           <!-- Reglas Detalladas -->
-          <div class="w-full space-y-3 text-left bg-white/[0.04] border border-white/10 rounded-2xl p-4 sm:p-5">
+          <div class="w-full space-y-3 text-left bg-white/4 border border-white/10 rounded-2xl p-4 sm:p-5">
             <!-- Regla 1: Marca y alineación -->
             <div class="flex items-start gap-3">
               <div class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0 text-xs font-bold text-white mt-0.5">
@@ -201,7 +201,7 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
           <button
             type="button"
             uiSfx="click"
-            class="w-full min-h-12 sm:min-h-14 px-8 sm:px-12 py-3.5 sm:py-4 rounded-full border border-white/25 bg-white/[0.08] backdrop-blur-md text-white font-extrabold font-['Montserrat'] tracking-[0.18em] uppercase text-xs sm:text-sm shadow-xl shadow-black/40 hover:bg-white/[0.16] hover:border-white/40 active:scale-95 transition-all duration-150 cursor-pointer select-none"
+            class="w-full min-h-12 sm:min-h-14 px-8 sm:px-12 py-3.5 sm:py-4 rounded-full border border-white/25 bg-white/8 backdrop-blur-md text-white font-extrabold font-['Montserrat'] tracking-[0.18em] uppercase text-xs sm:text-sm shadow-xl shadow-black/40 hover:bg-white/16 hover:border-white/40 active:scale-95 transition-all duration-150 cursor-pointer select-none"
             (click)="dismiss()"
           >
             ¡Entendido, a jugar!
@@ -225,6 +225,7 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
     .demo-hand {
       width: 100%;
       height: 100%;
+      filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 8px rgba(255, 255, 255, 0.6));
     }
 
     .demo-winning-x {

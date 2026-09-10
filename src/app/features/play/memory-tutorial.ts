@@ -33,7 +33,7 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
     <!-- Modal Backdrop a pantalla completa con bloqueo -->
     @if (visible()) {
       <div
-        class="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+        class="fixed inset-0 z-60 flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
         style="background: rgba(3, 7, 18, 0.65); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);"
         role="dialog"
         aria-modal="true"
@@ -71,7 +71,7 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
           <!-- Escena de Demostración: Cartas Animadas (Inspirado en superhero-memory-match-hd) -->
           <div class="demo-scene relative w-full h-36 sm:h-40 flex items-center justify-center gap-4 py-2">
             <!-- Carta 1 de demostración (voltea sincronizada) -->
-            <div class="demo-card-container w-24 sm:w-28 aspect-[400/318] perspective-1000">
+            <div class="demo-card-container w-24 sm:w-28 aspect-400/318 perspective-1000">
               <div class="demo-card-scene w-full h-full relative demo-flip-anim-1">
                 <!-- Dorso -->
                 <div class="demo-face absolute inset-0 border border-white/20 bg-white/5 backdrop-blur-md flex items-center justify-center shadow-lg overflow-hidden">
@@ -93,7 +93,7 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
             </div>
 
             <!-- Carta 2 de demostración (voltea después y hace match) -->
-            <div class="demo-card-container w-24 sm:w-28 aspect-[400/318] perspective-1000">
+            <div class="demo-card-container w-24 sm:w-28 aspect-400/318 perspective-1000">
               <div class="demo-card-scene w-full h-full relative demo-flip-anim-2">
                 <!-- Dorso -->
                 <div class="demo-face absolute inset-0 border border-white/20 bg-white/5 backdrop-blur-md flex items-center justify-center shadow-lg overflow-hidden">
@@ -120,7 +120,7 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
               <svg
                 viewBox="0 0 602 634"
                 aria-hidden="true"
-                class="demo-hand-idle filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]"
+                class="demo-hand-idle"
               >
                 <path
                   fill="#ffffff"
@@ -131,7 +131,7 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
               <svg
                 viewBox="0 0 602 634"
                 aria-hidden="true"
-                class="demo-hand-event filter drop-shadow-[0_4px_14px_rgba(0,0,0,0.8)] drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]"
+                class="demo-hand-event"
               >
                 <path
                   fill="#ffffff"
@@ -147,7 +147,7 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
           </div>
 
           <!-- Pasos e Instrucciones Detalladas -->
-          <div class="w-full space-y-3 text-left bg-white/[0.04] border border-white/10 rounded-2xl p-4 sm:p-5">
+          <div class="w-full space-y-3 text-left bg-white/4 border border-white/10 rounded-2xl p-4 sm:p-5">
             <!-- Regla 1: Emparejar cartas -->
             <div class="flex items-start gap-3">
               <div class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0 text-xs font-bold text-white mt-0.5">
@@ -186,7 +186,7 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
           <button
             type="button"
             uiSfx="click"
-            class="w-full min-h-12 sm:min-h-14 px-8 sm:px-12 py-3.5 sm:py-4 rounded-full border border-white/25 bg-white/[0.08] backdrop-blur-md text-white font-extrabold font-['Montserrat'] tracking-[0.18em] uppercase text-xs sm:text-sm shadow-xl shadow-black/40 hover:bg-white/[0.16] hover:border-white/40 active:scale-95 transition-all duration-150 cursor-pointer select-none"
+            class="w-full min-h-12 sm:min-h-14 px-8 sm:px-12 py-3.5 sm:py-4 rounded-full border border-white/25 bg-white/8 backdrop-blur-md text-white font-extrabold font-['Montserrat'] tracking-[0.18em] uppercase text-xs sm:text-sm shadow-xl shadow-black/40 hover:bg-white/16 hover:border-white/40 active:scale-95 transition-all duration-150 cursor-pointer select-none"
             (click)="dismiss()"
           >
             ¡Entendido, a jugar!
@@ -257,6 +257,7 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
       width: 100%;
       height: 100%;
       animation: demoHandIdleAnim 4s ease-in-out infinite;
+      filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 8px rgba(255, 255, 255, 0.6));
     }
 
     .demo-hand-event {
@@ -264,6 +265,7 @@ export const TUTORIAL_AUTO_REVEAL_MS = 420;
       width: 100%;
       height: 100%;
       animation: demoHandEventAnim 4s ease-in-out infinite;
+      filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 12px rgba(255, 255, 255, 0.8));
     }
 
     @keyframes demoHandMove {

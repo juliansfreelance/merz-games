@@ -29,7 +29,7 @@ import { AssetSrc } from '../../core/platform/asset-src';
           <img
             [src]="logoUrl"
             [alt]="logoAlt() || 'Logotipo'"
-            class="w-[30%] max-w-[260px] min-w-[140px] h-auto object-contain drop-shadow-md select-none pointer-events-none"
+            class="w-[30%] max-w-65 min-w-35 h-auto object-contain drop-shadow-md select-none pointer-events-none"
           />
         </div>
       }
