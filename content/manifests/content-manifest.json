@@ -222,9 +222,9 @@
     {
       "id": "belotero",
       "name": "Belotero<sup>®</sup>",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "enabled": true,
-      "develop": true,
+      "develop": false,
       "order": 3,
       "image": "/content/images/brands/BeloteroBrand.png",
       "logo": "/content/images/brands/BeloteroLogo.webp",
