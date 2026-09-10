@@ -71,6 +71,7 @@ jobs:
           fi
 
       - name: Prepare signing key
+        id: signing
         shell: bash
         env:
           RAW_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -80,15 +81,21 @@ jobs:
             echo "Falta el secret TAURI_SIGNING_PRIVATE_KEY" >&2
             exit 1
           fi
-          printf '%s' "$RAW_KEY" | tr -d '\r\n' > "$RUNNER_TEMP/tauri_signing.key"
-          echo "TAURI_SIGNING_PRIVATE_KEY_PATH=$RUNNER_TEMP/tauri_signing.key" >> "$GITHUB_ENV"
-          echo "Signing key file prepared (${#RAW_KEY} chars raw)."
+          KEY=$(printf '%s' "$RAW_KEY" | tr -d '\r\n')
+          KEY_FILE="${RUNNER_TEMP}/tauri_signing.key"
+          printf '%s' "$KEY" > "$KEY_FILE"
+          # GITHUB_ENV: el \n final del registro NO forma parte del valor.
+          printf 'TAURI_SIGNING_PRIVATE_KEY=%s\n' "$KEY" >> "$GITHUB_ENV"
+          printf 'TAURI_SIGNING_PRIVATE_KEY_PATH=%s\n' "$KEY_FILE" >> "$GITHUB_ENV"
+          echo "path=${KEY_FILE}" >> "$GITHUB_OUTPUT"
+          echo "Signing key prepared (stripped length ${#KEY})."
 
       - name: Build and publish
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY_PATH: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PATH }}
+          # PATH vía output del paso (fiable). KEY llega también por GITHUB_ENV.
+          TAURI_SIGNING_PRIVATE_KEY_PATH: ${{ steps.signing.outputs.path }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ steps.meta.outputs.tag }}
