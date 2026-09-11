@@ -90,7 +90,9 @@ function findApks() {
 
 function main() {
   if (!fs.existsSync(androidDir)) {
-    console.error('[android-build] Falta src-tauri/gen/android. Ejecuta: npm run tauri:android:init');
+    console.error(
+      '[android-build] Falta src-tauri/gen/android. Ejecuta: npm run tauri:android:init',
+    );
     process.exit(1);
   }
 

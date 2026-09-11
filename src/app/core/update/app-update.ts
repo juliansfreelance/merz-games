@@ -1,9 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { PlatformService } from '../platform/platform.service';
-import {
-  APP_UPDATE_ANDROID_SIDELOAD_MESSAGE,
-  APP_UPDATE_ERROR_MESSAGE,
-} from './update.constants';
+import { APP_UPDATE_ANDROID_SIDELOAD_MESSAGE, APP_UPDATE_ERROR_MESSAGE } from './update.constants';
 
 export interface AppUpdateCheck {
   readonly available: boolean;
