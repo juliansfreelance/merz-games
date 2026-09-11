@@ -150,32 +150,50 @@ export class App {
     });
 
     // Configurar el BGM desde el manifest en cuanto el catálogo esté disponible.
-    // La reproducción NO arranca aquí: espera el primer gesto (onFirstGesture).
+    // Web/Windows: espera el primer gesto (onFirstGesture → unlockBgm).
+    // Android: arranca al tener el asset (WebView sin gesto requerido).
     effect(() => {
       const manifest = this.catalog.rawManifest();
       const bgm = manifest?.app?.audio?.backgroundMusic;
       const volume = manifest?.app?.audio?.bgmVolume ?? DEFAULT_BGM_VOLUME;
       if (bgm) {
         this.mediaPlayer.setBgm(bgm, volume);
+        if (this.platformService.isAndroid) {
+          this.mediaPlayer.unlockBgm();
+        }
       }
     });
   }
 
   /**
    * Silencia BGM/SFX al perder foco o ir a segundo plano.
-   * Web: visibility + blur/focus. Nativo (Windows/Android): también onFocusChanged de Tauri.
+   * Web/Windows: visibility + blur/focus (+ onFocusChanged en Tauri desktop).
+   * Android: solo `document.hidden` (blur/focus del WebView es poco fiable).
    */
   private installAudioFocusGuards(): void {
     if (typeof document === 'undefined' || typeof window === 'undefined') return;
 
+    const android = this.platformService.isAndroid;
     let windowFocused = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
 
     const sync = (): void => {
-      const suspended = document.hidden || !windowFocused;
+      const suspended = android
+        ? document.hidden
+        : document.hidden || !windowFocused;
       this.mediaPlayer.setBackgroundSuspended(suspended);
     };
 
     const onVisibility = (): void => sync();
+    document.addEventListener('visibilitychange', onVisibility);
+    this.destroyRef.onDestroy(() => {
+      document.removeEventListener('visibilitychange', onVisibility);
+    });
+
+    if (android) {
+      sync();
+      return;
+    }
+
     const onBlur = (): void => {
       windowFocused = false;
       sync();
@@ -185,13 +203,11 @@ export class App {
       sync();
     };
 
-    document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('blur', onBlur);
     window.addEventListener('focus', onFocus);
     sync();
 
     this.destroyRef.onDestroy(() => {
-      document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('blur', onBlur);
       window.removeEventListener('focus', onFocus);
     });
@@ -244,6 +260,7 @@ export class App {
    */
   protected onFirstGesture(): void {
     this.mediaPlayer.unlockBgm();
+    this.mediaPlayer.ensureInteractiveAudio();
   }
 
   protected onVersionPressStart(event: PointerEvent): void {

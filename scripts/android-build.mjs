@@ -2,9 +2,10 @@
  * Build APK Android con fallback Windows (sin Developer Mode / sin symlink).
  *
  * 1) copy:videos + ng build
- * 2) precompila cada ABI con `tauri android build` (falla en symlink; deja el .so)
- * 3) hardlink/copia .so → jniLibs
- * 4) gradlew :app:assembleUniversalRelease (BuildTask reutiliza libs existentes)
+ * 2) borra .so / tauri.properties (versión + UI van dentro del .so)
+ * 3) precompila cada ABI con `tauri android build` (falla en symlink; deja el .so)
+ * 4) hardlink/copia .so → jniLibs
+ * 5) gradlew :app:assembleUniversalRelease
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -46,6 +47,21 @@ function linkOrCopy(src, dst) {
   }
 }
 
+function removeIfExists(filePath) {
+  if (!fs.existsSync(filePath)) return;
+  fs.unlinkSync(filePath);
+  console.log(`[android-build] eliminado ${filePath}`);
+}
+
+/** Fuerza recompilar: el .so incrusta frontendDist y la versión de tauri.conf.json. */
+function cleanStaleNativeArtifacts() {
+  for (const { triple, abi } of TARGETS) {
+    removeIfExists(path.join(targetDir, triple, 'release', 'libmerz_games.so'));
+    removeIfExists(path.join(jniRoot, abi, 'libmerz_games.so'));
+  }
+  removeIfExists(path.join(androidDir, 'app', 'tauri.properties'));
+}
+
 function stageNativeLibs(profile = 'release') {
   let linked = 0;
   for (const { triple, abi } of TARGETS) {
@@ -61,12 +77,7 @@ function stageNativeLibs(profile = 'release') {
 }
 
 function prebuildTargets() {
-  for (const { cli, triple } of TARGETS) {
-    const so = path.join(targetDir, triple, 'release', 'libmerz_games.so');
-    if (fs.existsSync(so)) {
-      console.log(`[android-build] ya compilado: ${cli}`);
-      continue;
-    }
+  for (const { cli } of TARGETS) {
     console.log(`[android-build] precompilando ${cli} (el fallo de symlink es esperado)…`);
     run('npx', ['tauri', 'android', 'build', '--apk', '--ci', '--target', cli]);
   }
@@ -99,6 +110,7 @@ function main() {
   if (run('npm', ['run', 'copy:videos']) !== 0) process.exit(1);
   if (run('npm', ['run', 'build']) !== 0) process.exit(1);
 
+  cleanStaleNativeArtifacts();
   prebuildTargets();
   const staged = stageNativeLibs('release');
   if (staged < TARGETS.length) {

@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { MediaPlayer } from './media-player';
 import { AppLogger } from '../logging/app-error';
 import { KioskSettings } from '../settings/kiosk-settings';
@@ -10,6 +11,7 @@ class MockMediaElement {
   src = '';
   loop = false;
   volume = 1;
+  muted = false;
   preload = '';
   currentTime = 0;
   paused = true;
@@ -36,12 +38,19 @@ function buildPlayer(soundEnabled = true) {
     return origCreateElement(tag);
   });
 
+  const soundEnabledSig = signal(soundEnabled);
+  const bgmVolumeSig = signal(0.4);
+  const sfxVolumeSig = signal(0.8);
+
   const mockSettings = {
-    soundEnabled: vi.fn().mockReturnValue(soundEnabled),
-    bgmVolume: vi.fn().mockReturnValue(0.4),
-    sfxVolume: vi.fn().mockReturnValue(0.8),
+    soundEnabled: () => soundEnabledSig(),
+    bgmVolume: () => bgmVolumeSig(),
+    sfxVolume: () => sfxVolumeSig(),
     screensaverMode: vi.fn().mockReturnValue('classic'),
     memoryPairs: vi.fn().mockReturnValue(null),
+    /** Test helpers */
+    _soundEnabledSig: soundEnabledSig,
+    _bgmVolumeSig: bgmVolumeSig,
   };
 
   TestBed.configureTestingModule({
@@ -271,6 +280,49 @@ describe('MediaPlayer', () => {
     player.setBackgroundSuspended(false);
     expect(bgmEl.play).toHaveBeenCalled();
     expect(player.isBackgroundSuspended()).toBe(false);
+  });
+
+  it('si unlock ocurre en segundo plano, arranca al volver a primer plano', () => {
+    const { player, elements } = buildPlayer(true);
+    player.setBackgroundSuspended(true);
+    player.setBgm('audio/bgm.mp3', 0.4);
+    player.unlockBgm();
+    expect(elements.filter((el) => (el as MockMediaElement).play.mock.calls.length > 0)).toHaveLength(
+      0,
+    );
+
+    player.setBackgroundSuspended(false);
+    const played = elements.filter((el) => (el as MockMediaElement).play.mock.calls.length > 0);
+    expect(played.length).toBeGreaterThan(0);
+  });
+
+  it('soundEnabled=false pausa el BGM en reproducción', () => {
+    const { player, elements, mockSettings } = buildPlayer(true);
+    player.setBgm('audio/bgm.mp3', 0.4);
+    player.unlockBgm();
+    TestBed.flushEffects();
+    const bgmEl = elements[elements.length - 1] as MockMediaElement;
+    bgmEl.paused = false;
+    bgmEl.pause.mockClear();
+
+    mockSettings._soundEnabledSig.set(false);
+    TestBed.flushEffects();
+
+    expect(bgmEl.pause).toHaveBeenCalled();
+    expect(bgmEl.paused).toBe(true);
+  });
+
+  it('cambiar bgmVolume actualiza el volumen del elemento BGM', () => {
+    const { player, elements, mockSettings } = buildPlayer(true);
+    player.setBgm('audio/bgm.mp3', 0.4);
+    player.unlockBgm();
+    TestBed.flushEffects();
+    const bgmEl = elements[elements.length - 1] as MockMediaElement;
+
+    mockSettings._bgmVolumeSig.set(0.05);
+    TestBed.flushEffects();
+
+    expect(bgmEl.volume).toBe(0.05);
   });
 
   it('effectiveVideoVolume() retorna 0 cuando soundEnabled = false', () => {

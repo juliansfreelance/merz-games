@@ -19,8 +19,8 @@ const SFX_POOL_SIZE = 6;
  * Tres canales independientes:
  *
  * **BGM (música de fondo):** un único elemento en loop, de toda la aplicación.
- * Persiste entre rutas y no se reinicia al navegar. Se inicia con `unlockBgm()`
- * tras el primer gesto del usuario (requisito de autoplay del navegador).
+ * Persiste entre rutas y no se reinicia al navegar. Web/Windows: `unlockBgm()`
+ * tras el primer gesto. Android: puede arrancar al cargar el asset (sin gesto).
  *
  * **SFX (efectos de sonido solapables):** pool de N elementos reutilizables.
  * `playSfx()` nunca corta una voz en curso; varias pueden sonar simultáneamente.
@@ -52,6 +52,16 @@ export class MediaPlayer {
   private _bgmUrl: string | null = null;
   private _bgmVolume = 0.35;
   private _bgmUnlocked = false;
+  /** True cuando el elemento BGM existe (para que el effect de volumen reaccione). */
+  private readonly _bgmReady = signal(false);
+
+  // Web Audio: en Android/WebView `HTMLMediaElement.volume` a menudo se ignora.
+  private _bgmAudioCtx: AudioContext | null = null;
+  private _bgmGain: GainNode | null = null;
+  private _bgmSourceConnected = false;
+  private _bgmWebAudioPending = false;
+  /** Pausado por interruptor maestro (no por screensaver ni segundo plano). */
+  private _bgmPausedByMute = false;
 
   // ── Canal SFX ─────────────────────────────────────────────────────────────
   private readonly _sfxPool: HTMLAudioElement[] = [];
@@ -60,14 +70,36 @@ export class MediaPlayer {
   private _backgroundSuspended = false;
   private _bgmPausedByBackground = false;
   private _mediaPausedByBackground = false;
+  /** Unlock pidió arrancar pero la app estaba en segundo plano. */
+  private _pendingStartAfterForeground = false;
   private readonly _backgroundSuspendedSig = signal(false);
 
   constructor() {
     effect(() => {
       const enabled = this.settings.soundEnabled();
-      const bgmVol = this.settings.bgmVolume ? this.settings.bgmVolume() : this._bgmVolume;
-      if (this._bgmElement) {
-        this._bgmElement.volume = enabled ? bgmVol : 0;
+      const bgmVol = this.settings.bgmVolume();
+      const ready = this._bgmReady();
+
+      if (!enabled) {
+        if (ready && this._bgmElement) {
+          this._ensureBgmWebAudio();
+          this._applyBgmOutputLevel(0);
+          this._syncBgmMutePause(false);
+        }
+        return;
+      }
+
+      // Audio general ON
+      if (ready && this._bgmElement) {
+        this._ensureBgmWebAudio();
+        this._applyBgmOutputLevel(bgmVol);
+        this._syncBgmMutePause(true);
+        return;
+      }
+
+      // Desbloqueado pero aún sin elemento (p. ej. mute al arrancar en Android).
+      if (this._bgmUnlocked && this._bgmUrl && !this._backgroundSuspended) {
+        this._startBgm();
       }
     });
   }
@@ -198,30 +230,45 @@ export class MediaPlayer {
 
   /**
    * Configura la URL y el volumen del BGM.
-   * No inicia la reproducción; la inicia `unlockBgm()` tras el primer gesto.
+   * En web/Windows la reproducción la inicia `unlockBgm()` tras el primer gesto.
+   * En Android puede arrancar en cuanto hay asset (autoplay permitido en WebView).
    */
   setBgm(url: string, volume = 0.35): void {
     this._bgmUrl = url;
     this._bgmVolume = Math.max(0, Math.min(1, volume));
 
     if (this._bgmElement) {
-      this._bgmElement.volume = this._bgmVolume;
       if (this._bgmElement.src !== assetUrl(url)) {
         this._bgmElement.src = assetUrl(url);
         this._bgmElement.load();
       }
+      this._applyBgmOutputLevel(this._effectiveBgmVolume());
+    }
+
+    // Ya desbloqueado (p. ej. Android): arrancar / reanudar con la URL actual.
+    if (this._bgmUnlocked) {
+      this._startBgm();
     }
   }
 
   /**
-   * Desbloquea y arranca el BGM tras el primer gesto del usuario.
-   * Llamar desde el shell (app.ts) en el primer evento `pointerup`.
+   * Desbloquea y arranca el BGM.
+   * Web/Windows: tras el primer gesto. Android: también al cargar el asset (sin gesto).
    * Idempotente: llamadas adicionales no reinician la música.
    */
   unlockBgm(): void {
     if (this._bgmUnlocked) return;
     this._bgmUnlocked = true;
     this._startBgm();
+  }
+
+  /**
+   * Tras un gesto de usuario: asegura control de volumen vía Web Audio (Android).
+   * Seguro llamar varias veces (p. ej. desde pointerup o al tocar ajustes).
+   */
+  ensureInteractiveAudio(): void {
+    this._ensureBgmWebAudio();
+    this._applyBgmOutputLevel(this._effectiveBgmVolume());
   }
 
   /**
@@ -244,13 +291,13 @@ export class MediaPlayer {
       return;
     }
     if (!this._bgmElement || !this._bgmUnlocked) return;
-    if (!this.settings.soundEnabled()) {
+    if (!this.settings.soundEnabled() || this._bgmPausedByMute) {
       this.logger.info('MediaPlayer', '[BGM] resumeBgm() ignorado: soundEnabled = false.');
       return;
     }
 
-    const currentVol = this.settings.bgmVolume ? this.settings.bgmVolume() : this._bgmVolume;
-    this._bgmElement.volume = currentVol;
+    this._applyBgmOutputLevel(this._effectiveBgmVolume());
+    void this._bgmAudioCtx?.resume();
     void this._bgmElement.play()?.catch((err: unknown) => {
       this.logger.warn('MediaPlayer', '[BGM] Error al reanudar BGM:', err);
     });
@@ -292,13 +339,117 @@ export class MediaPlayer {
 
   // ─── Interno ─────────────────────────────────────────────────────────────────
 
-  private _startBgm(): void {
-    if (this._backgroundSuspended) {
-      this.logger.info('MediaPlayer', '[BGM] No se inicia: app en segundo plano.');
+  private _effectiveBgmVolume(): number {
+    if (!this.settings.soundEnabled()) return 0;
+    return this.settings.bgmVolume();
+  }
+
+  private _applyBgmOutputLevel(level: number): void {
+    if (!this._bgmElement) return;
+    const vol = Math.max(0, Math.min(1, level));
+
+    if (this._bgmGain) {
+      // Con Web Audio el nivel lo marca el GainNode; el elemento va a tope.
+      this._bgmElement.volume = 1;
+      this._bgmElement.muted = false;
+      this._bgmGain.gain.value = vol;
       return;
     }
+
+    this._bgmElement.volume = vol;
+    this._bgmElement.muted = vol <= 0;
+  }
+
+  /**
+   * Enlaza el BGM a un GainNode. Solo si AudioContext puede quedar `running`
+   * (tras gesto); si no, no conecta para no silenciar el elemento HTML.
+   */
+  private _ensureBgmWebAudio(): void {
+    if (this._bgmSourceConnected || this._bgmWebAudioPending || !this._bgmElement) return;
+    if (typeof window === 'undefined') return;
+
+    const AudioCtxCtor =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtxCtor) return;
+
+    this._bgmWebAudioPending = true;
+
+    try {
+      const ctx = new AudioCtxCtor();
+      const connect = (): void => {
+        if (this._bgmSourceConnected || !this._bgmElement || ctx.state !== 'running') {
+          this._bgmWebAudioPending = false;
+          if (ctx.state !== 'running') {
+            void ctx.close().catch(() => undefined);
+          }
+          return;
+        }
+        try {
+          const gain = ctx.createGain();
+          const source = ctx.createMediaElementSource(this._bgmElement);
+          source.connect(gain);
+          gain.connect(ctx.destination);
+          this._bgmAudioCtx = ctx;
+          this._bgmGain = gain;
+          this._bgmSourceConnected = true;
+          this._bgmWebAudioPending = false;
+          this._applyBgmOutputLevel(this._effectiveBgmVolume());
+          this.logger.info('MediaPlayer', '[BGM] Control de volumen vía Web Audio (GainNode).');
+        } catch (err: unknown) {
+          this._bgmWebAudioPending = false;
+          void ctx.close().catch(() => undefined);
+          this.logger.warn('MediaPlayer', '[BGM] No se pudo crear GainNode:', err);
+        }
+      };
+
+      if (ctx.state === 'running') {
+        connect();
+      } else {
+        void ctx
+          .resume()
+          .then(connect)
+          .catch(() => {
+            this._bgmWebAudioPending = false;
+            void ctx.close().catch(() => undefined);
+          });
+      }
+    } catch (err: unknown) {
+      this._bgmWebAudioPending = false;
+      this.logger.warn('MediaPlayer', '[BGM] AudioContext no disponible:', err);
+    }
+  }
+
+  /** Mute maestro: pausar (fiable en Android; `volume` del elemento a menudo se ignora). */
+  private _syncBgmMutePause(enabled: boolean): void {
+    if (!this._bgmElement) return;
+
+    if (!enabled) {
+      if (!this._bgmElement.paused) {
+        this._bgmPausedByMute = true;
+        this._bgmElement.pause();
+        this.logger.info('MediaPlayer', '[BGM] Pausada por audio general desactivado.');
+      }
+      return;
+    }
+
+    if (this._bgmPausedByMute) {
+      this._bgmPausedByMute = false;
+      if (!this._backgroundSuspended && this._bgmUnlocked) {
+        this.resumeBgm();
+      }
+    }
+  }
+
+  private _startBgm(): void {
+    if (this._backgroundSuspended) {
+      this._pendingStartAfterForeground = true;
+      this.logger.info('MediaPlayer', '[BGM] Arranque diferido: app en segundo plano.');
+      return;
+    }
+    this._pendingStartAfterForeground = false;
     if (!this._bgmUrl) return;
-    if (!this.settings.soundEnabled()) {
+    if (!this.settings.soundEnabled() || this._bgmPausedByMute) {
       this.logger.info('MediaPlayer', '[BGM] soundEnabled = false, no se inicia.');
       return;
     }
@@ -306,13 +457,31 @@ export class MediaPlayer {
     if (!this._bgmElement) {
       this._bgmElement = document.createElement('audio');
       this._bgmElement.loop = true;
+      this._bgmElement.preload = 'auto';
       this._bgmElement.src = assetUrl(this._bgmUrl);
+      this._bgmReady.set(true);
     }
 
-    this._bgmElement.volume = this._bgmVolume;
-    void this._bgmElement.play()?.catch((err: unknown) => {
-      this.logger.warn('MediaPlayer', '[BGM] Autoplay bloqueado por el navegador:', err);
-    });
+    this._applyBgmOutputLevel(this._effectiveBgmVolume());
+
+    const el = this._bgmElement;
+    const tryPlay = (): void => {
+      if (this._backgroundSuspended || !this._bgmUnlocked) return;
+      if (!this.settings.soundEnabled() || this._bgmPausedByMute) return;
+      void this._bgmAudioCtx?.resume();
+      void el.play()?.catch((err: unknown) => {
+        this.logger.warn('MediaPlayer', '[BGM] Autoplay bloqueado por el navegador:', err);
+      });
+    };
+
+    // Esperar a que el asset esté listo (útil en Android / carga lenta).
+    // HAVE_FUTURE_DATA = 3 (evitar depender de HTMLMediaElement en tests/jsdom).
+    if (el.readyState >= 3) {
+      tryPlay();
+    } else {
+      el.addEventListener('canplay', tryPlay, { once: true });
+      el.load();
+    }
 
     this.logger.info('MediaPlayer', `[BGM] Iniciada: ${this._bgmUrl}`);
   }
@@ -342,6 +511,8 @@ export class MediaPlayer {
     if (this._bgmPausedByBackground) {
       this._bgmPausedByBackground = false;
       this.resumeBgm();
+    } else if (this._pendingStartAfterForeground) {
+      this._startBgm();
     }
 
     if (this._mediaPausedByBackground && this._mediaElement) {

@@ -212,10 +212,10 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
   },
   styleUrl: './admin-panel.css',
   template: `
-    <!-- Toast de Ajustes Superior Derecho (Animado Entrada y Salida con Blur Blanco del Header) -->
+    <!-- Toast de Ajustes: bajo el header (no sobre el status bar) -->
     @if (toast(); as t) {
       <div
-        class="fixed top-4 right-4 sm:top-6 sm:right-6 z-50 flex items-center gap-3.5 px-4.5 py-3.5 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl text-white pointer-events-none max-w-sm"
+        class="admin-panel__toast fixed z-50 flex items-center gap-3.5 px-4.5 py-3.5 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl text-white pointer-events-none max-w-sm"
         [class.animate-toast-in]="!t.exiting"
         [class.animate-toast-out]="t.exiting"
         role="status"
@@ -5047,6 +5047,7 @@ export class AdminPanel {
   }
 
   protected toggleSound(): void {
+    this.mediaPlayer.ensureInteractiveAudio();
     const next = !this.settings.soundEnabled();
     this.settings.setSoundEnabled(next);
     this.showToast('Audio General', next ? 'Sonido activado' : 'Audio silenciado');
@@ -5065,6 +5066,7 @@ export class AdminPanel {
   }
 
   protected onBgmVolumeInput(event: Event): void {
+    this.mediaPlayer.ensureInteractiveAudio();
     const input = event.target as HTMLInputElement;
     const vol = Number.parseFloat(input.value) / 100;
     this.settings.setBgmVolume(vol);

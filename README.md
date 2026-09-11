@@ -45,7 +45,7 @@ npm run bump:version -- 1.0.0   # package.json + tauri.conf + Cargo.toml
 npm run tauri:dev      # ventana 1080×1920 + ng serve
 npm run tauri:build    # copy:videos + MSI/NSIS + firmas updater
 npm run tauri:android:dev    # emulador / device
-npm run tauri:android:build  # copy:videos + APK release (minSdk 24; fallback Windows)
+npm run tauri:android:build  # limpia .so + copy:videos + APK release (minSdk 24)
 ```
 
 `tauri.conf.json` deja `fullscreen: false`. En desktop nativo, al boot `App` llama `enter_kiosk`. En Android esos comandos son no-op (`sensorPortrait`). En `ng serve` / `tauri:dev` el comportamiento de desarrollo no cambia.

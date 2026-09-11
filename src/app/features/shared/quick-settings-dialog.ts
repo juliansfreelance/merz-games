@@ -331,16 +331,19 @@ export class QuickSettingsDialog {
   // ─── Control de Sonido ──────────────────────────────────────────────────────
 
   protected toggleSound(): void {
+    this.mediaPlayer.ensureInteractiveAudio();
     this.settings.setSessionSoundEnabled(!this.soundEnabled());
   }
 
   protected onBgmInput(event: Event): void {
+    this.mediaPlayer.ensureInteractiveAudio();
     const input = event.target as HTMLInputElement;
     const value = Math.max(0, Math.min(100, Number(input.value)));
     this.settings.setSessionBgmVolume(value / 100);
   }
 
   protected onSfxInput(event: Event): void {
+    this.mediaPlayer.ensureInteractiveAudio();
     const input = event.target as HTMLInputElement;
     const value = Math.max(0, Math.min(100, Number(input.value)));
     this.settings.setSessionSfxVolume(value / 100);

@@ -27,6 +27,19 @@
   }
 }
 
+/* Debajo del header: safe-area + padding + botón (h-11 / h-12) + respiro. */
+.admin-panel__toast {
+  top: calc(var(--app-safe-top, 0px) + 5.5rem);
+  right: calc(var(--app-safe-right, 0px) + 1rem);
+}
+
+@media (min-width: 640px) {
+  .admin-panel__toast {
+    top: calc(var(--app-safe-top, 0px) + 6.25rem);
+    right: calc(var(--app-safe-right, 0px) + 1.5rem);
+  }
+}
+
 .admin-panel__main {
   padding-left: calc(var(--app-safe-left, 0px) + 1rem);
   padding-right: calc(var(--app-safe-right, 0px) + 1rem);
