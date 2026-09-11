@@ -40,7 +40,7 @@ describe('PlatformService', () => {
   it('exit en navegador no aplica y reporta mensaje explicativo', async () => {
     const exit = await service.exit();
     expect(exit.ok).toBe(false);
-    expect(exit.message).toContain('solo está disponible en la app de escritorio');
+    expect(exit.message).toContain('solo está disponible en la app nativa');
   });
 
   it('enterKiosk y leaveKiosk en navegador gestionan el modo y fullscreen', async () => {

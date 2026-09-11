@@ -237,9 +237,9 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
       </div>
     }
 
-    <!-- Header Fijo / Translúcido con Blur y Estilo Blanco (Versión destacada interactiva) -->
+    <!-- Header a todo el ancho (pegado al top / laterales); padding interno + safe-area -->
     <header
-      class="shrink-0 w-full z-20 bg-white/10 backdrop-blur-xl border-b border-white/20 px-4 sm:px-6 py-3.5 sm:py-4"
+      class="admin-panel__header shrink-0 w-full z-20 bg-white/10 backdrop-blur-xl border-b border-white/20"
     >
       <div class="max-w-xl kiosk:max-w-2xl mx-auto w-full flex items-center justify-between gap-3">
         <!-- Botón Volver en Header (icono + texto + SFX click-back) en color blanco -->
@@ -286,7 +286,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
 
     <!-- Contenido Scrollable Central -->
     <main
-      class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-6 py-6 sm:py-8"
+      class="admin-panel__main flex-1 min-h-0 overflow-y-auto overscroll-contain py-6 sm:py-8"
       style="touch-action: pan-y; -webkit-overflow-scrolling: touch;"
     >
       <div
@@ -365,7 +365,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
               <p class="text-neutral-400 text-sm sm:text-base">
                 {{
                   isNative()
-                    ? 'Control de la aplicación táctil de escritorio.'
+                    ? 'Control de la aplicación táctil nativa (Windows / Android).'
                     : 'Control de ejecución del sistema y modo pantalla completa.'
                 }}
               </p>
@@ -384,24 +384,26 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                 </app-kiosk-button>
               }
 
-              <app-kiosk-button
-                variant="secondary"
-                (click)="askConfirm(isKiosk() ? 'leaveKiosk' : 'enterKiosk')"
-              >
-                <app-hero-icon
-                  [name]="isKiosk() ? 'arrows-pointing-in' : 'arrows-pointing-out'"
-                  class="text-neutral-300"
-                />
-                {{
-                  isKiosk()
-                    ? isNative()
-                      ? 'Salir del modo kiosco'
-                      : 'Salir de pantalla completa'
-                    : isNative()
-                      ? 'Entrar al modo kiosco'
-                      : 'Pantalla completa'
-                }}
-              </app-kiosk-button>
+              @if (!isAndroid()) {
+                <app-kiosk-button
+                  variant="secondary"
+                  (click)="askConfirm(isKiosk() ? 'leaveKiosk' : 'enterKiosk')"
+                >
+                  <app-hero-icon
+                    [name]="isKiosk() ? 'arrows-pointing-in' : 'arrows-pointing-out'"
+                    class="text-neutral-300"
+                  />
+                  {{
+                    isKiosk()
+                      ? isNative()
+                        ? 'Salir del modo kiosco'
+                        : 'Salir de pantalla completa'
+                      : isNative()
+                        ? 'Entrar al modo kiosco'
+                        : 'Pantalla completa'
+                  }}
+                </app-kiosk-button>
+              }
 
               @if (opMessage()) {
                 <p class="text-yellow-300 text-sm kiosk:text-base text-center font-medium">
@@ -3244,7 +3246,7 @@ const COLLECTION_LABEL: Record<CatalogDiffItem['collection'], string> = {
                   } @else {
                     <p>
                       {{ snapshot().pendingAssets?.length }} archivo(s) nuevo(s). Los packs OTA solo
-                      se descargan en la app de escritorio; el JSON sí puede aplicarse (assets de
+                      se descargan en la app nativa; el JSON sí puede aplicarse (assets de
                       semilla siguen en el bundle).
                     </p>
                   }
@@ -3808,6 +3810,7 @@ export class AdminPanel {
   });
 
   protected readonly isNative = computed(() => this.platform.isNative);
+  protected readonly isAndroid = computed(() => this.platform.isAndroid);
   protected readonly isKiosk = computed(() => this.platform.isKiosk());
   protected readonly updateBusy = computed(() => {
     const status = this.snapshot().status;
@@ -5167,7 +5170,7 @@ export class AdminPanel {
       applyUpdate: this.applyUpdateConfirmMessage(),
       changePin: `Va a generar un nuevo PIN: "${this.pinModel().next}". ¿Desea confirmar el cambio?`,
       resetDefaults:
-        'Se restablecerán marcas, juegos, audio y parámetros a los valores definidos en el catálogo original (content-manifest.json). En escritorio también se vacían los packs OTA descargados; el bundle de la app se conserva.',
+        'Se restablecerán marcas, juegos, audio y parámetros a los valores definidos en el catálogo original (content-manifest.json). En la app nativa también se vacían los packs OTA descargados; el bundle de la app se conserva.',
       resetAudio:
         'Se restablecerán los niveles de volumen (BGM, SFX) y el estado del sonido a sus valores por defecto.',
       resetScreensaver:

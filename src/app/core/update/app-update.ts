@@ -1,6 +1,9 @@
 import { inject, Injectable } from '@angular/core';
 import { PlatformService } from '../platform/platform.service';
-import { APP_UPDATE_ERROR_MESSAGE } from './update.constants';
+import {
+  APP_UPDATE_ANDROID_SIDELOAD_MESSAGE,
+  APP_UPDATE_ERROR_MESSAGE,
+} from './update.constants';
 
 export interface AppUpdateCheck {
   readonly available: boolean;
@@ -17,8 +20,9 @@ export interface AppUpdateInstallResult {
 
 /**
  * Canal de actualización del ejecutable (Tauri Updater).
- * En navegador no consulta GitHub. En nativo usa el plugin firmado
+ * En navegador no consulta GitHub. En desktop nativo usa el plugin firmado
  * (`plugins.updater` + GitHub Release `latest.json`).
+ * En Android el canal binario no aplica: reinstalar APK.
  */
 
 @Injectable({ providedIn: 'root' })
@@ -31,7 +35,15 @@ export class AppUpdate {
         available: false,
         skipped: true,
         errorMessage:
-          'La actualización del ejecutable solo está disponible en la app de escritorio.',
+          'La actualización del ejecutable solo está disponible en la app nativa de escritorio.',
+      };
+    }
+
+    if (!this.platform.supportsBinaryUpdater) {
+      return {
+        available: false,
+        skipped: true,
+        errorMessage: APP_UPDATE_ANDROID_SIDELOAD_MESSAGE,
       };
     }
 
@@ -56,7 +68,15 @@ export class AppUpdate {
         ok: true,
         installed: false,
         errorMessage:
-          'La actualización del ejecutable solo está disponible en la app de escritorio.',
+          'La actualización del ejecutable solo está disponible en la app nativa de escritorio.',
+      };
+    }
+
+    if (!this.platform.supportsBinaryUpdater) {
+      return {
+        ok: true,
+        installed: false,
+        errorMessage: APP_UPDATE_ANDROID_SIDELOAD_MESSAGE,
       };
     }
 

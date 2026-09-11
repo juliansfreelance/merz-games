@@ -1,6 +1,42 @@
 :host {
   --panel-primary: var(--panel-primary-color, #fdc700);
   --panel-secondary: var(--panel-secondary-color, #ff637e);
+  /* Sale del padding del shell: el header llega al top y a los laterales. */
+  margin-top: calc(-1 * var(--app-safe-top, 0px));
+  margin-left: calc(-1 * var(--app-safe-left, 0px));
+  margin-right: calc(-1 * var(--app-safe-right, 0px));
+  width: calc(100% + var(--app-safe-left, 0px) + var(--app-safe-right, 0px));
+  max-width: none;
+  align-self: stretch;
+}
+
+/* Safe-area + respiro interno dentro del header (no alrededor). */
+.admin-panel__header {
+  padding-top: calc(var(--app-safe-top, 0px) + 0.875rem);
+  padding-bottom: 0.875rem;
+  padding-left: calc(var(--app-safe-left, 0px) + 1rem);
+  padding-right: calc(var(--app-safe-right, 0px) + 1rem);
+}
+
+@media (min-width: 640px) {
+  .admin-panel__header {
+    padding-top: calc(var(--app-safe-top, 0px) + 1rem);
+    padding-bottom: 1rem;
+    padding-left: calc(var(--app-safe-left, 0px) + 1.5rem);
+    padding-right: calc(var(--app-safe-right, 0px) + 1.5rem);
+  }
+}
+
+.admin-panel__main {
+  padding-left: calc(var(--app-safe-left, 0px) + 1rem);
+  padding-right: calc(var(--app-safe-right, 0px) + 1rem);
+}
+
+@media (min-width: 640px) {
+  .admin-panel__main {
+    padding-left: calc(var(--app-safe-left, 0px) + 1.5rem);
+    padding-right: calc(var(--app-safe-right, 0px) + 1.5rem);
+  }
 }
 
 .text-yellow-400,

@@ -1,7 +1,7 @@
 import { Component, computed, inject, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HeroIcon } from './hero-icon';
-import { playUiSfx, UI_SFX, UiSfx } from './ui-sfx';
+import { playUiSfx, UiSfx } from './ui-sfx';
 import { KioskSettings } from '../../core/settings/kiosk-settings';
 import { MediaPlayer } from '../../core/media/media-player';
 import { PlatformService } from '../../core/platform/platform.service';
@@ -23,7 +23,7 @@ import { PlatformService } from '../../core/platform/platform.service';
       aria-modal="true"
       aria-label="Ajustes rápidos de sonido y operación"
       (click)="onBackdropClick($event)"
-      (keydown.escape)="close.emit()"
+      (keydown.escape)="closed.emit()"
     >
       <div
         class="relative w-full max-w-lg bg-neutral-900/95 border border-white/20 rounded-3xl p-5 sm:p-7 kiosk:p-8 shadow-2xl flex flex-col gap-5 text-white my-auto max-h-[92vh] overflow-y-auto"
@@ -53,7 +53,7 @@ import { PlatformService } from '../../core/platform/platform.service';
             uiSfx="click"
             class="size-10 sm:size-11 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 border border-white/15 flex items-center justify-center text-white/80 hover:text-white transition-all cursor-pointer shrink-0"
             aria-label="Cerrar ventana de ajustes"
-            (click)="close.emit()"
+            (click)="closed.emit()"
           >
             <app-hero-icon name="x-mark" class="text-lg sm:text-xl" />
           </button>
@@ -222,26 +222,38 @@ import { PlatformService } from '../../core/platform/platform.service';
             </div>
           } @else {
             <!-- Acciones de Operación principales -->
-            <div [class]="isNative() ? 'grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3' : 'grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3'">
-              <!-- 1. Kiosco / Restaurar ventana -->
-              <button
-                type="button"
-                uiSfx="click"
-                class="flex flex-col items-center justify-center gap-2 p-3 sm:p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 active:scale-95 border border-white/15 text-center transition-all cursor-pointer group"
-                (click)="onToggleKiosk()"
-              >
-                <div class="size-10 rounded-xl bg-white/10 group-hover:bg-white/15 flex items-center justify-center text-neutral-200 transition-all">
-                  <app-hero-icon [name]="isKiosk() ? 'arrows-pointing-in' : 'arrows-pointing-out'" class="text-xl" />
-                </div>
-                <div class="space-y-0.5">
-                  <span class="block text-xs font-bold text-white">
-                    {{ isKiosk() ? (isNative() ? 'Restaurar' : 'Salir Kiosco') : (isNative() ? 'Modo Kiosco' : 'Pantalla Completa') }}
-                  </span>
-                  <span class="block text-[10px] text-neutral-400">
-                    {{ isKiosk() ? (isNative() ? 'Modo ventana' : 'Ventana normal') : (isNative() ? 'Pantalla completa' : 'Activar fullscreen') }}
-                  </span>
-                </div>
-              </button>
+            <div
+              [class]="
+                isAndroid()
+                  ? isNative()
+                    ? 'grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3'
+                    : 'grid grid-cols-1 gap-2.5 sm:gap-3'
+                  : isNative()
+                    ? 'grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3'
+                    : 'grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3'
+              "
+            >
+              <!-- 1. Kiosco / Restaurar ventana (no aplica en Android) -->
+              @if (!isAndroid()) {
+                <button
+                  type="button"
+                  uiSfx="click"
+                  class="flex flex-col items-center justify-center gap-2 p-3 sm:p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 active:scale-95 border border-white/15 text-center transition-all cursor-pointer group"
+                  (click)="onToggleKiosk()"
+                >
+                  <div class="size-10 rounded-xl bg-white/10 group-hover:bg-white/15 flex items-center justify-center text-neutral-200 transition-all">
+                    <app-hero-icon [name]="isKiosk() ? 'arrows-pointing-in' : 'arrows-pointing-out'" class="text-xl" />
+                  </div>
+                  <div class="space-y-0.5">
+                    <span class="block text-xs font-bold text-white">
+                      {{ isKiosk() ? (isNative() ? 'Restaurar' : 'Salir Kiosco') : (isNative() ? 'Modo Kiosco' : 'Pantalla Completa') }}
+                    </span>
+                    <span class="block text-[10px] text-neutral-400">
+                      {{ isKiosk() ? (isNative() ? 'Modo ventana' : 'Ventana normal') : (isNative() ? 'Pantalla completa' : 'Activar fullscreen') }}
+                    </span>
+                  </div>
+                </button>
+              }
 
               <!-- 2. Reiniciar -->
               <button
@@ -295,7 +307,7 @@ export class QuickSettingsDialog {
   private readonly mediaPlayer = inject(MediaPlayer);
   private readonly platform = inject(PlatformService);
 
-  readonly close = output<void>();
+  readonly closed = output<void>();
 
   protected readonly Math = Math;
 
@@ -305,13 +317,14 @@ export class QuickSettingsDialog {
   protected readonly hasSessionAudioOverrides = computed(() => this.settings.hasSessionAudioOverrides());
   protected readonly isKiosk = computed(() => this.platform.isKiosk());
   protected readonly isNative = computed(() => this.platform.isNative);
+  protected readonly isAndroid = computed(() => this.platform.isAndroid);
 
   protected readonly confirmAction = signal<'restart' | 'exit' | null>(null);
   protected readonly opMessage = signal<string | null>(null);
 
   protected onBackdropClick(event: MouseEvent): void {
     if (event.target === event.currentTarget) {
-      this.close.emit();
+      this.closed.emit();
     }
   }
 

@@ -146,9 +146,9 @@ describe('QuickSettingsDialog', () => {
     expect(mockPlatform.restart).not.toHaveBeenCalled();
   });
 
-  it('emite close al hacer clic en el backdrop', () => {
+  it('emite closed al hacer clic en el backdrop', () => {
     let closed = false;
-    component.close.subscribe(() => {
+    component.closed.subscribe(() => {
       closed = true;
     });
 

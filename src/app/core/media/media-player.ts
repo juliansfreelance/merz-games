@@ -1,4 +1,4 @@
-import { effect, inject, Injectable } from '@angular/core';
+import { effect, inject, Injectable, Signal, signal } from '@angular/core';
 import { AppLogger } from '../logging/app-error';
 import { assetUrl } from '../platform/asset-url';
 import { KioskSettings } from '../settings/kiosk-settings';
@@ -36,6 +36,7 @@ const SFX_POOL_SIZE = 6;
  * - Sin fetch a internet.
  * - Limpieza en `DestroyRef` (servicio `providedIn: 'root'`, vive toda la app).
  * - `soundEnabled = false` silencia todos los canales.
+ * - Segundo plano / pérdida de foco: `setBackgroundSuspended(true)` pausa audio.
  */
 @Injectable({ providedIn: 'root' })
 export class MediaPlayer {
@@ -55,6 +56,12 @@ export class MediaPlayer {
   // ── Canal SFX ─────────────────────────────────────────────────────────────
   private readonly _sfxPool: HTMLAudioElement[] = [];
 
+  // ── Segundo plano / pérdida de foco ───────────────────────────────────────
+  private _backgroundSuspended = false;
+  private _bgmPausedByBackground = false;
+  private _mediaPausedByBackground = false;
+  private readonly _backgroundSuspendedSig = signal(false);
+
   constructor() {
     effect(() => {
       const enabled = this.settings.soundEnabled();
@@ -63,6 +70,27 @@ export class MediaPlayer {
         this._bgmElement.volume = enabled ? bgmVol : 0;
       }
     });
+  }
+
+  /** True cuando la app/pestaña no está en primer plano (silencio forzado). */
+  get isBackgroundSuspended(): Signal<boolean> {
+    return this._backgroundSuspendedSig.asReadonly();
+  }
+
+  /**
+   * Silencia o reanuda el audio según primer plano.
+   * Web: pestaña oculta / otra ventana. Windows/Android nativo: sin foco o minimizada.
+   */
+  setBackgroundSuspended(suspended: boolean): void {
+    if (this._backgroundSuspended === suspended) return;
+    this._backgroundSuspended = suspended;
+    this._backgroundSuspendedSig.set(suspended);
+
+    if (suspended) {
+      this._suspendForBackground();
+    } else {
+      this._resumeFromBackground();
+    }
   }
 
   // ─── Canal media genérico ─────────────────────────────────────────────────
@@ -74,6 +102,10 @@ export class MediaPlayer {
    * Si es un video y soundEnabled = false, se reproduce con volumen 0 (no se cancela la imagen).
    */
   play(url: string, options: PlayOptions = {}): void {
+    if (this._backgroundSuspended) {
+      this.logger.info('MediaPlayer', 'play() ignorado: app en segundo plano.');
+      return;
+    }
     const isVideo = /\.(mp4|webm)$/i.test(url);
     if (!this.settings.soundEnabled() && !isVideo) {
       this.logger.info('MediaPlayer', 'play() ignorado: soundEnabled = false.');
@@ -113,12 +145,14 @@ export class MediaPlayer {
     if (!this.settings.soundEnabled()) {
       return 0;
     }
-    const vol =
-      typeof videoVolume === 'number'
-        ? videoVolume
-        : this.settings.videoVolume
-        ? this.settings.videoVolume()
-        : 0.5;
+    let vol: number;
+    if (typeof videoVolume === 'number') {
+      vol = videoVolume;
+    } else if (this.settings.videoVolume) {
+      vol = this.settings.videoVolume();
+    } else {
+      vol = 0.5;
+    }
     return Math.max(0, Math.min(1, vol));
   }
 
@@ -205,6 +239,10 @@ export class MediaPlayer {
    * Utilizado en tramos clásicos del protector o al salir del protector.
    */
   resumeBgm(): void {
+    if (this._backgroundSuspended) {
+      this.logger.info('MediaPlayer', '[BGM] resumeBgm() ignorado: app en segundo plano.');
+      return;
+    }
     if (!this._bgmElement || !this._bgmUnlocked) return;
     if (!this.settings.soundEnabled()) {
       this.logger.info('MediaPlayer', '[BGM] resumeBgm() ignorado: soundEnabled = false.');
@@ -234,6 +272,7 @@ export class MediaPlayer {
    * reutiliza la más antigua.
    */
   playSfx(url: string, volume = 1): void {
+    if (this._backgroundSuspended) return;
     if (!this.settings.soundEnabled()) return;
 
     const element = this._acquireSfxVoice();
@@ -254,6 +293,10 @@ export class MediaPlayer {
   // ─── Interno ─────────────────────────────────────────────────────────────────
 
   private _startBgm(): void {
+    if (this._backgroundSuspended) {
+      this.logger.info('MediaPlayer', '[BGM] No se inicia: app en segundo plano.');
+      return;
+    }
     if (!this._bgmUrl) return;
     if (!this.settings.soundEnabled()) {
       this.logger.info('MediaPlayer', '[BGM] soundEnabled = false, no se inicia.');
@@ -272,6 +315,43 @@ export class MediaPlayer {
     });
 
     this.logger.info('MediaPlayer', `[BGM] Iniciada: ${this._bgmUrl}`);
+  }
+
+  private _suspendForBackground(): void {
+    this._bgmPausedByBackground = false;
+    this._mediaPausedByBackground = false;
+
+    if (this._bgmElement && !this._bgmElement.paused) {
+      this._bgmPausedByBackground = true;
+      this._bgmElement.pause();
+    }
+
+    for (const sfx of this._sfxPool) {
+      if (!sfx.paused) sfx.pause();
+    }
+
+    if (this._mediaElement && !this._mediaElement.paused) {
+      this._mediaPausedByBackground = true;
+      this._mediaElement.pause();
+    }
+
+    this.logger.info('MediaPlayer', 'Audio suspendido (segundo plano / sin foco).');
+  }
+
+  private _resumeFromBackground(): void {
+    if (this._bgmPausedByBackground) {
+      this._bgmPausedByBackground = false;
+      this.resumeBgm();
+    }
+
+    if (this._mediaPausedByBackground && this._mediaElement) {
+      this._mediaPausedByBackground = false;
+      void this._mediaElement.play()?.catch((err: unknown) => {
+        this.logger.warn('MediaPlayer', '[media] Error al reanudar tras segundo plano:', err);
+      });
+    }
+
+    this.logger.info('MediaPlayer', 'Audio listo para primer plano.');
   }
 
   /** Pausa y resetea el canal genérico SIN corromper el preloadCache. */

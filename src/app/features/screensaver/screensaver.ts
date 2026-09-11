@@ -3,6 +3,7 @@ import {
   Component,
   computed,
   DestroyRef,
+  effect,
   ElementRef,
   inject,
   output,
@@ -21,6 +22,13 @@ import { AssetSrc } from '../../core/platform/asset-src';
 
 /** Tiempo mínimo de animación clásica entre videos en modo video (mínimo 20 s). */
 export const CLASSIC_DWELL_MS = 20_000;
+
+/** [0, 1) para posición y dirección visual del logo. */
+function randomUnit(): number {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return buf[0]! / 2 ** 32;
+}
 
 /**
  * Componente de protector de pantalla (Screensaver).
@@ -94,6 +102,22 @@ export class Screensaver implements AfterViewInit {
       this.startClassicDwell();
     }
 
+    // Clips del protector: pausar en segundo plano; reanudar solo si seguimos en modo video.
+    effect(() => {
+      const suspended = this.mediaPlayer.isBackgroundSuspended();
+      if (!this.isShowingVideo()) return;
+      const el = this.videoElement()?.nativeElement;
+      if (!el) return;
+      if (suspended) {
+        el.pause();
+        return;
+      }
+      el.volume = this.effectiveVolume();
+      void el.play()?.catch(() => {
+        this.finishVideoAndReturnToClassic();
+      });
+    });
+
     this.destroyRef.onDestroy(() => {
       this.stopVideoAndTimers();
     });
@@ -137,14 +161,14 @@ export class Screensaver implements AfterViewInit {
       const maxY = Math.max(0, H - h);
 
       // Posición inicial aleatoria dentro de los límites
-      this.posX = Math.random() * maxX;
-      this.posY = Math.random() * maxY;
+      this.posX = randomUnit() * maxX;
+      this.posY = randomUnit() * maxY;
 
       // Velocidad y dirección inicial
       const speed = 140;
-      const angle = (Math.random() * 0.4 + 0.3) * Math.PI;
-      this.velX = speed * Math.cos(angle) * (Math.random() > 0.5 ? 1 : -1);
-      this.velY = speed * Math.sin(angle) * (Math.random() > 0.5 ? 1 : -1);
+      const angle = (randomUnit() * 0.4 + 0.3) * Math.PI;
+      this.velX = speed * Math.cos(angle) * (randomUnit() > 0.5 ? 1 : -1);
+      this.velY = speed * Math.sin(angle) * (randomUnit() > 0.5 ? 1 : -1);
 
       this.lastTimestamp = performance.now();
 

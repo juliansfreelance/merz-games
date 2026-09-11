@@ -238,6 +238,41 @@ describe('MediaPlayer', () => {
     expect(played).toHaveLength(0);
   });
 
+  it('setBackgroundSuspended(true) pausa BGM y bloquea SFX', () => {
+    const { player, elements } = buildPlayer(true);
+    player.setBgm('audio/bgm.mp3');
+    player.unlockBgm();
+    const bgmEl = elements[elements.length - 1] as MockMediaElement;
+    bgmEl.paused = false;
+
+    player.setBackgroundSuspended(true);
+    expect(bgmEl.pause).toHaveBeenCalled();
+    expect(player.isBackgroundSuspended()).toBe(true);
+
+    bgmEl.play.mockClear();
+    player.playSfx('sfx/click.mp3');
+    const sfxPlayed = elements.filter(
+      (el) => el !== bgmEl && (el as MockMediaElement).play.mock.calls.length > 0,
+    );
+    expect(sfxPlayed).toHaveLength(0);
+  });
+
+  it('setBackgroundSuspended(false) reanuda BGM solo si lo pausó el segundo plano', () => {
+    const { player, elements } = buildPlayer(true);
+    player.setBgm('audio/bgm.mp3', 0.4);
+    player.unlockBgm();
+    const bgmEl = elements[elements.length - 1] as MockMediaElement;
+    bgmEl.paused = false;
+
+    player.setBackgroundSuspended(true);
+    bgmEl.play.mockClear();
+    bgmEl.paused = true;
+
+    player.setBackgroundSuspended(false);
+    expect(bgmEl.play).toHaveBeenCalled();
+    expect(player.isBackgroundSuspended()).toBe(false);
+  });
+
   it('effectiveVideoVolume() retorna 0 cuando soundEnabled = false', () => {
     const { player } = buildPlayer(false);
     expect(player.effectiveVideoVolume(0.8)).toBe(0);

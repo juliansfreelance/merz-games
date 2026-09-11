@@ -36,7 +36,11 @@ export const CONTENT_OFFLINE_MESSAGE =
   'Sin conexión. El kiosco sigue operando con el catálogo local.';
 
 export const CONTENT_PACK_DESKTOP_ONLY_MESSAGE =
-  'Los packs OTA (archivos nuevos) solo se descargan en la app de escritorio. El catálogo JSON sí se aplicó; los assets de semilla siguen en el bundle.';
+  'Los packs OTA (archivos nuevos) solo se descargan en la app nativa. El catálogo JSON sí se aplicó; los assets de semilla siguen en el bundle.';
+
+/** Updater binario no aplica en Android: reinstalar APK. */
+export const APP_UPDATE_ANDROID_SIDELOAD_MESSAGE =
+  'En Android la app se actualiza reinstalando el APK. El canal OTA de contenido (catálogo y packs) sí funciona.';
 
 export const CONTENT_PACK_INVALID_MESSAGE =
   'El manifest remoto no es válido o es incompatible. Se conservó el catálogo anterior.';

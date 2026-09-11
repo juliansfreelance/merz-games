@@ -46,6 +46,7 @@ export class App {
   private versionPressTimer: ReturnType<typeof setTimeout> | null = null;
 
   protected readonly appVersion = this.platformService.appVersion;
+  protected readonly isAndroid = computed(() => this.platformService.isAndroid);
   protected readonly isScreensaverActive = this.watchdog.isActive;
   protected readonly isQuickSettingsOpen = signal<boolean>(false);
   protected readonly atmosphereMotionEnabled = this.settings.atmosphereMotionEnabled;
@@ -143,7 +144,10 @@ export class App {
     this.mediaPlayer.preload(UI_SFX.back);
     this.mediaPlayer.preload(UI_SFX.select);
 
-    afterNextRender(() => this.enterNativeKiosk());
+    afterNextRender(() => {
+      this.enterNativeKiosk();
+      this.installAudioFocusGuards();
+    });
 
     // Configurar el BGM desde el manifest en cuanto el catálogo esté disponible.
     // La reproducción NO arranca aquí: espera el primer gesto (onFirstGesture).
@@ -155,6 +159,59 @@ export class App {
         this.mediaPlayer.setBgm(bgm, volume);
       }
     });
+  }
+
+  /**
+   * Silencia BGM/SFX al perder foco o ir a segundo plano.
+   * Web: visibility + blur/focus. Nativo (Windows/Android): también onFocusChanged de Tauri.
+   */
+  private installAudioFocusGuards(): void {
+    if (typeof document === 'undefined' || typeof window === 'undefined') return;
+
+    let windowFocused = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+
+    const sync = (): void => {
+      const suspended = document.hidden || !windowFocused;
+      this.mediaPlayer.setBackgroundSuspended(suspended);
+    };
+
+    const onVisibility = (): void => sync();
+    const onBlur = (): void => {
+      windowFocused = false;
+      sync();
+    };
+    const onFocus = (): void => {
+      windowFocused = true;
+      sync();
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('focus', onFocus);
+    sync();
+
+    this.destroyRef.onDestroy(() => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('blur', onBlur);
+      window.removeEventListener('focus', onFocus);
+    });
+
+    if (!this.platformService.isNative) return;
+
+    void (async () => {
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const unlisten = await getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+          windowFocused = focused;
+          sync();
+        });
+        this.destroyRef.onDestroy(() => {
+          unlisten();
+        });
+      } catch {
+        // Sin API de ventana: visibility/blur bastan (p. ej. tests).
+      }
+    })();
   }
 
   /**

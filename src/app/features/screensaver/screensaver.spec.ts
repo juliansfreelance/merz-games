@@ -66,6 +66,7 @@ describe('Screensaver Component', () => {
     mockMediaPlayer = {
       pauseBgm: vi.fn(),
       resumeBgm: vi.fn(),
+      isBackgroundSuspended: signal(false),
       effectiveVideoVolume: vi.fn().mockImplementation((vol?: number) => {
         return soundEnabledSignal() ? (vol ?? 0.5) : 0;
       }),

@@ -2,7 +2,10 @@
 <div class="fixed inset-0 flex items-center justify-center bg-neutral-950 overflow-hidden select-none">
 
   <!-- Marco principal de la aplicación con atmósfera y contenido adaptable -->
-  <div class="relative w-full h-full min-h-0 overflow-hidden flex flex-col">
+  <div
+    class="app-shell relative w-full h-full min-h-0 overflow-hidden flex flex-col"
+    [class.app-shell--android]="isAndroid()"
+  >
 
     <!-- Atmósfera de fondo viva (degradado flotante gobernado por catálogo) -->
     <app-floating-gradient
@@ -11,7 +14,7 @@
     />
 
     <!-- Contenido de ruta activa (capa interactiva que gestiona su scroll natural y sticky footer) -->
-    <div class="relative z-10 w-full h-full min-h-0 flex flex-col overflow-hidden">
+    <div class="app-shell__content relative z-10 w-full h-full min-h-0 flex flex-col overflow-hidden">
       <router-outlet />
     </div>
 
@@ -20,7 +23,7 @@
       <button
         type="button"
         uiSfx="click"
-        class="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 z-40 size-11 sm:size-12 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 border border-white/20 backdrop-blur-md shadow-xl flex items-center justify-center text-white/80 hover:text-white transition-all cursor-pointer select-none focus:outline-none touch-manipulation"
+        class="app-shell__quick-settings absolute z-40 size-11 sm:size-12 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 border border-white/20 backdrop-blur-md shadow-xl flex items-center justify-center text-white/80 hover:text-white transition-all cursor-pointer select-none focus:outline-none touch-manipulation"
         [class.border-amber-400/50]="isQuickSettingsOpen()"
         [class.text-amber-300]="isQuickSettingsOpen()"
         [class.bg-amber-500/20]="isQuickSettingsOpen()"
@@ -33,12 +36,12 @@
 
     <!-- Diálogo modal de ajustes rápidos -->
     @if (isQuickSettingsOpen()) {
-      <app-quick-settings-dialog (close)="closeQuickSettings()" />
+      <app-quick-settings-dialog (closed)="closeQuickSettings()" />
     }
 
     <!-- Badge de versión: long-press (~2 s) abre el login de administración -->
     <span
-      class="absolute bottom-1 right-3 text-[10px] text-neutral-600 font-mono z-50 select-none cursor-default"
+      class="app-shell__version absolute text-[10px] text-neutral-600 font-mono z-50 select-none cursor-default"
       style="touch-action: manipulation; -webkit-touch-callout: none;"
       (pointerdown)="onVersionPressStart($event)"
       (pointerup)="onVersionPressEnd()"

@@ -9,7 +9,6 @@
     "core:window:default",
     "core:app:default",
     "core:resources:default",
-    "updater:default",
     "allow-kiosk-ops",
     "fs:default",
     "fs:allow-applocaldata-read-recursive",

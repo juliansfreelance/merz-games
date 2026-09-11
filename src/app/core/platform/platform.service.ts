@@ -14,7 +14,7 @@ interface TauriGlobals {
   __TAURI__?: unknown;
 }
 
-const BROWSER_ONLY_MESSAGE = 'Solo en la app de escritorio';
+const BROWSER_ONLY_MESSAGE = 'Solo en la app nativa';
 
 function detectNative(): boolean {
   if (typeof window === 'undefined') return false;
@@ -22,11 +22,17 @@ function detectNative(): boolean {
   return !!globals.__TAURI_INTERNALS__ || !!globals.__TAURI__;
 }
 
+function detectAndroid(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Android/i.test(navigator.userAgent);
+}
+
 @Injectable({
   providedIn: 'root',
 })
 export class PlatformService {
   private readonly _isNative = detectNative();
+  private readonly _isAndroid = detectAndroid();
   private readonly _platformKind: PlatformKind = this._isNative ? 'tauri' : 'browser';
   private readonly _appVersion = signal<string>(APP_VERSION);
   private readonly _isKiosk = signal<boolean>(true);
@@ -42,6 +48,19 @@ export class PlatformService {
 
   get isNative(): boolean {
     return this._isNative;
+  }
+
+  /** True en WebView Android (Tauri APK u otro). */
+  get isAndroid(): boolean {
+    return this._isAndroid;
+  }
+
+  /**
+   * Updater binario de Tauri (latest.json): solo desktop.
+   * En Android la app se actualiza reinstalando el APK.
+   */
+  get supportsBinaryUpdater(): boolean {
+    return this._isNative && !this._isAndroid;
   }
 
   get platformKind(): PlatformKind {
@@ -120,7 +139,7 @@ export class PlatformService {
     if (!this._isNative) {
       return {
         ok: false,
-        message: 'Cerrar la aplicación solo está disponible en la app de escritorio.',
+        message: 'Cerrar la aplicación solo está disponible en la app nativa.',
       };
     }
     return this.invokeKioskCommand('exit_app');

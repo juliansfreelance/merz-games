@@ -45,16 +45,16 @@ export class BrowserContentFs implements ContentFsApi {
     /* no-op */
   }
   async writeFile(): Promise<void> {
-    throw new Error('Solo en la app de escritorio');
+    throw new Error('Solo en la app nativa');
   }
   async writeTextFile(): Promise<void> {
-    throw new Error('Solo en la app de escritorio');
+    throw new Error('Solo en la app nativa');
   }
   async readFile(): Promise<Uint8Array> {
-    throw new Error('Solo en la app de escritorio');
+    throw new Error('Solo en la app nativa');
   }
   async readTextFile(): Promise<string> {
-    throw new Error('Solo en la app de escritorio');
+    throw new Error('Solo en la app nativa');
   }
   async remove(): Promise<void> {
     /* no-op */
@@ -63,7 +63,7 @@ export class BrowserContentFs implements ContentFsApi {
     /* no-op */
   }
   async copyFile(): Promise<void> {
-    throw new Error('Solo en la app de escritorio');
+    throw new Error('Solo en la app nativa');
   }
   async listFiles(): Promise<string[]> {
     return [];

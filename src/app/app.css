@@ -5,3 +5,46 @@
   overflow: hidden;
   background-color: #0a0a0a;
 }
+
+/*
+ * Insets de pantalla (notch / status bar / home indicator).
+ * En Android WebView env() a veces es 0: usamos mínimos generosos.
+ */
+.app-shell {
+  --app-safe-top: max(1.25rem, env(safe-area-inset-top, 0px));
+  --app-safe-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+  --app-safe-right: max(0.75rem, env(safe-area-inset-right, 0px));
+  --app-safe-left: max(0.75rem, env(safe-area-inset-left, 0px));
+}
+
+.app-shell--android {
+  --app-safe-top: max(2rem, env(safe-area-inset-top, 0px));
+  --app-safe-bottom: max(2rem, env(safe-area-inset-bottom, 0px));
+  --app-safe-right: max(1rem, env(safe-area-inset-right, 0px));
+  --app-safe-left: max(1rem, env(safe-area-inset-left, 0px));
+}
+
+.app-shell__content {
+  padding-top: var(--app-safe-top);
+  padding-bottom: var(--app-safe-bottom);
+  padding-left: var(--app-safe-left);
+  padding-right: var(--app-safe-right);
+  box-sizing: border-box;
+}
+
+.app-shell__quick-settings {
+  top: calc(var(--app-safe-top) + 0.35rem);
+  right: calc(var(--app-safe-right) + 0.35rem);
+}
+
+.app-shell__version {
+  bottom: calc(var(--app-safe-bottom) + 0.15rem);
+  right: calc(var(--app-safe-right) + 0.15rem);
+  /* Zona táctil más amplia para el long-press del panel */
+  padding: 0.65rem 0.85rem;
+  min-width: 2.75rem;
+  min-height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
