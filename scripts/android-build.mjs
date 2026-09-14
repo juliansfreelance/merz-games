@@ -24,13 +24,32 @@ const TARGETS = [
   { cli: 'armv7', triple: 'armv7-linux-androideabi', abi: 'armeabi-v7a' },
 ];
 
+function withHashStyle(existing) {
+  const flag = '-C link-arg=-Wl,--hash-style=both';
+  if (!existing) return flag;
+  if (existing.includes('--hash-style=')) return existing;
+  return `${existing} ${flag}`;
+}
+
+const androidEnv = {
+  ...process.env,
+  CARGO_NDK_ANDROID_PLATFORM: process.env.CARGO_NDK_ANDROID_PLATFORM || '24',
+  CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS: withHashStyle(
+    process.env.CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS,
+  ),
+  CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS: withHashStyle(
+    process.env.CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS,
+  ),
+};
+
 function run(command, args, opts = {}) {
+  const { env: extraEnv, ...rest } = opts;
   const result = spawnSync(command, args, {
     cwd: root,
     stdio: 'inherit',
     shell: true,
-    env: process.env,
-    ...opts,
+    ...rest,
+    env: { ...androidEnv, ...extraEnv },
   });
   return result.status ?? 1;
 }

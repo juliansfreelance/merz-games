@@ -1,0 +1,12 @@
+# Android 7.x (API 24/25) exige DT_HASH. El lld del NDK moderno solo emite GNU hash.
+[target.aarch64-linux-android]
+rustflags = ["-C", "link-arg=-Wl,--hash-style=both"]
+
+[target.armv7-linux-androideabi]
+rustflags = ["-C", "link-arg=-Wl,--hash-style=both"]
+
+[target.i686-linux-android]
+rustflags = ["-C", "link-arg=-Wl,--hash-style=both"]
+
+[target.x86_64-linux-android]
+rustflags = ["-C", "link-arg=-Wl,--hash-style=both"]

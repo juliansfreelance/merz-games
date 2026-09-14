@@ -25,6 +25,11 @@ android {
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
     }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+        isCoreLibraryDesugaringEnabled = true
+    }
     signingConfigs {
         create("release") {
             val keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -73,6 +78,12 @@ android {
     buildFeatures {
         buildConfig = true
     }
+    packaging {
+        jniLibs {
+            // Android 7.x / firmwares de kiosco no cargan .so desde el APK sin extraer.
+            useLegacyPackaging = true
+        }
+    }
 }
 
 rust {
@@ -85,9 +96,22 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.10.1")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.lifecycle:lifecycle-process:2.10.0")
+    // Android 7.x ART no tiene java.lang.BootstrapMethodError (jackson 2.13+).
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.4")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.0")
+}
+
+// Tauri arrastra jackson-databind 2.15.3; en API 24/25 crashea al crear MainActivity.
+configurations.configureEach {
+    resolutionStrategy {
+        force(
+            "com.fasterxml.jackson.core:jackson-databind:2.12.7.1",
+            "com.fasterxml.jackson.core:jackson-core:2.12.7",
+            "com.fasterxml.jackson.core:jackson-annotations:2.12.7",
+        )
+    }
 }
 
 apply(from = "tauri.build.gradle.kts")

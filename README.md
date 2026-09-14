@@ -4,7 +4,7 @@ Kiosco interactivo táctil para consultorios (**9:16** / diseño base **1080×19
 
 | | |
 | --- | --- |
-| **App** | `1.0.0` — Angular 22 + Tauri 2 (Windows + Android APK) |
+| **App** | `1.0.1` — Angular 22 + Tauri 2 (Windows + Android APK) |
 | **Catálogo** | `0.6.0` — Radiesse, Ultherapy; Belotero (`develop`); motores Memoria y Triqui |
 | **Estado** | Fases **1–11** cerradas (Windows + APK Android sideload, API 24+). CI Android / Play Store pendientes. |
 

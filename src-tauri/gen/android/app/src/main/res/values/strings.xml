@@ -1,4 +1,6 @@
 <resources>
     <string name="app_name">"Merz Games"</string>
     <string name="main_activity_title">"Merz Games"</string>
+    <string name="webview_update_title">Hay que actualizar Android System WebView</string>
+    <string name="webview_update_body">Esta pantalla tiene un WebView demasiado antiguo (%1$s) para ejecutar Merz Games.\n\nEn el emulador o un dispositivo con Play Store: abre Play Store → busca “Android System WebView” y “Chrome” → Actualizar. Luego vuelve a abrir la app.\n\nEn kioscos sin Play Store: instala manualmente Android System WebView 119 (última versión compatible con Android 7.1).</string>
 </resources>

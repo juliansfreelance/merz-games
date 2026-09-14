@@ -19,3 +19,14 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Jackson 2.12 en Android 7 (desugar + minify).
+-dontwarn com.fasterxml.jackson.databind.ext.DOMSerializer
+-dontwarn org.w3c.dom.bootstrap.DOMImplementationRegistry
+-dontwarn java.beans.ConstructorProperties
+-dontwarn java.beans.Transient
+-keep class com.fasterxml.jackson.** { *; }
+-keep class com.merzgames.app.** { *; }
+-keepclassmembers class * {
+    native <methods>;
+}

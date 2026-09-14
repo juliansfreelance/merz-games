@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.0.1",
   "app": {
     "theme": {
       "home": {
@@ -114,7 +114,7 @@
     {
       "id": "radiesse",
       "name": "Radiesse<sup>®</sup>",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "enabled": true,
       "order": 1,
       "image": "/content/images/brands/RadiesseBrand.png",
@@ -128,7 +128,7 @@
         {
           "nombre": "Radiesse Promocional 2",
           "source": "/content/videos/radiesse2.mp4",
-          "enabled": true
+          "enabled": false
         }
       ],
       "description": "Estimulador de colágeno para una piel firme, elástica y definida.",
@@ -168,7 +168,7 @@
     {
       "id": "ultherapy",
       "name": "Ultherapy<sup>®</sup>",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "enabled": true,
       "order": 2,
       "image": "/content/images/brands/UltherapyBrand.png",
@@ -182,7 +182,7 @@
         {
           "nombre": "Ultherapy Promocional 2",
           "source": "/content/videos/ultherapy2.mp4",
-          "enabled": true
+          "enabled": false
         }
       ],
       "description": "Lifting no invasivo con ultrasonido microfocalizado en tiempo real.",
