@@ -23,6 +23,7 @@ describe('QuickSettingsDialog', () => {
 
   let mockMediaPlayer: {
     playSfx: ReturnType<typeof vi.fn>;
+    ensureInteractiveAudio: ReturnType<typeof vi.fn>;
   };
 
   let mockPlatform: {
@@ -58,6 +59,7 @@ describe('QuickSettingsDialog', () => {
 
     mockMediaPlayer = {
       playSfx: vi.fn(),
+      ensureInteractiveAudio: vi.fn(),
     };
 
     mockPlatform = {
@@ -167,13 +169,25 @@ describe('QuickSettingsDialog', () => {
     const buttons = Array.from(el.querySelectorAll('button')).map((b) => b.textContent?.trim());
 
     expect(buttons.some((t) => t?.includes('Reiniciar'))).toBe(true);
-    expect(buttons.some((t) => t?.includes('Salir Kiosco') || t?.includes('Pantalla Completa') || t?.includes('Modo Kiosco') || t?.includes('Restaurar'))).toBe(true);
-    expect(buttons.some((t) => t?.includes('Cerrar') && t?.includes('Salir de la app'))).toBe(false);
+    expect(
+      buttons.some(
+        (t) =>
+          t?.includes('Salir Kiosco') ||
+          t?.includes('Pantalla Completa') ||
+          t?.includes('Modo Kiosco') ||
+          t?.includes('Restaurar'),
+      ),
+    ).toBe(true);
+    expect(buttons.some((t) => t?.includes('Cerrar') && t?.includes('Salir de la app'))).toBe(
+      false,
+    );
 
     // Si sale de kiosco / pantalla completa, debe mostrar opción para activar Pantalla Completa
     mockPlatform.isKiosk.set(false);
     fixture.detectChanges();
-    const updatedButtons = Array.from(el.querySelectorAll('button')).map((b) => b.textContent?.trim());
+    const updatedButtons = Array.from(el.querySelectorAll('button')).map((b) =>
+      b.textContent?.trim(),
+    );
     expect(updatedButtons.some((t) => t?.includes('Pantalla Completa'))).toBe(true);
   });
 });

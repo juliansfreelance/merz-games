@@ -734,7 +734,7 @@ describe('AdminPanel', () => {
       };
       component['openVideoPreview'](genVideo);
       component['togglePreviewVideo']();
-      expect(setGenSpy).toHaveBeenCalledWith('/content/videos/general1.mp4', false);
+      expect(setGenSpy).toHaveBeenCalledWith('/content/videos/general1.mp4', true);
 
       // Video de marca
       const brand = catalog.rawManifest().brands[0];

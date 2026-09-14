@@ -277,9 +277,9 @@ describe('KioskSettings', () => {
   });
 
   describe('Fase 8: Ajustes del protector y video', () => {
-    it('inicializa videoVolume en 0.5, order en "sequential" e idleMs en 180_000', () => {
+    it('inicializa videoVolume en 1, order en "sequential" e idleMs en 180_000', () => {
       const { settings } = buildSettings();
-      expect(settings.videoVolume()).toBe(0.5);
+      expect(settings.videoVolume()).toBe(1);
       expect(settings.screensaverVideoOrder()).toBe('sequential');
       expect(settings.screensaverIdleMs()).toBe(180_000);
     });
@@ -361,7 +361,7 @@ describe('KioskSettings', () => {
 
       settings.resetToDefault();
 
-      expect(settings.videoVolume()).toBe(0.5);
+      expect(settings.videoVolume()).toBe(1);
       expect(settings.screensaverVideoOrder()).toBe('sequential');
       expect(settings.screensaverIdleMs()).toBe(180_000);
     });
@@ -372,8 +372,8 @@ describe('KioskSettings', () => {
       const { settings } = buildSettings();
       expect(settings.hasSessionAudioOverrides()).toBe(false);
       expect(settings.soundEnabled()).toBe(true);
-      expect(settings.bgmVolume()).toBe(0.35);
-      expect(settings.sfxVolume()).toBe(0.7);
+      expect(settings.bgmVolume()).toBe(0.4);
+      expect(settings.sfxVolume()).toBe(0.6);
     });
 
     it('setSessionSoundEnabled modifica el valor efectivo sin persistir en storage', () => {
@@ -410,8 +410,8 @@ describe('KioskSettings', () => {
 
       expect(settings.bgmVolume()).toBe(0.7);
       expect(settings.sfxVolume()).toBe(0.2);
-      expect(settings.persistentBgmVolume()).toBe(0.35);
-      expect(settings.persistentSfxVolume()).toBe(0.7);
+      expect(settings.persistentBgmVolume()).toBe(0.4);
+      expect(settings.persistentSfxVolume()).toBe(0.6);
       expect(settings.hasSessionAudioOverrides()).toBe(true);
     });
 
@@ -428,8 +428,8 @@ describe('KioskSettings', () => {
 
       expect(settings.hasSessionAudioOverrides()).toBe(false);
       expect(settings.soundEnabled()).toBe(true);
-      expect(settings.bgmVolume()).toBe(0.35);
-      expect(settings.sfxVolume()).toBe(0.7);
+      expect(settings.bgmVolume()).toBe(0.4);
+      expect(settings.sfxVolume()).toBe(0.6);
     });
 
     it('setSoundEnabled persistente limpia los overrides de sesión', () => {

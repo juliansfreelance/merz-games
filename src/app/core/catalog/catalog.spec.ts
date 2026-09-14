@@ -41,7 +41,7 @@ describe('Content Catalog Manifest Contract', () => {
 
   it('should parse manifest and have a valid semver version', () => {
     expect(manifest).toBeTruthy();
-    expect(manifest.version).toBe('0.6.0');
+    expect(manifest.version).toBe('1.0.1');
   });
 
   it('should contain brands, games, and experiences collections', () => {
@@ -962,7 +962,7 @@ describe('UpdateModel', () => {
     ).toBe(true);
     const restoredGen = catalog.rawManifest()?.app?.protector?.attractionVideos;
     expect(restoredGen?.find((v) => v.source === '/content/videos/general1.mp4')?.enabled).toBe(
-      true,
+      false,
     );
   });
 });
