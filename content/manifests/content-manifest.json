@@ -1,5 +1,5 @@
 {
-  "version": "0.6.0",
+  "version": "1.0.0",
   "app": {
     "theme": {
       "home": {
@@ -71,9 +71,9 @@
     },
     "audio": {
       "soundEnabled": true,
-      "bgmVolume": 0.35,
-      "sfxVolume": 0.7,
-      "videoVolume": 0.5,
+      "bgmVolume": 0.4,
+      "sfxVolume": 0.6,
+      "videoVolume": 1,
       "backgroundMusic": "/content/audio/bgm.mp3"
     },
     "protector": {
@@ -84,7 +84,7 @@
         {
           "nombre": "General 1",
           "source": "/content/videos/general1.mp4",
-          "enabled": true
+          "enabled": false
         }
       ]
     },
